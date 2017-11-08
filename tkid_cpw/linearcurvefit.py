@@ -35,7 +35,10 @@ print ("The C0 equals {0} +/- {1} ".format(C0, sigb))
 
 residues = C - (m*L + C0)
 
-fig, ax = plt.subplots(figsize=(10,10))
+# Next part would be to ascertain that this does scale with the number of squares which should lead us to a way of computing the 
+# parasitic capacitance for any section of the capacitor tank
+
+.fig, ax = plt.subplots(figsize=(10,10))
 ax.plot(L, Y, 'bx', markersize=15)
 ax.plot(L, m *L  + C0, 'r')
 ax.set_xlabel(r'Length [$\mu $m]')
