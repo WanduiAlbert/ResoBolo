@@ -1,0 +1,31 @@
+(Let's make a smiley face)
+
+DS 1 10 1;
+L CM;
+(eye circle)
+R 4 0 0;
+DF;
+
+DS 2 100 1;
+C 1 T -1 0;
+DF;
+
+DS 3 10 1;
+L CM;
+(nose box)
+B 1 4 0 0;
+DF;
+
+DS 4;
+L CM;
+(mouth triangle)
+P -2 0 2 0 0 -1;
+DF;
+
+DS 5;
+L CM;
+(define the wire frame only in the positive quadrant)
+W 1 200 0 200 40 170 113 113 170 40 200 0 200;
+DF;
+
+E
