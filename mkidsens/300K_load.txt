@@ -1,0 +1,31 @@
+Resonator parameters set.
+69.89533132499999 pW
+0.838898131149801 K
+Quasiparticle parameters calculated.
+
+The total inductance 9.990572278959341 nH
+Q factor from qp losses 773.8242051759414
+Resonant Frequency 300.0070945928163 MHz
+Internal Q factor 771.8333274720769
+Coupling Q factor 16447.091409502427
+Resonator Q factor 737.2361215201046
+Kinetic Inductance Fraction 0.38942436632514893
+surface resistance 0.22999999999999998 Ohm
+
+Resonator Bandwidth 203.4674413227561 kHz
+Coupling efficiency 0.17126182564397283
+Detuning efficiency 0.9987856680994217
+Fraction of Q_i from qp losses 0.9974272222417598
+
+QP time constant 0.7688940302700034 us
+Thermal recombination time constant 0.7689045044233774 us
+Bolometer Time constant 4.342738097971859 ms
+
+resobolo responsivity below 30Hz optical fluctuations 8.404407121770933e-11 1 / pW
+
+Optical NEP 158.14265199615195 aW / Hz(1/2)
+Phonon NEP 94.60170616033608 aW / Hz(1/2)
+TLS NEP 2672.901307926669 aW / Hz(1/2)
+Amplifier NEP 98266.80330628404 aW / Hz(1/2)
+Shot NEP 3.1913691466696394 aW / Hz(1/2)
+Total NEP 101195.64034151388 aW / Hz(1/2)

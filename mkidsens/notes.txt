@@ -1,0 +1,47 @@
+
+My big conclusions from the meeting:
+- Are we sure there's no amorphous dielectric in the capacitor?
+- Are we sure there's no amorphous dielectric in the Nb/Al contact?
+
+
+Fab processing questions:
+- how was oxide deposited / etched?
+- how do we know nitride was etched all the way through?
+- how do we know oxide was completely removed from capacitor?
+- can we use ellipsometry to confirm there is no dielectric on top of the
+capacitor?
+
+- Do we have series capacitors in the Nb-Al junctions?
+- Might be of order our tank capacitors, in which case they will introduce
+large dissipation/TLS from aluminum oxide.  But, means inductance would have to be way off.  So
+measure normal state resistance of inductors.
+
+Can we see tunnel junctions in the capacitors?
+
+Nb gap 1.5mV
+Al gap 0.2mV
+tunneling turn on voltage ~ 1.7mV sum of voltages
+AC stimulus using the bridge of at many currents.  Low current:  Should see
+zero voltage.  High currents:  exceed critical current of junction, tunneling
+voltage appears.  VMIX OVL due to tunneling maybe?
+
+joachim baselmans sron cosmic ray
+- unreleased bolometer sees cosmic rays from entire chip.  released bolometers
+are isolated from chip temperature, so don't see short pulses on chip
+temperature.
+
+Jonas unconcerned with different QTLS0 of frequency shift vs. Q
+fits.  Far away extrapolation.  Clear we have large TLS on island.
+
+slow chirped vs. fast chirped
+fast chirp:  chirp is much faster than resonator ring down time, at extremely
+high power.  1 Watt(!) level amplifiers.
+fast chirp lets you put signal in you readout amplifier all the time
+fast chirp lets you use the dynamic range of your ADC more effectively
+white noise uses readout amplifier well, but ADC poorly.
+
+Ringing in slow chirp network analysis:  resonator frequency shift decaying
+exponentially after chirp crosses it.  Beating with input signal?  Ratio?
+
+
+
