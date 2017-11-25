@@ -1,6 +1,8 @@
 
 import numpy as np
-import matplotlib.pyplot as pl
+import matplotlib
+matplotlib.use('TkAgg')
+import matplotlib.pyplot as plt
 import reso_fit
 from scipy import optimize
 
@@ -70,10 +72,10 @@ def main():
 	do_fit(fs,t1)
 	do_fit(fs,t2)
 
-	pl.plot(fs,np.abs(t1))
-	pl.plot(fs,np.abs(t2))
-	pl.grid()
-	pl.show()
+	plt.plot(fs,np.abs(t1),'b')
+	plt.plot(fs,np.abs(t2),'r')
+	plt.grid()
+	plt.show()
 
 if __name__=='__main__':
 	main()

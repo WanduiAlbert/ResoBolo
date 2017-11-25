@@ -36,7 +36,7 @@ Rb = 854 * u.kOhm
 Vdc = 7.0 * u.Volt
 
 P_opt = ((Vdc/Rb)**2 * Rh).to(u.pW)
-print ("The optical power is {0:2.2f}".format(P_opt))
+# print ("The optical power is {0:2.2f}".format(P_opt))
 
 gamma_leg = 1.6#2.65
 K_leg = 120 * u.picoWatt/u.Kelvin**gamma_leg
@@ -44,7 +44,7 @@ T_c = 1.32 * u.Kelvin
 T_0 = 0.23 * u.Kelvin # Temperature of the thermal bath
 C_b = 1 * u.picoJoule/u.Kelvin
 
-print ("Resonator parameters set.")
+# print ("Resonator parameters set.")
 
 # Material properties of the Aluminum superconductor
 tau_max = 500 * u.microsecond
@@ -63,7 +63,7 @@ Delta = (1.764 * k_B * T_c).to('J')
 # P_read = 3.0 * u.pW
 P_read = (-100 * dBm).to(u.pW)
 
-print ("The readout power is {0:2.2f}".format(P_read))
+# print ("The readout power is {0:2.2f}".format(P_read))
 x = P_read/P_opt
 
 # Determine T_b by balancing the input and the output power to the resobolo
@@ -85,7 +85,7 @@ Rs = (rho/t).to('Ohm') # surface resistance in ohms/sq
 L_k = (h * Rs/(2 * np.pi**2 * Delta) * N_sq).to('nH') # Kinetic inductance contribution
 L = L_g + L_k # total inductance
 
-print ("The total inductance", L)
+# print ("The total inductance", L)
 alpha = (L_k/L).to(1)
 
 f_r = 329 * u.MHz
