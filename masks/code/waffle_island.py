@@ -5,7 +5,7 @@ import gdspy as gds
 from collections import namedtuple
 
 Point = namedtuple('Point', ['x', 'y'])
-settings = {"layer":0, "datatype"}
+settings = {"layer":0, "datatype":0}
 #Island dimensions
 l = 500
 w = 150
@@ -34,8 +34,8 @@ waffle.add(boundary)
 waffle.add(perforation)
 
 spacing = 30
-ncols = l/(bound_l + spacing//2)
-nrows = w/(bound_l + spacing//2)
+ncols = l//(bound_l + spacing//2)
+nrows = w//(bound_l + spacing//2)
 origin = Point(3.5, 0)
 
 waffle_array = gds.CellArray(waffle, ncols, nrows, spacing, origin=origin)
