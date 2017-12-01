@@ -23,7 +23,8 @@ f_g = 328 * u.MHz
 T_amp = 3 * u.Kelvin
 eta_read = 0.1
 
-# I'll keep these here for now but I'm more interested in doing calculations for a dark run.
+# Working off of Jamie's spreadsheet adapted to Denis' Python script. Based on
+# the South Pole atmosphere and takes into account the atmospheric loading.
 nu_opt = 150 * u.GHz
 dnu_opt = 0.25
 eta_opt = 0.25
