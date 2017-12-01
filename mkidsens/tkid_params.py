@@ -41,7 +41,7 @@ P_opt = ((Vdc/Rb)**2 * Rh).to(u.pW)
 gamma_leg = 1.6#2.65
 K_leg = 120 * u.picoWatt/u.Kelvin**gamma_leg
 T_c = 1.32 * u.Kelvin
-T_0 = 0.23 * u.Kelvin # Temperature of the thermal bath
+T_0 = 60e-3 * u.Kelvin # Temperature of the thermal bath
 C_b = 1 * u.picoJoule/u.Kelvin
 
 # print ("Resonator parameters set.")
@@ -67,9 +67,9 @@ P_read = (-100 * dBm).to(u.pW)
 x = P_read/P_opt
 
 # Determine T_b by balancing the input and the output power to the resobolo
-# T_b= ((((1 + x)* P_opt)/K_leg + T_0**gamma_leg)**(1./gamma_leg)).to('K')
-# print(T_b)
-T_b = 60 * u.mK
+T_b= ((((1 + x)* P_opt)/K_leg + T_0**gamma_leg)**(1./gamma_leg)).to('K')
+print(T_b)
+# T_b = 0.38 * u.K
 
 # Physical properties of the superconductor + resonator capacitor
 t = 0.05 * u.um
