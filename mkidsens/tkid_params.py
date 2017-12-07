@@ -23,7 +23,8 @@ f_g = 328 * u.MHz
 T_amp = 3 * u.Kelvin
 eta_read = 0.1
 
-# I'll keep these here for now but I'm more interested in doing calculations for a dark run.
+# Working off of Jamie's spreadsheet adapted to Denis' Python script. Based on
+# the South Pole atmosphere and takes into account the atmospheric loading.
 nu_opt = 150 * u.GHz
 dnu_opt = 0.25
 eta_opt = 0.25
@@ -36,15 +37,15 @@ Rb = 854 * u.kOhm
 Vdc = 7.0 * u.Volt
 
 P_opt = ((Vdc/Rb)**2 * Rh).to(u.pW)
-print ("The optical power is {0:2.2f}".format(P_opt))
+# print ("The optical power is {0:2.2f}".format(P_opt))
 
 gamma_leg = 1.6#2.65
 K_leg = 120 * u.picoWatt/u.Kelvin**gamma_leg
 T_c = 1.32 * u.Kelvin
-T_0 = 0.23 * u.Kelvin # Temperature of the thermal bath
+T_0 = 60e-3 * u.Kelvin # Temperature of the thermal bath
 C_b = 1 * u.picoJoule/u.Kelvin
 
-print ("Resonator parameters set.")
+# print ("Resonator parameters set.")
 
 # Material properties of the Aluminum superconductor
 tau_max = 500 * u.microsecond
@@ -63,13 +64,13 @@ Delta = (1.764 * k_B * T_c).to('J')
 # P_read = 3.0 * u.pW
 P_read = (-100 * dBm).to(u.pW)
 
-print ("The readout power is {0:2.2f}".format(P_read))
+# print ("The readout power is {0:2.2f}".format(P_read))
 x = P_read/P_opt
 
 # Determine T_b by balancing the input and the output power to the resobolo
-# T_b= ((((1 + x)* P_opt)/K_leg + T_0**gamma_leg)**(1./gamma_leg)).to('K')
-# print(T_b)
-T_b = 60 * u.mK
+T_b= ((((1 + x)* P_opt)/K_leg + T_0**gamma_leg)**(1./gamma_leg)).to('K')
+print(T_b)
+# T_b = 0.38 * u.K
 
 # Physical properties of the superconductor + resonator capacitor
 t = 0.05 * u.um
@@ -85,7 +86,7 @@ Rs = (rho/t).to('Ohm') # surface resistance in ohms/sq
 L_k = (h * Rs/(2 * np.pi**2 * Delta) * N_sq).to('nH') # Kinetic inductance contribution
 L = L_g + L_k # total inductance
 
-print ("The total inductance", L)
+# print ("The total inductance", L)
 alpha = (L_k/L).to(1)
 
 f_r = 329 * u.MHz
@@ -105,15 +106,15 @@ Z0 = 50 * u.Ohm # Characteristic impedance of the line
 eta = (h * f_g / (2 * k_B * T_b)).to(1).value # Weird conversion because astropy
 S_1 = ((2/np.pi)*np.sqrt(2*Delta/(np.pi*k_B*T_b))*np.sinh(eta * u.rad)*K_0(eta)).to(1)
 S_2 = (1 + np.sqrt(2*Delta/(np.pi*k_B*T_b)) * np.exp(-eta) * I_0(eta)).to(1)
-print (S_1, S_2)
+#print (S_1, S_2)
 beta = S_1/S_2
 
 N_0 = ((3 * (gamma * (density/A_r)))/(2*np.pi**2 * k_B**2)).to('1/(J um^3)')
 Gamma_gen = (eta_read * P_read/Delta).to('1/s')
 n_th = (2*N_0 * np.sqrt(2*np.pi* k_B * T_b* Delta)*np.exp(-Delta/(k_B*T_b))).to('1/um^3')
 P_crit = (np.pi * N_0 * Delta**3 * A**2 * Z0/(hbar * rho)).to(dBm)
-print ("Critical readout power: {0:2.2f} ".format(P_crit))
-print ("Quasiparticle parameters calculated.\n")
+#print ("Critical readout power: {0:2.2f} ".format(P_crit))
+#print ("Quasiparticle parameters calculated.\n")
 
 # Quality factors
 Gamma_th = ((n_th * V_sc/tau_max)* (1 + 0.5 * n_th/n_qp_star)).to('1/s')
@@ -126,13 +127,13 @@ Q_c = (2 * C_i/(omega_r * C_c**2 * Z0)).to(1)
 Q_i = 1./(1/Q_qp + 1./Q_int)
 Q_r  = 1./(1./Q_c + 1./Q_i)
 
-print ("Q factor from qp losses", Q_qp)
-print ("Resonant Frequency", f_r)
-print ("Internal Q factor", Q_i)
-print ("Coupling Q factor", Q_c)
-print ("Resonator Q factor", Q_r)
-print ("Kinetic Inductance Fraction", alpha)
-print ("surface resistance", Rs)
+#print ("Q factor from qp losses", Q_qp)
+#print ("Resonant Frequency", f_r)
+#print ("Internal Q factor", Q_i)
+#print ("Coupling Q factor", Q_c)
+#print ("Resonator Q factor", Q_r)
+#print ("Kinetic Inductance Fraction", alpha)
+#print ("surface resistance", Rs)
 
 dx = ((f_g - f_r)/f_r).to(1)
 S_21 = 1 - (Q_r/Q_c)* 1./(1 + 2 * 1j * Q_r * dx)
@@ -143,11 +144,11 @@ chi_c = (4 * Q_r**2)/(Q_i * Q_c)
 chi_g = 1./(1 + (df_g/df_r)**2)
 chi_qp = Q_i/Q_qp
 
-print("")
-print ("Resonator Bandwidth", df_r)
-print ("Coupling efficiency", chi_c)
-print ("Detuning efficiency", chi_g)
-print ("Fraction of Q_i from qp losses", chi_qp)
+#print("")
+#print ("Resonator Bandwidth", df_r)
+#print ("Coupling efficiency", chi_c)
+#print ("Detuning efficiency", chi_g)
+#print ("Fraction of Q_i from qp losses", chi_qp)
 
 # Now we include the NEP estimates for the resobolo currently
 kappa = (1/2 + Delta/k_B/T_b).to(1)
@@ -156,18 +157,18 @@ G_b = (gamma_leg * P_leg/T_b).to('pW/K') # Conductance of the resobolo
 P_b = G_b * T_b
 tau_b = (C_b/G_b).to('s')
 
-print("")
-print("Conductance of Island ", G_b)
-print ("QP time constant", tau_qp)
-print ("Thermal recombination time constant", tau_th)
-print ("Bolometer Time constant", tau_b.to('ms'))
+#print("")
+#print("Conductance of Island ", G_b)
+#print ("QP time constant", tau_qp)
+#print ("Thermal recombination time constant", tau_th)
+#print ("Bolometer Time constant", tau_b.to('ms'))
 
 s = ((chi_c* chi_qp/4) * beta * (tau_qp/tau_th) * (kappa/P_b)).to('1/pW') # ignoring the
 #roll off factor due to the bolometer responsivity
 sx = s/8/Q_c # frequency responsivity
 
-print ("")
-print ("resobolo responsivity below 30Hz optical fluctuations", sx)
+#print ("")
+#print ("resobolo responsivity below 30Hz optical fluctuations", sx)
 
 # Optical NEP
 n_opt = 1/(np.exp(h*nu_opt/k_B/T_b) - 1).to(1)
@@ -191,10 +192,10 @@ NEP_shot = ((2 * n_qp * V_sc * (1/tau_qp + 1/tau_max))**0.5 * P_b *
 
 NEP_total = NEP_opt + NEP_ph + NEP_TLS + NEP_amp + NEP_shot
 
-print ("")
-print ("Optical NEP", NEP_opt)
-print ("Phonon NEP", NEP_ph)
-print ("TLS NEP", NEP_TLS)
-print ("Amplifier NEP", NEP_amp)
-print ("Shot NEP", NEP_shot)
-print ("Total NEP", NEP_total)
+#print ("")
+#print ("Optical NEP", NEP_opt)
+#print ("Phonon NEP", NEP_ph)
+#print ("TLS NEP", NEP_TLS)
+#print ("Amplifier NEP", NEP_amp)
+#print ("Shot NEP", NEP_shot)
+#print ("Total NEP", NEP_total)
