@@ -165,10 +165,12 @@ tau_b = (C_b/G_b).to('s')
 
 s = ((chi_c* chi_qp/4) * beta * (tau_qp/tau_th) * (kappa/P_b)).to('1/pW') # ignoring the
 #roll off factor due to the bolometer responsivity
-sx = (s * (Q_c/2/Q_r**2) * f_r).to(u.kHz/u.pW)# frequency responsivity
+sf = (s * (2/(chi_c * chi_g * Q_i) * (f_r**2/f_g))).to(u.kHz/u.pW) # actual freq
+#responsivity
+#sx = (s * (Q_c/2/Q_r**2) * f_r).to(u.kHz/u.pW)# frequency responsivity
 
 print ("")
-print ("resobolo responsivity ignoring bolometer rolloff", sx)
+print ("resobolo responsivity ignoring bolometer rolloff", sf)
 
 # Optical NEP
 n_opt = 1/(np.exp(h*nu_opt/k_B/T_b) - 1).to(1)
