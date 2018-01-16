@@ -19,7 +19,7 @@ dBm = u.dB(u.mW)
 gamma_s = 1
 Q_int = 187519
 # f_g = 205.128 * u.MHz
-f_g = 328 * u.MHz
+f_g = 328.8 * u.MHz
 T_amp = 3 * u.Kelvin
 eta_read = 0.1
 
@@ -41,7 +41,7 @@ print ("The optical power is {0:2.2f}".format(P_opt))
 gamma_leg = 1.6#2.65
 K_leg = 120 * u.picoWatt/u.Kelvin**gamma_leg
 T_c = 1.32 * u.Kelvin
-T_0 = 0.23 * u.Kelvin # Temperature of the thermal bath
+T_0 = 0.06 * u.Kelvin # Previously 0.23K Temperature of the thermal bath
 C_b = 1 * u.picoJoule/u.Kelvin
 
 print ("Resonator parameters set.")
@@ -61,15 +61,15 @@ Delta = (1.764 * k_B * T_c).to('J')
 # P_opt = (eta_opt * N_pol * dnu_opt * nu_opt * k_B * T_rj).to('pW')
 # print (P_opt)
 # P_read = 3.0 * u.pW
-P_read = (-100 * dBm).to(u.pW)
+P_read = (-80 * dBm).to(u.pW)
 
 print ("The readout power is {0:2.2f}".format(P_read))
 x = P_read/P_opt
 
 # Determine T_b by balancing the input and the output power to the resobolo
-# T_b= ((((1 + x)* P_opt)/K_leg + T_0**gamma_leg)**(1./gamma_leg)).to('K')
-# print(T_b)
-T_b = 60 * u.mK
+T_b= ((((1 + x)* P_opt)/K_leg + T_0**gamma_leg)**(1./gamma_leg)).to('K')
+print("The temperature of the island", T_b)
+# T_b = 60 * u.mK
 
 # Physical properties of the superconductor + resonator capacitor
 t = 0.05 * u.um
@@ -105,9 +105,10 @@ Z0 = 50 * u.Ohm # Characteristic impedance of the line
 # f_r = (omega_r/(2*np.pi)).to('MHz')
 
 eta = (h * f_g / (2 * k_B * T_b)).to(1).value # Weird conversion because astropy
+print ("The parameter eta has a value ", eta)
 S_1 = ((2/np.pi)*np.sqrt(2*Delta/(np.pi*k_B*T_b))*np.sinh(eta * u.rad)*K_0(eta)).to(1)
 S_2 = (1 + np.sqrt(2*Delta/(np.pi*k_B*T_b)) * np.exp(-eta) * I_0(eta)).to(1)
-print (S_1, S_2)
+# print (S_1, S_2)
 beta = S_1/S_2
 
 N_0 = ((3 * (gamma * (density/A_r)))/(2*np.pi**2 * k_B**2)).to('1/(J um^3)')
@@ -165,7 +166,7 @@ print ("Thermal recombination time constant", tau_th)
 print ("Bolometer Time constant", tau_b.to('ms'))
 
 s = ((chi_c* chi_qp/4) * beta * (tau_qp/tau_th) * (kappa/P_b)).to('1/pW') # ignoring the
-sf = (s * (2/(chi_c * chi_g * Q_i) * (f_r**2/f_g))).to(u.kHz/u.pW) # actual freq
+sf = (s * (2/(chi_c * chi_g * Q_i) * f_r)).to(u.kHz/u.pW) # actual freq
 #responsivity
 #sx = (s * (Q_c/2/Q_r**2) * f_r).to(u.kHz/u.pW)# frequency responsivity
 
