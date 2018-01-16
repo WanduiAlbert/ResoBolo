@@ -19,7 +19,7 @@ dBm = u.dB(u.mW)
 gamma_s = 1
 Q_int = 187519
 # f_g = 205.128 * u.MHz
-f_g = 328 * u.MHz
+f_g = 329 * u.MHz
 T_amp = 3 * u.Kelvin
 eta_read = 0.1
 
@@ -39,8 +39,8 @@ Vdc = 7.0 * u.Volt
 P_opt = ((Vdc/Rb)**2 * Rh).to(u.pW)
 # print ("The optical power is {0:2.2f}".format(P_opt))
 
-gamma_leg = 1.6#2.65
-K_leg = 120 * u.picoWatt/u.Kelvin**gamma_leg
+gamma_leg = 1.38#2.65
+K_leg = 60 * u.picoWatt/u.Kelvin**(gamma_leg+1)
 T_c = 1.32 * u.Kelvin
 T_0 = 60e-3 * u.Kelvin # Temperature of the thermal bath
 C_b = 1 * u.picoJoule/u.Kelvin
@@ -62,13 +62,13 @@ Delta = (1.764 * k_B * T_c).to('J')
 # P_opt = (eta_opt * N_pol * dnu_opt * nu_opt * k_B * T_rj).to('pW')
 # print (P_opt)
 # P_read = 3.0 * u.pW
-P_read = (-100 * dBm).to(u.pW)
+P_read = (-90 * dBm).to(u.pW)
 
 # print ("The readout power is {0:2.2f}".format(P_read))
 x = P_read/P_opt
 
 # Determine T_b by balancing the input and the output power to the resobolo
-T_b= ((((1 + x)* P_opt)/K_leg + T_0**gamma_leg)**(1./gamma_leg)).to('K')
+T_b= ((((1 + x)* P_opt)/K_leg + T_0**(gamma_leg+1))**(1./(gamma_leg+1))).to('K')
 print(T_b)
 # T_b = 0.38 * u.K
 
@@ -165,7 +165,7 @@ tau_b = (C_b/G_b).to('s')
 
 s = ((chi_c* chi_qp/4) * beta * (tau_qp/tau_th) * (kappa/P_b)).to('1/pW') # ignoring the
 #roll off factor due to the bolometer responsivity
-sf = (s * (2/(chi_c * chi_g * Q_i) * (f_r**2/f_g))).to(u.kHz/u.pW) # actual freq
+sf = (s * (2/(chi_c * chi_g * Q_i) * f_r)).to(u.kHz/u.pW) # actual freq
 #responsivity
 #sx = (s * (Q_c/2/Q_r**2) * f_r).to(u.kHz/u.pW)# frequency responsivity
 
