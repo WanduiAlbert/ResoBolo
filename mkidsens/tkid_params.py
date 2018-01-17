@@ -22,6 +22,7 @@ Q_int = 187519
 f_g = 329 * u.MHz
 T_amp = 3 * u.Kelvin
 eta_read = 0.1
+chi_ph = 0.658
 
 # Working off of Jamie's spreadsheet adapted to Denis' Python script. Based on
 # the South Pole atmosphere and takes into account the atmospheric loading.
@@ -39,8 +40,8 @@ Vdc = 7.0 * u.Volt
 P_opt = ((Vdc/Rb)**2 * Rh).to(u.pW)
 # print ("The optical power is {0:2.2f}".format(P_opt))
 
-gamma_leg = 1.38#2.65
-K_leg = 60 * u.picoWatt/u.Kelvin**(gamma_leg+1)
+gamma_leg = 2.65 # conductivity index = beta + 1
+K_leg = 60 * u.picoWatt/u.Kelvin**gamma_leg
 T_c = 1.32 * u.Kelvin
 T_0 = 60e-3 * u.Kelvin # Temperature of the thermal bath
 C_b = 1 * u.picoJoule/u.Kelvin
@@ -63,12 +64,11 @@ Delta = (1.764 * k_B * T_c).to('J')
 # print (P_opt)
 # P_read = 3.0 * u.pW
 P_read = (-90 * dBm).to(u.pW)
-
 # print ("The readout power is {0:2.2f}".format(P_read))
 x = P_read/P_opt
 
 # Determine T_b by balancing the input and the output power to the resobolo
-T_b= ((((1 + x)* P_opt)/K_leg + T_0**(gamma_leg+1))**(1./(gamma_leg+1))).to('K')
+T_b= ((((1 + x)* P_opt)/K_leg + T_0**gamma_leg)**(1./gamma_leg)).to('K')
 print(T_b)
 # T_b = 0.38 * u.K
 
@@ -143,6 +143,7 @@ df_g = (f_g - f_r).to('kHz')
 chi_c = (4 * Q_r**2)/(Q_i * Q_c)
 chi_g = 1./(1 + (df_g/df_r)**2)
 chi_qp = Q_i/Q_qp
+P_g = (2/chi_c) * P_read
 
 #print("")
 #print ("Resonator Bandwidth", df_r)
@@ -162,42 +163,3 @@ tau_b = (C_b/G_b).to('s')
 #print ("QP time constant", tau_qp)
 #print ("Thermal recombination time constant", tau_th)
 #print ("Bolometer Time constant", tau_b.to('ms'))
-
-s = ((chi_c* chi_qp/4) * beta * (tau_qp/tau_th) * (kappa/P_b)).to('1/pW') # ignoring the
-#roll off factor due to the bolometer responsivity
-sf = (s * (2/(chi_c * chi_g * Q_i) * f_r)).to(u.kHz/u.pW) # actual freq
-#responsivity
-#sx = (s * (Q_c/2/Q_r**2) * f_r).to(u.kHz/u.pW)# frequency responsivity
-
-print ("")
-print ("resobolo responsivity ignoring bolometer rolloff", sf)
-
-# Optical NEP
-n_opt = 1/(np.exp(h*nu_opt/k_B/T_b) - 1).to(1)
-NEP_opt = ((2 * h*nu_opt * P_opt * (1 + n_opt))**0.5).to('aW/Hz^(0.5)')
-
-# Phonon NEP
-NEP_ph  = ((4 * k_B * T_b**2 * G_b)**0.5).to('aW/Hz^(0.5)')
-
-# TLS NEP
-NEP_TLS = ((P_b * tau_th * 2*Q_i/(kappa * tau_qp * chi_qp * beta)) *(2 *
-    1e-19 /u.Hz)**0.5).to('aW/Hz^(0.5)')
-
-# Amplifier NEP
-P_g = (2/chi_c/chi_g)* P_read
-NEP_amp = ((k_B * T_amp/P_g)**0.5 * P_b * tau_th * 4/(kappa * tau_qp * chi_c *
-  chi_qp * beta)).to('aW/Hz^(0.5)')
-
-# Shot NEP
-NEP_shot = ((2 * n_qp * V_sc * (1/tau_qp + 1/tau_max))**0.5 * P_b *
-    tau_th/kappa/n_qp/V_sc).to('aW/Hz^(0.5)')
-
-NEP_total = NEP_opt + NEP_ph + NEP_TLS + NEP_amp + NEP_shot
-
-#print ("")
-#print ("Optical NEP", NEP_opt)
-#print ("Phonon NEP", NEP_ph)
-#print ("TLS NEP", NEP_TLS)
-#print ("Amplifier NEP", NEP_amp)
-#print ("Shot NEP", NEP_shot)
-#print ("Total NEP", NEP_total)
