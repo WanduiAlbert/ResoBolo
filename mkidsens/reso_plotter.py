@@ -231,13 +231,23 @@ NEP_total = (NEP_gr**2 + NEP_amp**2 + NEP_ph**2)**0.5
 
 # Image plots of the landscape of the NEP as a function of both Popt and Pread
 
+#xticks = np.linspace(0.01, 8,100)
+#xticklabels = ["{0:d}".format(i) for i in np.arange(9)]
+#
+#yticks = np.linspace(-140, -60, 100)
+#yticklabels = ["{0:d}".format(i) for i in np.arange(-140, -50, 10)]
+
 # print (NEP_ph[::4, ::4])
-fig, ax = plt.subplots(figsize=(12,12))
-img = ax.imshow(r_f)
-img.set_cmap('jet')
-# ax.set_xticks()
-fig.colorbar(img)
-plt.show()
+#fig, ax = plt.subplots(figsize=(12,12))
+#img = ax.imshow(r_f, aspect='equal')
+#img.set_cmap('jet')
+#ax.set_xticks(xticks)
+#ax.set_xticklabels(xticklabels)
+#ax.set_yticks(yticks)
+#ax.set_yticklabels(yticklabels)
+
+#fig.colorbar(img)
+#plt.show()
 #niceprint ("")
 #niceprint ("Phonon NEP", NEP_ph)
 #niceprint ("Amplifier NEP", NEP_amp)
