@@ -46,7 +46,8 @@ Rh = 0.106 * u.Ohm
 Rb = 854 * u.kOhm
 Vdc = 7.0 * u.Volt
 
-P_opt = np.linspace(0.01, 8, 100) * u.pW
+P_opt = np.linspace(0, 10, 100) * u.pW
+P_opt[0] += 1e-8 * u.pW
 # P_opt = ((Vdc/Rb)**2 * Rh).to(u.pW)
 
 gamma_leg = 2.65 # conductivity index = beta + 1
@@ -230,6 +231,15 @@ NEP_total = (NEP_gr**2 + NEP_amp**2 + NEP_ph**2)**0.5
 
 
 # Image plots of the landscape of the NEP as a function of both Popt and Pread
+fig, ax = plt.subplots(figsize=(12,12))
+ax.plot(P_opt, r_f, 'b')
+ax.set_xlabel(r'$P_{\texttt{opt}}$ [dBm]')
+ax.set_ylabel(r'Responsivity [kHz/pW]')
+ax.grid()
+ax.axis('tight')
+ax.set_title(titlestr)
+plt.savefig('responsivity_vs_Popt.png')
+plt.show()
 
 #xticks = np.linspace(0.01, 8,100)
 #xticklabels = ["{0:d}".format(i) for i in np.arange(9)]
@@ -284,7 +294,7 @@ NEP_total = (NEP_gr**2 + NEP_amp**2 + NEP_ph**2)**0.5
 # plt.savefig('NEP_vs_Popt.png')
 # plt.show()
 
-# # 3. Responsivity vs P_read
+# # 3. Responsivity vs P_opt
 
 # fig, ax = plt.subplots(figsize=(12,12))
 # ax.plot(P_opt, r_f, 'b')
