@@ -69,6 +69,9 @@ Delta = (1.764 * k_B * T_c).to('J')
 # P_opt = (eta_opt * N_pol * dnu_opt * nu_opt * k_B * T_rj).to('pW')
 # print (P_opt)
 # P_read = 3.0 * u.pW
+
+#Let's try and make an array of P_read
+# P_read = (np.linspace(-140,-60,100)*dBm).to(u.pW)
 P_read = (-70 * dBm).to(u.pW)
 
 x = P_read/P_opt
