@@ -46,9 +46,9 @@ Rh = 0.106 * u.Ohm
 Rb = 854 * u.kOhm
 Vdc = 7.0 * u.Volt
 
-P_opt = np.linspace(0, 10, 100) * u.pW
-P_opt[0] += 1e-8 * u.pW
-# P_opt = ((Vdc/Rb)**2 * Rh).to(u.pW)
+# P_opt = np.linspace(0, 10, 100) * u.pW
+# P_opt[0] += 1e-8 * u.pW
+P_opt = ((Vdc/Rb)**2 * Rh).to(u.pW)
 
 gamma_leg = 2.65 # conductivity index = beta + 1
 K_leg = 120 * u.picoWatt/u.Kelvin**gamma_leg
@@ -78,7 +78,8 @@ Delta = (1.764 * k_B * T_c).to('J')
 P_read = (np.linspace(-140,-60,100)*dBm).to(u.pW)
 # P_read = (-120 * dBm).to(u.pW)
 
-x = P_read[:, np.newaxis]/P_opt
+# x = P_read[:, np.newaxis]/P_opt
+x = P_read/P_opt
 
 # Determine T_b by balancing the input and the output power to the resobolo
 T_b= ((((1 + x)* P_opt)/K_leg + T_0**gamma_leg)**(1./gamma_leg)).to('K')
@@ -90,7 +91,7 @@ T_b= ((((1 + x)* P_opt)/K_leg + T_0**gamma_leg)**(1./gamma_leg)).to('K')
 A_sn = 21 * u.g/u.mol
 rho_sn = 2.9 * u.g/u.cm**3
 T_D = 985 * u.K # Debye temperature of amorphous Si-N
-V_island = 480 * u.um * 150 * u.um * 500 * u.nm #Assuming 500nm island thickness
+V_island = 480 * u.um * 150 * u.um * 0.25 * u.um #Assuming 500nm island thickness
 N = (rho_sn * V_island/A_sn) * N_A
 C_b = ((12*np.pi**4/5) * N * k_B * (T_b/T_D)**3).to(u.aJ/u.Kelvin)
 
@@ -231,15 +232,23 @@ NEP_total = (NEP_gr**2 + NEP_amp**2 + NEP_ph**2)**0.5
 
 
 # Image plots of the landscape of the NEP as a function of both Popt and Pread
-fig, ax = plt.subplots(figsize=(12,12))
-ax.plot(P_opt, r_f, 'b')
-ax.set_xlabel(r'$P_{\texttt{opt}}$ [dBm]')
-ax.set_ylabel(r'Responsivity [kHz/pW]')
-ax.grid()
-ax.axis('tight')
-ax.set_title(titlestr)
-plt.savefig('responsivity_vs_Popt.png')
-plt.show()
+
+# print (r_f.shape)
+# fig, ax = plt.subplots(figsize=(12,12))
+# ax.plot(P_opt, r_f[0,:],  'b', label='{0:1.2f}'.format(P_read[0].to(dBm)))
+# ax.plot(P_opt, r_f[70,:], 'r', label='{0:1.2f}'.format(P_read[70].to(dBm)))
+# ax.plot(P_opt, r_f[76,:], 'k', label='{0:1.2f}'.format(P_read[76].to(dBm)))
+# ax.plot(P_opt, r_f[80,:], 'g', label='{0:1.2f}'.format(P_read[80].to(dBm)))
+# ax.plot(P_opt, r_f[84,:], 'r', label='{0:1.2f}'.format(P_read[84].to(dBm)))
+# # ax.plot(P_opt, r_f[88,:], 'b', label='{0:1.2f}'.format(P_read[88].to(dBm)))
+# ax.set_xlabel(r'$P_{\texttt{opt}}$ [pW]')
+# ax.set_ylabel(r'Responsivity [kHz/pW]')
+# ax.legend(title=r'$P_{\texttt{read}}$', loc='best')
+# ax.grid()
+# ax.axis('tight')
+# # ax.set_title(titlestr)
+# plt.savefig('responsivity_vs_Popt_Pread.png')
+# plt.show()
 
 #xticks = np.linspace(0.01, 8,100)
 #xticklabels = ["{0:d}".format(i) for i in np.arange(9)]
@@ -341,17 +350,18 @@ plt.show()
 # plt.show()
 # 2. NEPs vs P_read
 
-# fig, ax = plt.subplots(figsize=(12,12))
-# ax.semilogy(P_read.to(dBm), NEP_ph, 'b', label='Phonon')
-# ax.semilogy(P_read.to(dBm), NEP_amp, 'r', label='Amplifier')
-# # ax.vlines(P_crit.to(dBm), 1, 600, 'k')
-# ax.set_xlabel(r'$P_{\texttt{read}}$ [dBm]')
-# ax.set_ylabel(r'NEP [aW/rtHz]')
-# ax.grid()
-# ax.legend(loc='upper right')
-# ax.axis('tight')
-# plt.savefig('NEP_vs_Pread.png')
-# plt.show()
+fig, ax = plt.subplots(figsize=(12,12))
+ax.semilogy(P_g.to(dBm), NEP_ph, 'b', label='Phonon')
+ax.semilogy(P_g.to(dBm), NEP_amp, 'r', label='Amplifier')
+ax.semilogy(P_g.to(dBm), NEP_gr, 'g', label='Gen-Recomb')
+# ax.vlines(P_crit.to(dBm), 1, 600, 'k')
+ax.set_xlabel(r'$P_{\texttt{g}}$ [dBm]')
+ax.set_ylabel(r'NEP [aW/rtHz]')
+ax.grid()
+ax.legend(loc='upper right')
+ax.axis('tight')
+plt.savefig('NEP_vs_Pg.png')
+plt.show()
 
 # # 3. Responsivity vs P_read
 

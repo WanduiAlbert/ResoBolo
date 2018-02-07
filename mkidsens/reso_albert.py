@@ -72,7 +72,7 @@ Delta = (1.764 * k_B * T_c).to('J')
 
 #Let's try and make an array of P_read
 # P_read = (np.linspace(-140,-60,100)*dBm).to(u.pW)
-P_read = (-70 * dBm).to(u.pW)
+P_read = (-90  * dBm).to(u.pW)
 
 x = P_read/P_opt
 
@@ -86,9 +86,9 @@ niceprint("The temperature of the island", T_b)
 A_sn = 21 * u.g/u.mol
 rho_sn = 2.9 * u.g/u.cm**3
 T_D = 985 * u.K # Debye temperature of amorphous Si-N
-V_island = 480 * u.um * 150 * u.um * 500 * u.nm #Assuming 500nm island thickness
+V_island = 480 * u.um * 150 * u.um * 0.25 * u.um #Assuming 500nm island thickness
 N = (rho_sn * V_island/A_sn) * N_A
-C_b = ((12*np.pi**4/5) * N * k_B * (T_b/T_D)**3).to(u.aJ/u.Kelvin)
+C_b = ((12*np.pi**4/5) * N * k_B * (T_b/T_D)**3).to(u.pJ/u.Kelvin)
 
 # Physical properties of the superconductor + resonator capacitor
 t = 0.05 * u.um
@@ -148,6 +148,12 @@ Q_i = 1./(1/Q_qp + 1./Q_int)
 Q_r  = 1./(1./Q_c + 1./Q_i)
 P_crit = (0.8 * (2*np.pi*f_r)* E_crit * Q_c/2/Q_r**3).to(u.pW)
 
+niceprint("")
+niceprint ("n_qp", n_qp)
+niceprint ("n_th ", n_th)
+
+
+niceprint("")
 niceprint ("Q factor from qp losses, Q_qp ", Q_qp)
 niceprint ("Resonant Frequency, f_r ", f_r)
 niceprint ("Internal Q factor, Q_i ", Q_i)
@@ -181,7 +187,7 @@ G_b = (gamma_g * P_leg/T_b).to('pW/K') # Conductance of the resobolo
 P_b = G_b * T_b
 tau_b = (C_b/G_b).to('us')
 f_b = (1/tau_b).to(u.kHz) # roll off frequency for bolometer
-
+niceprint("kappa", kappa)
 
 niceprint ("")
 niceprint ("dln n_qp/ d ln T_b", kappa)
