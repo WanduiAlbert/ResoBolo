@@ -232,6 +232,7 @@ NEP_total = (NEP_gr**2 + NEP_amp**2 + NEP_ph**2)**0.5
 
 
 # Image plots of the landscape of the NEP as a function of both Popt and Pread
+<<<<<<< HEAD
 
 # print (r_f.shape)
 # fig, ax = plt.subplots(figsize=(12,12))
@@ -249,24 +250,40 @@ NEP_total = (NEP_gr**2 + NEP_amp**2 + NEP_ph**2)**0.5
 # # ax.set_title(titlestr)
 # plt.savefig('responsivity_vs_Popt_Pread.png')
 # plt.show()
+=======
+#fig, ax = plt.subplots(figsize=(12,12))
+#ax.plot(P_opt, r_f[0,:], 'b')
+#ax.plot(P_opt, r_f[20,:], 'g')
+#ax.plot(P_opt, r_f[40,:], 'r')
+#ax.plot(P_opt, r_f[60,:], 'k')
+#ax.plot(P_opt, r_f[80,:], 'c')
+#ax.plot(P_opt, r_f[-1,:], 'm')
+#ax.set_xlabel(r'$P_{\texttt{opt}}$ [dBm]')
+#ax.set_ylabel(r'Responsivity [kHz/pW]')
+#ax.grid()
+#ax.axis('tight')
+##ax.set_title(titlestr)
+##plt.savefig('responsivity_vs_Popt.png')
+#plt.show()
+>>>>>>> 89acbd88f3180b268f9d072b40b6733023275c1c
 
-#xticks = np.linspace(0.01, 8,100)
-#xticklabels = ["{0:d}".format(i) for i in np.arange(9)]
+xticks = np.linspace(0.01, 8,100)
+xticklabels = ["{0:d}".format(i) for i in np.arange(9)]
 #
-#yticks = np.linspace(-140, -60, 100)
-#yticklabels = ["{0:d}".format(i) for i in np.arange(-140, -50, 10)]
+yticks = np.linspace(-140, -60, 100)
+yticklabels = ["{0:d}".format(i) for i in np.arange(-140, -50, 10)]
 
 # print (NEP_ph[::4, ::4])
-#fig, ax = plt.subplots(figsize=(12,12))
-#img = ax.imshow(r_f, aspect='equal')
-#img.set_cmap('jet')
+fig, ax = plt.subplots(figsize=(12,12))
+img = ax.imshow(r_f, aspect='equal')
+img.set_cmap('jet')
 #ax.set_xticks(xticks)
-#ax.set_xticklabels(xticklabels)
+ax.set_xticklabels(xticklabels)
 #ax.set_yticks(yticks)
-#ax.set_yticklabels(yticklabels)
+ax.set_yticklabels(yticklabels)
 
-#fig.colorbar(img)
-#plt.show()
+fig.colorbar(img)
+plt.show()
 #niceprint ("")
 #niceprint ("Phonon NEP", NEP_ph)
 #niceprint ("Amplifier NEP", NEP_amp)
