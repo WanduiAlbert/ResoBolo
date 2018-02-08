@@ -2,11 +2,18 @@
 
 import numpy as np
 import gdspy
+import matplotlib.pyplot as plt
 from scipy import constants,special
 import astropy.units as u
 number_of_points = 32
 
 mUnits = 1e-6
+wafer_width = 101e3
+wafer_len = 101e3
+edge_margin = 500
+finger_length = 800
+indboxwidth = 200.
+indboxheight = 280.
 
 def moveabove_get_shift(box_fixed,box_free):
   (fixed_llx,fixed_lly),(fixed_urx,fixed_ury) = box_fixed
@@ -108,8 +115,8 @@ class InductorMeander():
   def __init__(self):
     self.tracewidth = 1.0
     self.gap = 1.0
-    self.boxwidth = 200.
-    self.boxheight = 280.
+    self.boxwidth = indboxwidth
+    self.boxheight = indboxheight
     self.x0 = 0
     self.y0 = 0
     self.layer = 0
@@ -149,19 +156,24 @@ class IDC():
     self.height = self.nfinger*(self.gap_width+self.trace_width) + self.trace_width
     self.capfrac = capfrac
     self.cellname = 'Capacitor'
+    self.layer= 1
 
-  def draw(self):
-    self.make_fingers()
+  def draw(self, less_one=False):
+    self.make_fingers(less_one)
     self.make_contacts()
     self.C = self.capacitance()
 
+    self.left_contact.layer = self.layer
+    self.right_contact.layer = self.layer
     self.cell = gdspy.Cell(self.cellname)
-    for f in self.fingers: self.cell.add(f)
+    for f in self.fingers:
+      f.layer = self.layer
+      self.cell.add(f)
     self.cell.add(self.left_contact)
     self.cell.add(self.right_contact)
 
     return self.cell
-  
+
   def capacitance2(self):
     p = mUnits*(self.finger_length - self.finger_gap)
     q = mUnits*self.height
@@ -204,7 +216,7 @@ class IDC():
     Ct = (N-3) * Ci/2 + 2*(Ci*Ce)/(Ci+Ce)
     return Ct
 
-  def make_fingers(self):
+  def make_fingers(self, less_one):
     self.fingers = []
     xcur = 0.
     ycur = 0.
@@ -222,7 +234,11 @@ class IDC():
     maxx = xcur + self.finger_length
     partialx = nrfr * minx + (1-nrfr) * maxx
 
-    for i in range(self.nfinger+1):
+    range_val = self.nfinger + 1
+    if less_one:
+      range_val = self.nfinger
+
+    for i in range(range_val):
       if i % 2 == 0:
         lower_leftx = xcur
         upper_rightx = xcur + self.finger_length
@@ -277,11 +293,90 @@ def makechipoutline(wafer_w, wafer_l):
   outlinecell.add(outline)
   return outlinecell
 
+def getnumfingers(cap, target_C):
+  e0 = constants.epsilon_0
+  e1 = 1.0
+  es = 11.7
+
+  w = mUnits*cap.trace_width
+  g = mUnits*cap.gap_width
+  h = mUnits*cap.finger_length
+  l = 2. * (w + g)
+  eta = 2.*w/l
+  kiinf = np.sin(np.pi*eta / 2.)
+  kiinfp = np.sqrt(1 - kiinf**2)
+  keinf = 2.*np.sqrt(eta) / (1 + eta)
+  keinfp = np.sqrt(1 - keinf**2)
+
+  Kkiinf = special.ellipk(kiinf)
+  Kkiinfp = special.ellipk(kiinfp)
+  Kkeinf = special.ellipk(keinf)
+  Kkeinfp = special.ellipk(keinfp)
+
+  Ci = e0 * (1+es) * h * Kkiinf/Kkiinfp
+  Ce = e0 * (1+es) * h * Kkeinf/Kkeinfp
+  n = (target_C -  2*(Ci*Ce)/(Ci+Ce)) * 2/Ci + 4
+  nfingers = int(n)
+  capfrac = n - nfingers
+
+  return nfingers, capfrac
+
+# returns the number x rounded to the nearest ten
+rounded = lambda x: int(x/10)*10
+
+def makerestankmodel(N_fingers):
+  model_cap = IDC(1.0)
+  min_n = np.min(N_fingers)
+  model_cap.nfinger = rounded(min_n) if min_n >= 10 else min_n
+  model_cap.finger_length = finger_length
+  model_cap.cellname = 'Model_Res_Tank'
+  return model_cap
+
+get_size = lambda x: (x[1,0] - x[0,0], x[1,1]-x[0,1])
+
+
+def get_cap_array(cap, model, model_fingers):
+  N = cap.nfinger // model_fingers
+  res = cap.nfinger - (N * model_fingers)
+  # Make the array as a row of the ref cells lined up
+  dx, dy = get_size(model.get_bounding_box())
+  array = gdspy.CellArray(model, 1, N, (dx , dy - cap.gap_width), rotation=-90)
+  return array
+
+
+def get_cap_position(cap, index, N_res, nrows, ncols, w_spacing, l_spacing,\
+    ind_start):
+  dx, dy = get_size(cap.get_bounding_box())
+  index += 1
+  row = (N_res - index) // nrows
+  col = (N_res - index) - (row * ncols)
+  space = 6 #small gap between cap and ind
+  # First let's locate the inductor associated with the capacitor
+  x_ind = ind_start[0] + row * (w_spacing)
+  y_ind = ind_start[1] - col * (l_spacing)
+
+  x = x_ind - space - dx
+  y = y_ind + (dy - indboxheight)/2
+
+  return (x,y)
+
+def make_connector(len_conn):
+  connector = gdspy.Path(2, (0,0))
+  connector.segment(9, '+x', layer=1)
+  connector.turn(2, 'r', layer=1)
+  connector.segment(len_conn, '-y', layer=1)
+  conn = gdspy.Cell('connectors')
+  conn.add(connector)
+  return conn
+
+def add_connector_array(ncols, nrows, indspacing, ind_start):
+  len_conn = (finger_length - indboxheight + 5 )/2
+  connector = make_connector(len_conn)
+  origin = (ind_start[0] - 10, ind_start[0] + indboxheight+ len_conn )
+  return gdspy.CellArray(connector, ncols, nrows, indspacing, origin)
+
 def main():
   # Wafer organization all dimensions in microns
-  wafer_width = 101e3
-  wafer_len = 101e3
-  edge_margin = 500
   nrows = 36
   ncols = 36
   N_res = nrows * ncols
@@ -291,20 +386,63 @@ def main():
   chip_outline = makechipoutline(wafer_width, wafer_len)
   wafer.add(gdspy.CellReference(chip_outline, (0,0)))
 
-  df = 2 #MHz
-  fstart = 200 #MHz
-  fs = (fstart + df * np.arange(N_res))
-
-  L = 22 #nH
-  C = (1/(L*u.nH)/(2*np.pi*fs*u.MHz)**2).to(u.pF).value
+  # Make the array of inductors first since it is simple enough
   ind = InductorMeander()
   indcell = ind.draw()
   indspacing = [width_spacing, len_spacing]
   indarray = gdspy.CellArray(indcell,ncols, nrows, indspacing)
   indarray.translate(edge_margin, edge_margin)
+  indbbox = indarray.get_bounding_box()
+  ind_start = (indbbox[0,0], indbbox[1,1])
+  # Let's think about the frequency spacing
+  df = 2 #MHz
+  fstart = 300 #MHz
+  fs = (fstart + df * np.arange(N_res))
+  L = 22 #nH
+  Cs = (1/(L*u.nH)/(2*np.pi*fs*u.MHz)**2).to(u.F).value
+  caps = [IDC(1.0) for i in range(len(Cs))]
+
+  N_fingers = [0]*N_res
+  for i in range(N_res):
+    caps[i].finger_length = finger_length
+    nfingers, capfrac = getnumfingers(caps[i], Cs[i])
+    caps[i].nfinger = nfingers
+    caps[i].capfrac = capfrac
+    N_fingers[i] = nfingers
+
+  model_cap = makerestankmodel(N_fingers)
+  model_cap_cell = model_cap.draw(less_one=True)
+
+  cap_cells = []
+  for i in reversed(range(N_res)):
+    # Using the model capacitor construct the full capacitor as an array
+    cap_array = get_cap_array(caps[i], model_cap_cell, model_cap.nfinger)
+    origin= get_cap_position(cap_array, i, N_res, nrows, ncols,\
+        width_spacing, len_spacing, ind_start)
+    cap_array.origin = origin
+    cap_cells.append(cap_array)
+  #wafer.add(model_cap_ref)
   wafer.add(indarray)
+  wafer.add(cap_cells)
+  top_connectors = add_connector_array(ncols, nrows, indspacing, ind_start)
+  top_connectors.translate(0, -4)
+
+  bot_connectors = gdspy.copy(top_connectors, 0, -indboxheight)
+  bot_connectors.x_reflection=True
+  #bot_connectors.rotation = 180
+  ind_dx, ind_dy = get_size(indbbox)
+  bot_connectors.translate(0, ind_dy - finger_length +1 )
+  wafer.add(top_connectors)
+  wafer.add(bot_connectors)
   gdspy.write_gds('darkres.gds',unit=1e-6,precision=1e-9)
 
+  # Let's make a map of the number of unit caps needed along the array
+  #grid = np.arange(N_res)[::-1].reshape((nrows, ncols))
+  #z = np.array(N_fingers)[::-1].reshape((nrows, ncols)) // model_cap.nfinger
+  #img = plt.imshow(z, cmap='jet', aspect='equal', interpolation=None)
+  ##img.set_cmap('jet')
+  #plt.colorbar()
+  #plt.show()
 
 
 def main_old():
