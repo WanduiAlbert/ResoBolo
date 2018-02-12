@@ -11,7 +11,7 @@ mUnits = 1e-6
 wafer_width = 101e3
 wafer_len = 101e3
 edge_margin = 500
-finger_length = 800
+finger_length = 600
 indboxwidth = 200.
 indboxheight = 280.
 
@@ -262,7 +262,7 @@ class IDC():
         self.fingers.append(box)
       elif (i/2) <= nrff:
         self.fingers.append(box)
-  
+
   def make_contacts(self):
     lower_leftx = -self.contact_width
     lower_lefty = 0.
@@ -333,7 +333,7 @@ def makerestankmodel(N_fingers):
   return model_cap
 
 get_size = lambda x: (x[1,0] - x[0,0], x[1,1]-x[0,1])
-
+get_coords = lambda x: (x[0,0], x[1,1])
 
 def get_cap_array(cap, model, model_fingers):
   N = cap.nfinger // model_fingers
@@ -347,41 +347,42 @@ def get_cap_array(cap, model, model_fingers):
 def get_cap_position(cap, index, N_res, nrows, ncols, w_spacing, l_spacing,\
     ind_start):
   dx, dy = get_size(cap.get_bounding_box())
-  index += 1
-  row = (N_res - index) // nrows
-  col = (N_res - index) - (row * ncols)
+  row = index  // ncols
+  col = index - (row * ncols)
+  #index += 1
+  #row = (N_res - index) // nrows
+  #col = (N_res - index) - (row * ncols)
   space = 6 #small gap between cap and ind
   # First let's locate the inductor associated with the capacitor
-  x_ind = ind_start[0] + row * (w_spacing)
-  y_ind = ind_start[1] - col * (l_spacing)
-
+  x_ind = ind_start[0] + col* (w_spacing)
+  y_ind = ind_start[1] - row * (l_spacing)
   x = x_ind - space - dx
-  y = y_ind + (dy - indboxheight)/2
+  y = y_ind + (dy - indboxheight  + 5)/2 - 2
 
   return (x,y)
 
 def make_connector(len_conn):
   connector = gdspy.Path(2, (0,0))
-  connector.segment(9, '+x', layer=1)
+  connector.segment(6, '+x', layer=1)
   connector.turn(2, 'r', layer=1)
   connector.segment(len_conn, '-y', layer=1)
   conn = gdspy.Cell('connectors')
   conn.add(connector)
   return conn
 
-def add_connector_array(ncols, nrows, indspacing, ind_start):
-  len_conn = (finger_length - indboxheight + 5 )/2
+def add_connector_array(ncols, nrows, indspacing, start):
+  len_conn = (finger_length + 2 - indboxheight + 5 )/2 -1
   connector = make_connector(len_conn)
-  origin = (ind_start[0] - 10, ind_start[0] + indboxheight+ len_conn )
+  origin = (start[0] - 7, start[1] + indboxheight -5 + len_conn + 2)
   return gdspy.CellArray(connector, ncols, nrows, indspacing, origin)
 
 def main():
   # Wafer organization all dimensions in microns
-  nrows = 36
-  ncols = 36
+  nrows = 18
+  ncols = 18
   N_res = nrows * ncols
-  width_spacing = (wafer_width - 2*edge_margin)/ncols
-  len_spacing = (wafer_len - 2*edge_margin)/nrows
+  width_spacing = np.around((wafer_width - 2*edge_margin)/ncols, 0)
+  len_spacing = np.around((wafer_len - 2*edge_margin)/nrows, 0)
   wafer = gdspy.Cell('6_inch_wafer')
   chip_outline = makechipoutline(wafer_width, wafer_len)
   wafer.add(gdspy.CellReference(chip_outline, (0,0)))
@@ -414,18 +415,18 @@ def main():
   model_cap_cell = model_cap.draw(less_one=True)
 
   cap_cells = []
-  for i in reversed(range(N_res)):
+  for i in (range(N_res)):
     # Using the model capacitor construct the full capacitor as an array
     cap_array = get_cap_array(caps[i], model_cap_cell, model_cap.nfinger)
-    origin= get_cap_position(cap_array, i, N_res, nrows, ncols,\
+    origin= get_cap_position(cap_array, N_res - (i+1), N_res, nrows, ncols,\
         width_spacing, len_spacing, ind_start)
     cap_array.origin = origin
     cap_cells.append(cap_array)
   #wafer.add(model_cap_ref)
   wafer.add(indarray)
   wafer.add(cap_cells)
-  top_connectors = add_connector_array(ncols, nrows, indspacing, ind_start)
-  top_connectors.translate(0, -4)
+  conn_start = indbbox[0]
+  top_connectors = add_connector_array(ncols, nrows, indspacing, conn_start)
 
   bot_connectors = gdspy.copy(top_connectors, 0, -indboxheight)
   bot_connectors.x_reflection=True
