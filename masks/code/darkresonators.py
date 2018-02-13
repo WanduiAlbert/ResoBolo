@@ -321,27 +321,60 @@ def getnumfingers(cap, target_C):
 
   return nfingers, capfrac
 
-# returns the number x rounded to the nearest ten
+# Lambda functions
 rounded = lambda x: int(x/10)*10
-
-def makerestankmodel(N_fingers):
-  model_cap = IDC(1.0)
-  min_n = np.min(N_fingers)
-  model_cap.nfinger = rounded(min_n) if min_n >= 10 else min_n
-  model_cap.finger_length = finger_length
-  model_cap.cellname = 'Model_Res_Tank'
-  return model_cap
-
 get_size = lambda x: (x[1,0] - x[0,0], x[1,1]-x[0,1])
 get_coords = lambda x: (x[0,0], x[1,1])
 
-def get_cap_array(cap, model, model_fingers):
-  N = cap.nfinger // model_fingers
-  res = cap.nfinger - (N * model_fingers)
-  # Make the array as a row of the ref cells lined up
-  dx, dy = get_size(model.get_bounding_box())
-  array = gdspy.CellArray(model, 1, N, (dx , dy - cap.gap_width), rotation=-90)
-  return array
+def makerestankmodel(nfingers, round_num=False):
+  model_cap = IDC(1.0)
+  if round_num:
+    model_cap.nfinger = rounded(nfingers) if nfingers >= 10 else nfingers
+  else:
+    model_cap.nfinger = nfingers
+  model_cap.finger_length = finger_length
+  model_cap.cellname = 'Model_Res_Tank_%d' %model_cap.nfinger
+  return model_cap
+
+# I'm defining a series of template capacitors used to build up all the
+# capacitors in the resonator array. The size of the largest capacitor is the
+# minimum number of fingers of the capacitors in the array, rounded down to the
+# nearest 10, if larger than 10. The smaller model capacitors are constructed by
+# dividing the length of the largest capacitor by 2 until we construct a
+# capacitor of length 1.
+def make_captank_models(num, round_num=False):
+  if num == 1:
+    cap = makerestankmodel(num)
+    return [cap.draw(less_one=True)], [num]
+
+  if num == 0:
+    return make_captank_models(1, False)
+
+  cap = makerestankmodel(num, round_num)
+  cell = cap.draw(less_one=True)
+
+  caps, nfingers = make_captank_models(num // 2, round_num=False)
+  return [cell] + caps, [cap.nfinger] + nfingers
+
+
+def make_capacitor(cap, model, model_fingers):
+  cap_array = []
+  origin = (0,0)
+  # Loop over each model capacitor constructing the full capacitor
+  res = cap.nfinger
+  for m, nf in zip(model, model_fingers):
+    N = res // nf
+    if N == 0:
+      continue
+    res %= model_fingers #Number of fingers remaining
+    # Make the array as a row of the ref cells lined up
+    dx, dy = get_size(m.get_bounding_box())
+    array = gdspy.CellArray(m, 1, N, (dx , dy - cap.gap_width), rotation=-90)
+    array.origin = origin
+    cap_array.append(array)
+    if res == 0:
+      break
+  return cap_array
 
 
 def get_cap_position(cap, index, N_res, nrows, ncols, w_spacing, l_spacing,\
@@ -376,6 +409,7 @@ def add_connector_array(ncols, nrows, indspacing, start):
   origin = (start[0] - 7, start[1] + indboxheight -5 + len_conn + 2)
   return gdspy.CellArray(connector, ncols, nrows, indspacing, origin)
 
+
 def main():
   # Wafer organization all dimensions in microns
   nrows = 18
@@ -399,6 +433,7 @@ def main():
   df = 2 #MHz
   fstart = 300 #MHz
   fs = (fstart + df * np.arange(N_res))
+  fracs = 1/(fs/fs[0])**2
   L = 22 #nH
   Cs = (1/(L*u.nH)/(2*np.pi*fs*u.MHz)**2).to(u.F).value
   caps = [IDC(1.0) for i in range(len(Cs))]
@@ -411,13 +446,15 @@ def main():
     caps[i].capfrac = capfrac
     N_fingers[i] = nfingers
 
-  model_cap = makerestankmodel(N_fingers)
-  model_cap_cell = model_cap.draw(less_one=True)
+  # Template capacitors for constructing all the capacitors
+  model_cap_cells, model_cap_nfingers = make_captank_models(np.min(N_fingers))
+  #model_cap = makerestankmodel(np.min(N_fingers))
+  #model_cap_cell = model_cap.draw(less_one=True)
 
   cap_cells = []
   for i in (range(N_res)):
     # Using the model capacitor construct the full capacitor as an array
-    cap_array = get_cap_array(caps[i], model_cap_cell, model_cap.nfinger)
+    cap_array = make_capacitor(caps[i], model_cap_cell, model_cap.nfinger)
     origin= get_cap_position(cap_array, N_res - (i+1), N_res, nrows, ncols,\
         width_spacing, len_spacing, ind_start)
     cap_array.origin = origin
