@@ -322,16 +322,15 @@ def getnumfingers(cap, target_C):
   return nfingers, capfrac
 
 # Lambda functions
-rounded = lambda x: int(x/10)*10
+rounded_ten = lambda x: int(x/10)*10
+rounded_even = lambda x: int(x/2)*2
 get_size = lambda x: (x[1,0] - x[0,0], x[1,1]-x[0,1])
 get_coords = lambda x: (x[0,0], x[1,1])
 
-def makerestankmodel(nfingers, round_num=False):
+def makerestankmodel(nfingers):
   model_cap = IDC(1.0)
-  if round_num:
-    model_cap.nfinger = rounded(nfingers) if nfingers >= 10 else nfingers
-  else:
-    model_cap.nfinger = nfingers
+  model_cap.nfinger = rounded_ten(nfingers) if nfingers >= 10 else \
+      rounded_even(nfingers)
   model_cap.finger_length = finger_length
   model_cap.cellname = 'Model_Res_Tank_%d' %model_cap.nfinger
   return model_cap
@@ -342,20 +341,29 @@ def makerestankmodel(nfingers, round_num=False):
 # nearest 10, if larger than 10. The smaller model capacitors are constructed by
 # dividing the length of the largest capacitor by 2 until we construct a
 # capacitor of length 1.
-def make_captank_models(num, round_num=False):
+def make_captank_models(num):
   if num == 1:
     cap = makerestankmodel(num)
     return [cap.draw(less_one=True)], [num]
 
   if num == 0:
-    return make_captank_models(1, False)
+    return make_captank_models(1)
 
-  cap = makerestankmodel(num, round_num)
+  cap = makerestankmodel(num)
   cell = cap.draw(less_one=True)
 
-  caps, nfingers = make_captank_models(num // 2, round_num=False)
+  caps, nfingers = make_captank_models(num // 2)
   return [cell] + caps, [cap.nfinger] + nfingers
 
+def update_origins(cap_array):
+  curr = (0, 0)
+  for i, arr in enumerate(cap_array):
+    if i == 0:
+      curr = arr.origin
+      continue
+    dx, dy = get_size(arr.get_bounding_box())
+    curr = (curr[0] - dx +2, curr[1])
+    arr.origin = curr
 
 def make_capacitor(cap, model, model_fingers):
   cap_array = []
@@ -366,14 +374,16 @@ def make_capacitor(cap, model, model_fingers):
     N = res // nf
     if N == 0:
       continue
-    res %= model_fingers #Number of fingers remaining
+    res %= nf#Number of fingers remaining
     # Make the array as a row of the ref cells lined up
     dx, dy = get_size(m.get_bounding_box())
     array = gdspy.CellArray(m, 1, N, (dx , dy - cap.gap_width), rotation=-90)
     array.origin = origin
+    print (N, nf)
     cap_array.append(array)
     if res == 0:
       break
+  update_origins(cap_array)
   return cap_array
 
 
