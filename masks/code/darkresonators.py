@@ -14,6 +14,9 @@ edge_margin = 500
 finger_length = 600
 indboxwidth = 200.
 indboxheight = 280.
+couplingcapheight = 100
+
+
 
 def moveabove_get_shift(box_fixed,box_free):
   (fixed_llx,fixed_lly),(fixed_urx,fixed_ury) = box_fixed
@@ -331,6 +334,8 @@ def makerestankmodel(nfingers):
   model_cap = IDC(1.0)
   model_cap.nfinger = rounded_ten(nfingers) if nfingers >= 10 else \
       rounded_even(nfingers)
+  if model_cap.nfinger == 0:
+    model_cap.nfinger = 1
   model_cap.finger_length = finger_length
   model_cap.cellname = 'Model_Res_Tank_%d' %model_cap.nfinger
   return model_cap
@@ -379,7 +384,7 @@ def make_capacitor(cap, model, model_fingers):
     dx, dy = get_size(m.get_bounding_box())
     array = gdspy.CellArray(m, 1, N, (dx , dy - cap.gap_width), rotation=-90)
     array.origin = origin
-    print (N, nf)
+    #print (N, nf)
     cap_array.append(array)
     if res == 0:
       break
@@ -427,18 +432,26 @@ def main():
   N_res = nrows * ncols
   width_spacing = np.around((wafer_width - 2*edge_margin)/ncols, 0)
   len_spacing = np.around((wafer_len - 2*edge_margin)/nrows, 0)
-  wafer = gdspy.Cell('6_inch_wafer')
   chip_outline = makechipoutline(wafer_width, wafer_len)
-  wafer.add(gdspy.CellReference(chip_outline, (0,0)))
+  wafer = gdspy.Cell('6_inch_wafer')
 
   # Make the array of inductors first since it is simple enough
   ind = InductorMeander()
   indcell = ind.draw()
   indspacing = [width_spacing, len_spacing]
   indarray = gdspy.CellArray(indcell,ncols, nrows, indspacing)
-  indarray.translate(edge_margin, edge_margin)
   indbbox = indarray.get_bounding_box()
   ind_start = (indbbox[0,0], indbbox[1,1])
+  ind_dx, ind_dy = get_size(indbbox)
+  indarray.translate((wafer_width - ind_dx)//2, (wafer_len - ind_dy)//2)
+  indbbox = indarray.get_bounding_box()
+  ind_start = (indbbox[0,0], indbbox[1,1])
+  ind_dx, ind_dy = get_size(indbbox)
+  x_edge_margin = indbbox[0, 0]
+  y_edge_margin = indbbox[0, 1]
+  wafer.add(gdspy.CellReference(chip_outline, (0,0)))
+
+
   # Let's think about the frequency spacing
   df = 2 #MHz
   fstart = 300 #MHz
@@ -458,30 +471,95 @@ def main():
 
   # Template capacitors for constructing all the capacitors
   model_cap_cells, model_cap_nfingers = make_captank_models(np.min(N_fingers))
+  print ("We have model capacitors of sizes ", model_cap_nfingers)
   #model_cap = makerestankmodel(np.min(N_fingers))
   #model_cap_cell = model_cap.draw(less_one=True)
 
-  cap_cells = []
+  all_cap_arrays = []
   for i in (range(N_res)):
-    # Using the model capacitor construct the full capacitor as an array
-    cap_array = make_capacitor(caps[i], model_cap_cell, model_cap.nfinger)
-    origin= get_cap_position(cap_array, N_res - (i+1), N_res, nrows, ncols,\
+    cap_array = make_capacitor(caps[i], model_cap_cells, model_cap_nfingers)
+    origin= get_cap_position(cap_array[0], N_res - (i+1), N_res, nrows, ncols,\
         width_spacing, len_spacing, ind_start)
-    cap_array.origin = origin
-    cap_cells.append(cap_array)
+    cap_array[0].origin = origin
+    update_origins(cap_array)
+    all_cap_arrays.append(cap_array)
+    wafer.add(cap_array)
+
+  all_cap_arrays = np.array(all_cap_arrays)
   #wafer.add(model_cap_ref)
   wafer.add(indarray)
-  wafer.add(cap_cells)
   conn_start = indbbox[0]
   top_connectors = add_connector_array(ncols, nrows, indspacing, conn_start)
 
   bot_connectors = gdspy.copy(top_connectors, 0, -indboxheight)
   bot_connectors.x_reflection=True
   #bot_connectors.rotation = 180
-  ind_dx, ind_dy = get_size(indbbox)
   bot_connectors.translate(0, ind_dy - finger_length +1 )
   wafer.add(top_connectors)
   wafer.add(bot_connectors)
+
+  # Let's make the coupling capacitors
+
+
+  # Feedlines
+  ms_width = 40
+  ms_start = (wafer_width //2 , wafer_len - 1000)
+
+  feed = gdspy.Path(ms_width)
+  feed.segment(wafer_len - 2000, '-y', layer=1)
+  mainfeed = gdspy.Cell('Main_feed_line')
+  mainfeed.add(feed)
+
+  # First let's calculate the position of the side tines connecting to the main
+  # microstrip
+  cap_size = finger_length + 6
+  ind_size = indboxheight - 5
+  sf_offset_y = (cap_size - ind_size)/2 + ind_size + 100 + ms_width //2
+  sf_offset_x = np.max(N_fingers) * 4 + 6
+  sf_startx = ind_start[0] - sf_offset_x
+  sf_start = (ind_start[0] - sf_offset_x, y_edge_margin + sf_offset_y)
+  sf_len = (wafer_width //2) - sf_start[0]
+
+  # Now let's make the actual side feedline
+  sfeed = gdspy.Path(ms_width)
+  sfeed.segment(sf_len, '+x', layer=1)
+  sidefeed = gdspy.Cell('Side_feed_line')
+  sidefeed.add(sfeed)
+  sidefeedarr = gdspy.CellArray(sidefeed, columns=2,\
+      rows=nrows,spacing=[sf_len, indspacing[1]])
+  sidefeedarr.origin = sf_start
+  wafer.add(gdspy.CellReference(mainfeed, ms_start))
+  wafer.add(sidefeedarr)
+
+  # Making the ground lines
+  gnd_width = 500
+  gnd_feed = gdspy.Path(gnd_width)
+  gnd_feed.segment(wafer_len - 2000, '-y', layer=1)
+  gnd_mainfeed = gdspy.Cell('Gnd_feed_line')
+  gnd_mainfeed.add(gnd_feed)
+  gnd_start_left = (sf_start[0] // 2, ms_start[1])
+  gnd_start_right = (wafer_width - gnd_start_left[0], ms_start[1])
+
+  gnd_sfeed = gdspy.Path(gnd_width)
+  gnd_sfeed.segment(sf_len, '+x', layer=1)
+  gnd_sidefeed = gdspy.Cell('Gnd_side_feed_line')
+  gnd_sidefeed.add(gnd_sfeed)
+  x_spacing_offset = gnd_start_left[0] * 2 + ms_width
+  gnd_sidefeedarr = gdspy.CellArray(gnd_sidefeed, columns=2,\
+      rows=nrows,spacing=[sf_len + x_spacing_offset, indspacing[1]])
+  gnd_sf_offset_y = (cap_size - ind_size)/2 + 100 + gnd_width//2
+  gnd_sf_start = (gnd_start_left[0], y_edge_margin - gnd_sf_offset_y)
+  gnd_sidefeedarr.origin = gnd_sf_start
+  wafer.add(gnd_sidefeedarr)
+  
+  
+  
+  
+  
+  wafer.add(gdspy.CellReference(gnd_mainfeed, gnd_start_left))
+  wafer.add(gdspy.CellReference(gnd_mainfeed, gnd_start_right))
+
+
   gdspy.write_gds('darkres.gds',unit=1e-6,precision=1e-9)
 
   # Let's make a map of the number of unit caps needed along the array
