@@ -14,8 +14,8 @@ edge_margin = 500
 finger_length = 600
 indboxwidth = 200.
 indboxheight = 280.
-couplingcapheight = 100
-
+coup_cap_finger_length = 100
+bondpad_size = 140
 
 
 def moveabove_get_shift(box_fixed,box_free):
@@ -424,6 +424,207 @@ def add_connector_array(ncols, nrows, indspacing, start):
   origin = (start[0] - 7, start[1] + indboxheight -5 + len_conn + 2)
   return gdspy.CellArray(connector, ncols, nrows, indspacing, origin)
 
+def add_row_feeds(ms_width, sf_start, sf_len, nrows, ncols, indspacing):
+  # Now let's make the actual side feedline
+  rfeed = gdspy.Path(ms_width)
+  rfeed.segment(sf_len, '+x', layer=3)
+  row_feed = gdspy.Cell('ms_feed_row')
+  row_feed.add(rfeed)
+  row_feed_arr = gdspy.CellArray(row_feed, columns=1,\
+      rows=nrows,spacing=[sf_len, indspacing[1]])
+  row_feed_arr.origin = sf_start
+
+  return row_feed_arr
+
+def get_left_connector_feeds(feed_conn, sf_start, num_lrows, spacing):
+  left_conn_feeds = gdspy.CellArray(feed_conn, columns = 1, rows=num_lrows,\
+      spacing= spacing)
+  left_conn_feeds.origin = sf_start
+  return left_conn_feeds
+
+def get_right_connector_feeds(feed_conn, sf_start, conn_len, sf_len,\
+    num_rrows, spacing):
+  right_conn_feeds = gdspy.CellArray(feed_conn,columns = 1, rows=num_rrows ,\
+      spacing= spacing)
+  right_conn_feeds.origin = [sf_start[0] + sf_len, sf_start[1] + spacing[1]//2]
+  return right_conn_feeds
+
+def add_corner_connector_feeds(ms_width, sf_start, sf_len, nrows, ncols,\
+    indspacing, conn_len, num_lrows, num_rrows):
+  radius = ms_width * 1.5
+  specturn = {'layer':3,'number_of_points':number_of_points}
+  turn  = gdspy.Path(ms_width)
+  turn.segment(ms_width, '-x', layer=3)
+  turn.turn(radius, 'r', **specturn)
+  turn.segment(ms_width, '+y', layer=3)
+  turn_cell = gdspy.Cell('feed_corner')
+  turn_cell.add(turn)
+  turn_arr_bl = gdspy.CellArray(turn_cell, columns=1, rows = num_lrows,\
+      spacing=[0, 2*indspacing[1]])
+  turn_arr_bl.origin = [sf_start[0] + ms_width, sf_start[1] ]
+  corner_spacing = conn_len + 3 * ms_width
+  turn_arr_tl = gdspy.copy(turn_arr_bl, 0, (num_lrows * 2 - 1)*corner_spacing)
+  turn_arr_tl.x_reflection = True
+
+  # I'll make a second array out of the rotated turn_cell
+  turn_cell_rot = gdspy.CellReference(turn_cell, rotation=180)
+  turn_arr_tr = gdspy.CellArray(turn_cell, columns=1, rows = num_rrows,\
+      spacing=[0, 2*indspacing[1]], rotation=180)
+  dy = num_rrows * 2 *indspacing[1]
+  turn_arr_tr.origin = [sf_start[0] + sf_len - 4*ms_width, sf_start[1] ]
+  turn_arr_tr.translate(0, dy)
+  turn_arr_br = gdspy.copy(turn_arr_tr, 0,  0)
+  turn_arr_br.x_reflection = True
+  turn_arr_br.translate(0, -dy + corner_spacing)
+
+  corners = gdspy.Cell('all_corners')
+  corners.add([turn_arr_bl, turn_arr_tl, turn_arr_br, turn_arr_tr])
+
+  return gdspy.CellReference(corners)
+
+
+def make_feedline_end(feed_len, sf_len, ms_width):
+  # Make the final stretch of feedline to the bondpads
+  final_feed = gdspy.Cell('final_feed_stretch')
+  bondpad = gdspy.Rectangle([0,0], [bondpad_size, -bondpad_size], layer=3)
+  bondpad_cell = gdspy.Cell('ms_bondpad')
+  bondpad_cell.add(bondpad)
+  final_feed.add(gdspy.CellReference(bondpad_cell))
+
+  path = gdspy.Path(ms_width)
+  path.segment(feed_len, '-y', layer=3)
+  short_stretch = gdspy.Cell('ms_short_end')
+  short_stretch.add(path)
+  final_feed.add(gdspy.CellReference(short_stretch,\
+      [bondpad_size/2, -bondpad_size]))
+
+  curr = [bondpad_size/2, -bondpad_size - feed_len]
+  final_feed.add(gdspy.CellReference('feed_corner', [curr[0] + 2.5*ms_width,\
+    curr[1] - 1.5*ms_width]))
+  curr = [curr[0] + 2.5*ms_width, curr[1] - 1.5*ms_width]
+
+  path2 = gdspy.Path(ms_width)
+  path2.segment(sf_len/2, '+x', layer=3)
+  long_stretch = gdspy.Cell('ms_long_end')
+  long_stretch.add(path2)
+  final_feed.add(gdspy.CellReference(long_stretch,\
+      [curr[0] - ms_width, curr[1]]))
+  curr = [curr[0] - ms_width + sf_len/2, curr[1]]
+
+  final_feed.add(gdspy.CellReference('feed_corner', [curr[0] - ms_width,\
+    curr[1]], rotation=180))
+  curr = [curr[0] - ms_width, curr[1]]
+  final_feed.add(gdspy.CellReference(short_stretch,\
+      [curr[0] + 2.5 * ms_width, curr[1] - 1.5 * ms_width]))
+  curr = [curr[0] + 2.5 * ms_width, curr[1] - 1.5 * ms_width]
+  final_feed.add(gdspy.CellReference('feed_corner', [curr[0] - 2.5*ms_width,\
+    curr[1] - feed_len - 1.5 * ms_width], rotation=180, x_reflection=True))
+  return final_feed
+
+
+
+def make_main_feedline(ms_width, sf_start, sf_len, nrows, ncols, indspacing):
+  row_start = [sf_start[0] + 1.5 * ms_width, sf_start[1]]
+  row_feed_arr = add_row_feeds(ms_width, row_start, sf_len -3*ms_width,\
+      nrows, ncols, indspacing)
+  conn_len = indspacing[1]- 3 * ms_width
+  feed = gdspy.Path(ms_width)
+  feed.segment(conn_len, '+y', layer=3)
+  feed_conn = gdspy.Cell('short_feeds')
+  feed_conn.add(feed)
+
+  spacing = [indspacing[0], 2 * indspacing[1]]
+  col_start = [sf_start[0], sf_start[1] + 1.5 * ms_width]
+  num_lrows = nrows //2
+  num_rrows = num_lrows
+  if nrows % 2 == 0:
+    num_rrows -= 1
+
+  left_connectors = get_left_connector_feeds(feed_conn , col_start,\
+      num_lrows, spacing)
+  right_connectors = get_right_connector_feeds(feed_conn, col_start, conn_len,\
+      sf_len, num_rrows, spacing)
+  corners = add_corner_connector_feeds(ms_width, row_start, sf_len,\
+      nrows, ncols, indspacing, conn_len, num_lrows, num_rrows)
+
+  row_bbox = row_feed_arr.get_bounding_box()
+  feeds_x_extent = row_bbox[1, 0] - row_bbox[0, 0] - ms_width
+  feeds_y_extent = row_bbox[1, 1] - row_bbox[0, 0]
+
+  feeds_x_margin = 500 # Distance from bondpad to edge of the chip
+  available_space = (wafer_width - feeds_x_extent)/2 - feeds_x_margin
+  feed_len = (available_space - 3 * (1.5 * ms_width) - bondpad_size)/2
+  final_feed = make_feedline_end(feed_len, sf_len, ms_width)
+  # Calculate the position of the final stretch at the top
+  #str_bbox = final_feed.get_bounding_box()
+  #dx_feed = str_bbox[1, 0] - str_bbox[0, 0] - 0.5 * ms_width
+  #dy_feed = str_bbox[0, 1] - str_bbox[1, 1]
+  #print (dx_feed, dy_feed)
+  #top_feed = gdspy.CellReference(final_feed)
+  #if nrows % 2 == 0:
+  #  x_end = bbox[1, 0]
+  #  y_end = bbox[1, 1]
+  #  origin = [x_end - dx_feed + 1.5* ms_width, y_end - dy_feed- ms_width -\
+  #      bondpad_size]
+  #else:
+  #  x_end = bbox[0, 0]
+  #  y_end = bbox[1, 1]
+  #  print (x_end, y_end)
+  #  origin = [x_end + dx_feed - 1.5 * ms_width, y_end - dy_feed - ms_width -\
+  #      bondpad_size]
+  #  top_feed.x_reflection = True
+  #  top_feed.rotation = 180
+  #top_feed.origin = origin
+  #row_extent = bbox[1,1] - bbox[0, 1]
+  #print (bbox[0,1])
+  #origin = [origin[0], bbox[0,1]+ dy_feed + ( bondpad_size + ms_width) ]
+  #bot_feed = gdspy.CellReference(final_feed)
+  #bot_feed.x_reflection = True
+  #bot_feed.origin = origin
+  feedline = gdspy.Cell('mainfeedline')
+  #feedline.add(top_feed)
+  #feedline.add(bot_feed)
+  feedline.add([row_feed_arr, left_connectors, right_connectors, corners])
+  return gdspy.CellReference(feedline)
+
+def make_ground_plane(ms_width, sf_start, sf_len, ms_start, nrows, ncols,\
+    yspacing, cap_size, ind_size, y_edge_margin):
+  # Making the ground trunk lines running on the sides of the chip
+  gnd_width = 500
+  gnd_feed = gdspy.Path(gnd_width)
+  gnd_feed.segment(wafer_len - 2000, '-y', layer=3)
+  gnd_mainfeed = gdspy.Cell('gnd_trunk_line')
+  gnd_mainfeed.add(gnd_feed)
+  gnd_start_left = (sf_start[0] // 2, ms_start[1])
+  gnd_start_right = (wafer_width - gnd_start_left[0], ms_start[1])
+
+  # Make the row tines that serve each row of capacitors
+  gnd_sfeed = gdspy.Path(gnd_width)
+  gnd_sfeed.segment(sf_len, '+x', layer=3)
+  gnd_sidefeed = gdspy.Cell('gnd_row_line')
+  gnd_sidefeed.add(gnd_sfeed)
+  num_rrows = nrows //2
+  num_lrows = nrows - num_rrows
+  gnd_lsidefeedarr = gdspy.CellArray(gnd_sidefeed, columns=1,\
+      rows=num_lrows ,spacing=[0, 2*yspacing])
+  gnd_rsidefeedarr = gdspy.CellArray(gnd_sidefeed, columns=1,\
+      rows=num_rrows , spacing=[0, 2*yspacing])
+  gnd_sf_offset_y = (cap_size - ind_size)/2 + coup_cap_finger_length + gnd_width//2
+  gnd_sf_start = (gnd_start_left[0], y_edge_margin - gnd_sf_offset_y)
+  gnd_lsidefeedarr.origin = gnd_sf_start
+  gnd_rsidefeedarr.origin = gnd_sf_start
+  gnd_rsidefeedarr.translate(2 * gnd_start_left[0], yspacing)
+
+  # Assemble the full ground plane
+  gnd_plane = gdspy.Cell('Ground_Plane')
+  gnd_plane.add(gnd_lsidefeedarr)
+  gnd_plane.add(gnd_rsidefeedarr)
+  gnd_plane.add(gdspy.CellReference(gnd_mainfeed, gnd_start_left))
+  gnd_plane.add(gdspy.CellReference(gnd_mainfeed, gnd_start_right))
+
+  return gdspy.CellReference(gnd_plane)
+
+
 
 def main():
   # Wafer organization all dimensions in microns
@@ -502,62 +703,26 @@ def main():
 
 
   # Feedlines
-  ms_width = 40
   ms_start = (wafer_width //2 , wafer_len - 1000)
-
-  feed = gdspy.Path(ms_width)
-  feed.segment(wafer_len - 2000, '-y', layer=1)
-  mainfeed = gdspy.Cell('Main_feed_line')
-  mainfeed.add(feed)
+  ms_width = 40
 
   # First let's calculate the position of the side tines connecting to the main
   # microstrip
   cap_size = finger_length + 6
   ind_size = indboxheight - 5
+  max_nfingers = np.max(N_fingers)
   sf_offset_y = (cap_size - ind_size)/2 + ind_size + 100 + ms_width //2
-  sf_offset_x = np.max(N_fingers) * 4 + 6
-  sf_startx = ind_start[0] - sf_offset_x
+  sf_offset_x = max_nfingers * 4 + 6
   sf_start = (ind_start[0] - sf_offset_x, y_edge_margin + sf_offset_y)
-  sf_len = (wafer_width //2) - sf_start[0]
+  sf_len = wafer_width - 2*sf_start[0]
+  main_feeds = make_main_feedline(ms_width, sf_start, sf_len, nrows, ncols,\
+      indspacing)
+  wafer.add(main_feeds)
 
-  # Now let's make the actual side feedline
-  sfeed = gdspy.Path(ms_width)
-  sfeed.segment(sf_len, '+x', layer=1)
-  sidefeed = gdspy.Cell('Side_feed_line')
-  sidefeed.add(sfeed)
-  sidefeedarr = gdspy.CellArray(sidefeed, columns=2,\
-      rows=nrows,spacing=[sf_len, indspacing[1]])
-  sidefeedarr.origin = sf_start
-  wafer.add(gdspy.CellReference(mainfeed, ms_start))
-  wafer.add(sidefeedarr)
+  gnd_plane = make_ground_plane(ms_width, sf_start, sf_len, ms_start,\
+      nrows, ncols, indspacing[1], cap_size, ind_size, y_edge_margin)
+  wafer.add(gnd_plane)
 
-  # Making the ground lines
-  gnd_width = 500
-  gnd_feed = gdspy.Path(gnd_width)
-  gnd_feed.segment(wafer_len - 2000, '-y', layer=1)
-  gnd_mainfeed = gdspy.Cell('Gnd_feed_line')
-  gnd_mainfeed.add(gnd_feed)
-  gnd_start_left = (sf_start[0] // 2, ms_start[1])
-  gnd_start_right = (wafer_width - gnd_start_left[0], ms_start[1])
-
-  gnd_sfeed = gdspy.Path(gnd_width)
-  gnd_sfeed.segment(sf_len, '+x', layer=1)
-  gnd_sidefeed = gdspy.Cell('Gnd_side_feed_line')
-  gnd_sidefeed.add(gnd_sfeed)
-  x_spacing_offset = gnd_start_left[0] * 2 + ms_width
-  gnd_sidefeedarr = gdspy.CellArray(gnd_sidefeed, columns=2,\
-      rows=nrows,spacing=[sf_len + x_spacing_offset, indspacing[1]])
-  gnd_sf_offset_y = (cap_size - ind_size)/2 + 100 + gnd_width//2
-  gnd_sf_start = (gnd_start_left[0], y_edge_margin - gnd_sf_offset_y)
-  gnd_sidefeedarr.origin = gnd_sf_start
-  wafer.add(gnd_sidefeedarr)
-  
-  
-  
-  
-  
-  wafer.add(gdspy.CellReference(gnd_mainfeed, gnd_start_left))
-  wafer.add(gdspy.CellReference(gnd_mainfeed, gnd_start_right))
 
 
   gdspy.write_gds('darkres.gds',unit=1e-6,precision=1e-9)
