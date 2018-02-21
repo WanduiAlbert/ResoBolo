@@ -637,7 +637,17 @@ def make_ground_plane(ms_width, sf_start, sf_len, ms_start, nrows, ncols,\
 
   return gdspy.CellReference(gnd_plane)
 
-
+def get_inductor():
+  fn = '../resobolo_files/new_inductor.gds'
+  gdsii = gdspy.GdsLibrary()
+  gdsii.read_gds(fn)
+  ind = gdsii.extract('Inductor_Winding')
+  (xmin, ymin), (xmax, ymax) = ind.get_bounding_box()
+  ind_view = gdspy.CellReference(ind, -xmin, -ymin)
+  inductor = gdspy.Cell('inductor')
+  inductor.add(ind_view)
+  inductor.flatten()
+  return inductor
 
 def main():
   # Wafer organization all dimensions in microns
@@ -650,13 +660,14 @@ def main():
   wafer = gdspy.Cell('6_inch_wafer')
 
   # Make the array of inductors first since it is simple enough
-  ind = InductorMeander()
-  indcell = ind.draw()
+  # ind = InductorMeander()
+  # indcell = ind.draw()
+  indcell = get_inductor()
   indspacing = [width_spacing, len_spacing]
   indarray = gdspy.CellArray(indcell,ncols, nrows, indspacing)
-  indbbox = indarray.get_bounding_box()
-  ind_start = (indbbox[0,0], indbbox[1,1])
-  ind_dx, ind_dy = get_size(indbbox)
+  (xmin, ymin), (xmax, ymax) = indarray.get_bounding_box()
+  ind_start = (xmin, ymax)
+  ind_dx, ind_dy = (xmax - xmin, ymax - ymin) 
   indarray.translate((wafer_width - ind_dx)//2, (wafer_len - ind_dy)//2)
   indbbox = indarray.get_bounding_box()
   ind_start = (indbbox[0,0], indbbox[1,1])
@@ -671,7 +682,7 @@ def main():
   fstart = 300 #MHz
   fs = (fstart + df * np.arange(N_res))
   fracs = 1/(fs/fs[0])**2
-  L = 22 #nH
+  L = 10 #nH
   Cs = (1/(L*u.nH)/(2*np.pi*fs*u.MHz)**2).to(u.F).value
   caps = [IDC(1.0) for i in range(len(Cs))]
 
