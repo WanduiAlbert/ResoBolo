@@ -325,6 +325,7 @@ def getnumfingers(cap, target_C):
   return nfingers, capfrac
 
 # Lambda functions
+rounded_five = lambda x: int(x/5)*5
 rounded_ten = lambda x: int(x/10)*10
 rounded_even = lambda x: int(x/2)*2
 get_size = lambda x: (x[1,0] - x[0,0], x[1,1]-x[0,1])
@@ -649,6 +650,22 @@ def get_inductor():
   inductor.flatten()
   return inductor
 
+def get_coupcap(cap_array, model_coupcap):
+  coupcap_tofeed = gdspy.CellReference(model_coupcap, rotation = -90)
+  coupcap_tognd = gdspy.CellReference(model_coupcap, rotation = -90)
+  (xmin, ymin), (xmax, ymax) = coupcap_tofeed.get_bounding_box()
+  print (xmin, ymin, xmax, ymax)
+  (xmin_e, ymin_e), (xmax_e, ymax_e) = cap_array[0].get_bounding_box()
+  (xmin_s, ymin_s), (xmax_s, ymax_s) = cap_array[-1].get_bounding_box()
+  dx = xmax - xmin
+  midpoint = (xmin_s + xmax_e)/2
+  tofeed_origin = [midpoint- dx/2 , ymax_e + coup_cap_finger_length]
+  tognd_origin = [midpoint- dx/2 , ymin_e]
+  coupcap_tofeed.origin = tofeed_origin
+  coupcap_tognd.origin = tognd_origin
+
+  return [coupcap_tofeed, coupcap_tognd]
+
 def main():
   # Wafer organization all dimensions in microns
   nrows = 18
@@ -660,14 +677,14 @@ def main():
   wafer = gdspy.Cell('6_inch_wafer')
 
   # Make the array of inductors first since it is simple enough
-  # ind = InductorMeander()
-  # indcell = ind.draw()
-  indcell = get_inductor()
+  ind = InductorMeander()
+  indcell = ind.draw()
+  #indcell = get_inductor()
   indspacing = [width_spacing, len_spacing]
   indarray = gdspy.CellArray(indcell,ncols, nrows, indspacing)
   (xmin, ymin), (xmax, ymax) = indarray.get_bounding_box()
   ind_start = (xmin, ymax)
-  ind_dx, ind_dy = (xmax - xmin, ymax - ymin) 
+  ind_dx, ind_dy = (xmax - xmin, ymax - ymin)
   indarray.translate((wafer_width - ind_dx)//2, (wafer_len - ind_dy)//2)
   indbbox = indarray.get_bounding_box()
   ind_start = (indbbox[0,0], indbbox[1,1])
@@ -682,11 +699,19 @@ def main():
   fstart = 300 #MHz
   fs = (fstart + df * np.arange(N_res))
   fracs = 1/(fs/fs[0])**2
-  L = 10 #nH
+  L = 22 #nH
   Cs = (1/(L*u.nH)/(2*np.pi*fs*u.MHz)**2).to(u.F).value
   caps = [IDC(1.0) for i in range(len(Cs))]
 
+  # Let's make the coupling capacitors as well
+  Qi = 40000
+  Qc = Qi
+  Z0 = 50 * u.Ohm
+  Ccs = 2 * np.sqrt((Cs * u.F)/((Z0/2) * Qc * 2*np.pi*fs*u.MHz)).to(u.F).value
+  coupcaps = [IDC(1.0) for i in range(len(Cs))]
+
   N_fingers = [0]*N_res
+  coup_N_fingers = [0]*N_res
   for i in range(N_res):
     caps[i].finger_length = finger_length
     nfingers, capfrac = getnumfingers(caps[i], Cs[i])
@@ -694,23 +719,42 @@ def main():
     caps[i].capfrac = capfrac
     N_fingers[i] = nfingers
 
+    coupcaps[i].finger_length = coup_cap_finger_length - 2
+    nfingers, capfrac = getnumfingers(coupcaps[i], Ccs[i])
+    coup_N_fingers[i] = nfingers
+
+  #print (N_fingers)
   # Template capacitors for constructing all the capacitors
   model_cap_cells, model_cap_nfingers = make_captank_models(np.min(N_fingers))
   print ("We have model capacitors of sizes ", model_cap_nfingers)
   #model_cap = makerestankmodel(np.min(N_fingers))
   #model_cap_cell = model_cap.draw(less_one=True)
 
-  all_cap_arrays = []
+  N_coupcaps = 5
+  model_coupcaps = []
+  model_coupcap_nfingers = np.arange(5, rounded_ten(np.max(coup_N_fingers)) + 1,\
+      N_coupcaps)
+  for nfingers in model_coupcap_nfingers:
+    coupcap = IDC(1.0)
+    coupcap.nfinger = nfingers
+    coupcap.finger_length = coup_cap_finger_length - 2
+    coupcap.cellname = 'Model_CoupRes_Tank_%d' %nfingers
+    model_coupcaps += [coupcap.draw(less_one=True)]
+
   for i in (range(N_res)):
     cap_array = make_capacitor(caps[i], model_cap_cells, model_cap_nfingers)
     origin= get_cap_position(cap_array[0], N_res - (i+1), N_res, nrows, ncols,\
         width_spacing, len_spacing, ind_start)
     cap_array[0].origin = origin
     update_origins(cap_array)
-    all_cap_arrays.append(cap_array)
+    # Make and place the coupling capacitor
+    coup_nfingers = coup_N_fingers[i]
+    #Find which coupcap to use for this cap array
+    index = rounded_five(coup_nfingers) //5 - 1
+    coup_caps = get_coupcap(cap_array, model_coupcaps[index])
+    wafer.add(coup_caps)
     wafer.add(cap_array)
 
-  all_cap_arrays = np.array(all_cap_arrays)
   #wafer.add(model_cap_ref)
   wafer.add(indarray)
   conn_start = indbbox[0]
@@ -723,23 +767,7 @@ def main():
   wafer.add(top_connectors)
   wafer.add(bot_connectors)
 
-  # Let's make the coupling capacitors
-  Qi = 40000
-  Qc = Qi
-  Z0 = 50 * u.Ohm
-  Ccs = 2 * np.sqrt((Cs * u.F)/((Z0/2) * Qc * 2*np.pi*fs*u.MHz)).to(u.F).value
-  coupcaps = [IDC(1.0) for i in range(len(Cs))]
 
-  coup_N_fingers = [0]*N_res
-  for i in range(N_res):
-    coupcaps[i].finger_length = coup_cap_finger_length
-    nfingers, capfrac = getnumfingers(coupcaps[i], Ccs[i])
-    coupcaps[i].nfinger = nfingers
-    coupcaps[i].capfrac = capfrac
-    coup_N_fingers[i] = nfingers
-
-  #print (coup_N_fingers)
-  #all_coupcap_arrays = []
   #for i in (range(N_res)):
   #  coupcap_array = make_capacitor(coupcaps[i], model_cap_cells, model_cap_nfingers)
   #  origin= get_cap_position(cap_array[0], N_res - (i+1), N_res, nrows, ncols,\
