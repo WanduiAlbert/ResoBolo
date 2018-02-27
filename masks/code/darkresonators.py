@@ -11,12 +11,14 @@ mUnits = 1e-6
 wafer_width = 101e3
 wafer_len = 101e3
 edge_margin = 500
-finger_length = 600
+finger_length = 900
 indboxwidth = 200.
 indboxheight = 280.
 coup_cap_finger_length = 100
 bondpad_size = 140
-
+island_halfwidth = 400
+Qi = 40000
+Z0 = 50 * u.Ohm
 
 def moveabove_get_shift(box_fixed,box_free):
   (fixed_llx,fixed_lly),(fixed_urx,fixed_ury) = box_fixed
@@ -160,6 +162,7 @@ class IDC():
     self.capfrac = capfrac
     self.cellname = 'Capacitor'
     self.layer= 1
+    self.C = self.capacitance()
 
   def draw(self, less_one=False):
     self.make_fingers(less_one)
@@ -285,7 +288,7 @@ def Rectangle(x0,y0,x1,y1):
   return r
 
 def makechipoutline(wafer_w, wafer_l):
-  specs = {'layer':2}
+  specs = {'layer':10}
   outline = gdspy.Path(1, (0,0))
   #outline.layers = [0]
   outline.segment(wafer_w, '+x', **specs)
@@ -325,16 +328,15 @@ def getnumfingers(cap, target_C):
   return nfingers, capfrac
 
 # Lambda functions
-rounded_five = lambda x: int(x/5)*5
-rounded_ten = lambda x: int(x/10)*10
-rounded_even = lambda x: int(x/2)*2
+rounded_five = lambda x: int(round(x/5)*5)
+rounded_ten = lambda x: int(round(x/10)*10)
+rounded_even = lambda x: int(round(x/2)*2)
 get_size = lambda x: (x[1,0] - x[0,0], x[1,1]-x[0,1])
 get_coords = lambda x: (x[0,0], x[1,1])
 
 def makerestankmodel(nfingers):
   model_cap = IDC(1.0)
-  model_cap.nfinger = rounded_ten(nfingers) if nfingers >= 10 else \
-      rounded_even(nfingers)
+  model_cap.nfinger = nfingers
   if model_cap.nfinger == 0:
     model_cap.nfinger = 1
   model_cap.finger_length = finger_length
@@ -347,18 +349,18 @@ def makerestankmodel(nfingers):
 # nearest 10, if larger than 10. The smaller model capacitors are constructed by
 # dividing the length of the largest capacitor by 2 until we construct a
 # capacitor of length 1.
-def make_captank_models(num):
+def make_captank_models(num, binpow):
   if num == 1:
     cap = makerestankmodel(num)
     return [cap.draw(less_one=True)], [num]
 
   if num == 0:
-    return make_captank_models(1)
+    return make_captank_models(1, binpow)
 
   cap = makerestankmodel(num)
   cell = cap.draw(less_one=True)
 
-  caps, nfingers = make_captank_models(num // 2)
+  caps, nfingers = make_captank_models(int(num // binpow), binpow )
   return [cell] + caps, [cap.nfinger] + nfingers
 
 def update_origins(cap_array):
@@ -394,20 +396,18 @@ def make_capacitor(cap, model, model_fingers):
 
 
 def get_cap_position(cap, index, N_res, nrows, ncols, w_spacing, l_spacing,\
-    ind_start):
+    ind_start, space):
   dx, dy = get_size(cap.get_bounding_box())
   row = index  // ncols
   col = index - (row * ncols)
   #index += 1
   #row = (N_res - index) // nrows
   #col = (N_res - index) - (row * ncols)
-  space = 6 #small gap between cap and ind
   # First let's locate the inductor associated with the capacitor
   x_ind = ind_start[0] + col* (w_spacing)
   y_ind = ind_start[1] - row * (l_spacing)
-  x = x_ind - space - dx
-  y = y_ind + (dy - indboxheight  + 5)/2 - 2
-
+  x = x_ind - space - dx #space is the distance between the cap and ind
+  y = y_ind + (dy - indboxheight)/2 - 2
   return (x,y)
 
 def make_connector(len_conn):
@@ -415,14 +415,20 @@ def make_connector(len_conn):
   connector.segment(6, '+x', layer=1)
   connector.turn(2, 'r', layer=1)
   connector.segment(len_conn, '-y', layer=1)
+  connector.turn(2, 'l', layer=1)
+  connector.segment(island_halfwidth, '+x', layer=1)
   conn = gdspy.Cell('connectors')
   conn.add(connector)
   return conn
 
 def add_connector_array(ncols, nrows, indspacing, start):
-  len_conn = (finger_length + 2 - indboxheight + 5 )/2 -1
+  ms_width = 2
+  len_conn = (finger_length - indboxheight )/2 -ms_width + 61.5#magic number
   connector = make_connector(len_conn)
-  origin = (start[0] - 7, start[1] + indboxheight -5 + len_conn + 2)
+  (xmin, ymin), (xmax, ymax) = connector.get_bounding_box()
+  dx = xmax - xmin
+  dy = ymax - ymin - ms_width
+  origin = (start[0] - dx + ms_width, start[1] + dy +(indboxheight/2 + ms_width))
   return gdspy.CellArray(connector, ncols, nrows, indspacing, origin)
 
 def add_row_feeds(ms_width, sf_start, sf_len, nrows, ncols, indspacing):
@@ -557,7 +563,6 @@ def make_main_feedline(ms_width, sf_start, sf_len, nrows, ncols, indspacing):
 
   feeds_y_margin = 300 # Distance from bondpad to edge of the chip
   available_space_top = wafer_len - row_bbox[1,1] - feeds_y_margin -0.5 * ms_width
-  print (available_space_top)
   feed_len_top = (available_space_top - 3 * (1.5 * ms_width) - bondpad_size)/2
   final_feed_top = make_feedline_end(feed_len_top, sf_len, ms_width, '_top')
   # Calculate the position of the final stretch at the top
@@ -567,7 +572,6 @@ def make_main_feedline(ms_width, sf_start, sf_len, nrows, ncols, indspacing):
   top_feed = gdspy.CellReference(final_feed_top)
 
   available_space_bot = row_bbox[0,1] - feeds_y_margin  + 0.5 * ms_width
-  print (available_space_bot)
   feed_len_bot = (available_space_bot - 3 * (1.5 * ms_width) - bondpad_size)/2
   final_feed_bot = make_feedline_end(feed_len_bot, sf_len, ms_width, '_bot')
   # Calculate the position of the final stretch at the bot
@@ -643,10 +647,14 @@ def get_inductor():
   gdsii = gdspy.GdsLibrary()
   gdsii.read_gds(fn)
   ind = gdsii.extract('Inductor_Winding')
+  polys = ind.get_polygons()
   (xmin, ymin), (xmax, ymax) = ind.get_bounding_box()
-  ind_view = gdspy.CellReference(ind, -xmin, -ymin)
+  #ind_view = gdspy.CellReference(ind, [-xmin, -ymin])
   inductor = gdspy.Cell('inductor')
-  inductor.add(ind_view)
+  for poly in polys:
+    polygon = gdspy.Polygon(poly, layer=0)
+    polygon = polygon.translate(-xmin, -ymin)
+    inductor.add(polygon)
   inductor.flatten()
   return inductor
 
@@ -654,7 +662,6 @@ def get_coupcap(cap_array, model_coupcap):
   coupcap_tofeed = gdspy.CellReference(model_coupcap, rotation = -90)
   coupcap_tognd = gdspy.CellReference(model_coupcap, rotation = -90)
   (xmin, ymin), (xmax, ymax) = coupcap_tofeed.get_bounding_box()
-  print (xmin, ymin, xmax, ymax)
   (xmin_e, ymin_e), (xmax_e, ymax_e) = cap_array[0].get_bounding_box()
   (xmin_s, ymin_s), (xmax_s, ymax_s) = cap_array[-1].get_bounding_box()
   dx = xmax - xmin
@@ -666,47 +673,17 @@ def get_coupcap(cap_array, model_coupcap):
 
   return [coupcap_tofeed, coupcap_tognd]
 
-def main():
-  # Wafer organization all dimensions in microns
-  nrows = 18
-  ncols = 18
-  N_res = nrows * ncols
-  width_spacing = np.around((wafer_width - 2*edge_margin)/ncols, 0)
-  len_spacing = np.around((wafer_len - 2*edge_margin)/nrows, 0)
-  chip_outline = makechipoutline(wafer_width, wafer_len)
-  wafer = gdspy.Cell('6_inch_wafer')
+def get_array_size(arr):
+  return arr.columns * arr.rows
 
-  # Make the array of inductors first since it is simple enough
-  ind = InductorMeander()
-  indcell = ind.draw()
-  #indcell = get_inductor()
-  indspacing = [width_spacing, len_spacing]
-  indarray = gdspy.CellArray(indcell,ncols, nrows, indspacing)
-  (xmin, ymin), (xmax, ymax) = indarray.get_bounding_box()
-  ind_start = (xmin, ymax)
-  ind_dx, ind_dy = (xmax - xmin, ymax - ymin)
-  indarray.translate((wafer_width - ind_dx)//2, (wafer_len - ind_dy)//2)
-  indbbox = indarray.get_bounding_box()
-  ind_start = (indbbox[0,0], indbbox[1,1])
-  ind_dx, ind_dy = get_size(indbbox)
-  x_edge_margin = indbbox[0, 0]
-  y_edge_margin = indbbox[0, 1]
-  wafer.add(gdspy.CellReference(chip_outline, (0,0)))
-
-
-  # Let's think about the frequency spacing
-  df = 2 #MHz
-  fstart = 300 #MHz
+def generate_caps_from_freqs(fstart, df, N_res, L):
   fs = (fstart + df * np.arange(N_res))
   fracs = 1/(fs/fs[0])**2
-  L = 22 #nH
   Cs = (1/(L*u.nH)/(2*np.pi*fs*u.MHz)**2).to(u.F).value
   caps = [IDC(1.0) for i in range(len(Cs))]
 
   # Let's make the coupling capacitors as well
-  Qi = 40000
   Qc = Qi
-  Z0 = 50 * u.Ohm
   Ccs = 2 * np.sqrt((Cs * u.F)/((Z0/2) * Qc * 2*np.pi*fs*u.MHz)).to(u.F).value
   coupcaps = [IDC(1.0) for i in range(len(Cs))]
 
@@ -717,55 +694,155 @@ def main():
     nfingers, capfrac = getnumfingers(caps[i], Cs[i])
     caps[i].nfinger = nfingers
     caps[i].capfrac = capfrac
+    caps[i].C = caps[i].capacitance()
     N_fingers[i] = nfingers
 
     coupcaps[i].finger_length = coup_cap_finger_length - 2
     nfingers, capfrac = getnumfingers(coupcaps[i], Ccs[i])
     coup_N_fingers[i] = nfingers
 
-  #print (N_fingers)
+  return fs, caps, Cs, N_fingers, coup_N_fingers
+
+
+
+def main():
+  # Wafer organization all dimensions in microns
+  nrows = 18
+  ncols = 18
+  N_res = nrows * ncols
+  width_spacing = np.around((wafer_width - \
+      2*edge_margin )/ncols, 0)
+  len_spacing = np.around((wafer_len - 2*edge_margin)/nrows, 0)
+  chip_outline = makechipoutline(wafer_width, wafer_len)
+  wafer = gdspy.Cell('6_inch_wafer')
+
+  # Make the array of inductors first since it is simple enough
+  #ind = InductorMeander()
+  #indcell = ind.draw()
+  indcell = get_inductor()
+  (xmin, ymin), (xmax, ymax) = indcell.get_bounding_box()
+  global indboxheight
+  indboxheight = ymax - ymin
+  global indboxwidth
+  indboxwidth = xmax - xmin
+  indspacing = [width_spacing, len_spacing]
+  indarray = gdspy.CellArray(indcell,ncols, nrows, indspacing)
+  (xmin, ymin), (xmax, ymax) = indarray.get_bounding_box()
+  ind_start = (xmin, ymax)
+  ind_dx, ind_dy = (xmax - xmin, ymax - ymin)
+  indarray.translate((wafer_width - ind_dx)//2 + island_halfwidth,\
+      (wafer_len - ind_dy)//2)
+  indbbox = indarray.get_bounding_box()
+  ind_start = (indbbox[0,0], indbbox[1,1])
+  ind_dx, ind_dy = get_size(indbbox)
+  x_edge_margin = indbbox[0, 0]
+  y_edge_margin = indbbox[0, 1]
+  wafer.add(gdspy.CellReference(chip_outline, (0,0)))
+
+  # Add the connectors from the inductors to the capacitors
+  wafer.add(indarray)
+  conn_start = indbbox[0]
+  top_connectors = add_connector_array(ncols, nrows, indspacing, conn_start)
+  connector = top_connectors.ref_cell
+  (conn_dx, conn_dy) = get_size(connector.get_bounding_box())
+  bot_connectors = gdspy.copy(top_connectors, 0, -indboxheight)
+  bot_connectors.x_reflection=True
+  #bot_connectors.rotation = 180
+  bot_connectors.translate(0, ind_dy - finger_length -4 )
+  wafer.add(top_connectors)
+  wafer.add(bot_connectors)
+
+  # Generate all the capacitors
+  L = 10 #nH
+  fstart = 300 # MHz
+  df = 2 #MHz
+  fs, caps, Cs, N_fingers, coup_N_fingers = generate_caps_from_freqs(fstart, df, N_res, L)
+  #unq, unq_counts = np.unique(N_fingers, return_counts=True)
+  #fig, ax = plt.subplots(figsize=(10, 10))
+  #ax.hist(N_fingers, bins=unq, histtype='step')
+  #plt.show()
+
+  #cap_fingers_dict = dict(zip(unq, unq_counts))
+  #print (cap_fingers_dict)
   # Template capacitors for constructing all the capacitors
-  model_cap_cells, model_cap_nfingers = make_captank_models(np.min(N_fingers))
+  bin_pow = 1.5
+  power_max = int(np.log(np.max(N_fingers))/np.log(bin_pow))
+  num_fingers_max =  int(bin_pow ** power_max)
+  model_cap_cells, model_cap_nfingers = make_captank_models(num_fingers_max,
+      bin_pow)
   print ("We have model capacitors of sizes ", model_cap_nfingers)
   #model_cap = makerestankmodel(np.min(N_fingers))
   #model_cap_cell = model_cap.draw(less_one=True)
 
-  N_coupcaps = 5
+  coup_nfinger_step = 5
   model_coupcaps = []
-  model_coupcap_nfingers = np.arange(5, rounded_ten(np.max(coup_N_fingers)) + 1,\
-      N_coupcaps)
+  coup_power_max = int(np.log(np.max(coup_N_fingers))/np.log(2))
+  coup_num_fingers_max =  2 ** coup_power_max
+  #model_coupcap_nfingers = 2**np.arange(coup_power_max + 1)
+  model_coupcap_nfingers = np.arange(coup_nfinger_step,\
+      np.max(coup_N_fingers) + 1, coup_nfinger_step)
+  all_modelcoupcaps = []
   for nfingers in model_coupcap_nfingers:
     coupcap = IDC(1.0)
     coupcap.nfinger = nfingers
     coupcap.finger_length = coup_cap_finger_length - 2
+    coupcap.C = coupcap.capacitance()
     coupcap.cellname = 'Model_CoupRes_Tank_%d' %nfingers
+    all_modelcoupcaps.append(coupcap)
     model_coupcaps += [coupcap.draw(less_one=True)]
 
+  print ("We have model coupling capacitors of sizes ", model_coupcap_nfingers)
+  all_capacitors = []
+  indices = []
   for i in (range(N_res)):
     cap_array = make_capacitor(caps[i], model_cap_cells, model_cap_nfingers)
     origin= get_cap_position(cap_array[0], N_res - (i+1), N_res, nrows, ncols,\
-        width_spacing, len_spacing, ind_start)
+        width_spacing, len_spacing, ind_start, conn_dx - 1.5*2)
     cap_array[0].origin = origin
     update_origins(cap_array)
     # Make and place the coupling capacitor
     coup_nfingers = coup_N_fingers[i]
     #Find which coupcap to use for this cap array
-    index = rounded_five(coup_nfingers) //5 - 1
+    #index = int(np.log2(coup_nfingers))
+    index = rounded_five(coup_nfingers) //coup_nfinger_step  - 1
+    indices.append(index)
     coup_caps = get_coupcap(cap_array, model_coupcaps[index])
+    all_capacitors.append(cap_array)
     wafer.add(coup_caps)
     wafer.add(cap_array)
 
-  #wafer.add(model_cap_ref)
-  wafer.add(indarray)
-  conn_start = indbbox[0]
-  top_connectors = add_connector_array(ncols, nrows, indspacing, conn_start)
+  unq, unq_counts = np.unique(indices, return_counts=True)
+  #print (unq, unq_counts)
+  num_caps = list(map(lambda x: np.sum(list(map\
+      (lambda y: get_array_size(y),x))), all_capacitors))
+  #print (num_caps)
+  print ("Avg number of capacitors shot per full capacitor", np.mean(num_caps))
+  print ("Peak number of shots to make a full capacitor", np.max(num_caps))
+  print ("The total number of capacitors to be shot is ", np.sum(num_caps))
 
-  bot_connectors = gdspy.copy(top_connectors, 0, -indboxheight)
-  bot_connectors.x_reflection=True
-  #bot_connectors.rotation = 180
-  bot_connectors.translate(0, ind_dy - finger_length +1 )
-  wafer.add(top_connectors)
-  wafer.add(bot_connectors)
+  # I want to obtain the coupling efficiency for each capacitor based on the
+  # current coupling scheme.
+  Qcs = []
+  coup_fingers = []
+  for i in range(N_res):
+    C = caps[i].C
+    Cc = all_modelcoupcaps[indices[i]].C
+    coup_fingers.append(all_modelcoupcaps[indices[i]].nfinger)
+    Qc = ((C*u.F)/((Z0/2)*2*np.pi*fs[i]*u.MHz*(Cc/2 * u.F)**2)).to(1).value
+    Qcs.append(Qc)
+
+  Qcs = np.array(Qcs)
+  rho_c = Qcs/Qi
+  chi_c = 4 * rho_c/(1 + rho_c)**2
+  #print (Qcs)
+
+  #fig, ax = plt.subplots(figsize=(10, 10))
+  #ax.plot(chi_c, 'bd' )
+  #ax.plot(coup_fingers, 'b', label='realized')
+  #ax.plot(coup_N_fingers, 'r', label='expected')
+  #ax.legend(loc='best')
+  #plt.show()
+  #wafer.add(model_cap_ref)
 
 
   #for i in (range(N_res)):
@@ -785,7 +862,7 @@ def main():
   # First let's calculate the position of the side tines connecting to the main
   # microstrip
   cap_size = finger_length + 6
-  ind_size = indboxheight - 5
+  ind_size = indboxheight
   max_nfingers = np.max(N_fingers)
   sf_offset_y = (cap_size - ind_size)/2 + ind_size + 100 + ms_width //2
   sf_offset_x = max_nfingers * 4 + 6
@@ -810,326 +887,6 @@ def main():
   ##img.set_cmap('jet')
   #plt.colorbar()
   #plt.show()
-
-
-def main_old():
-  specturn = {'number_of_points':number_of_points}
-  ind = InductorMeander()
-  indcell = ind.draw()
-  cap = IDC(1.0)
-  cap.nfinger = 64
-  capcell = cap.draw()
-  print("cap.C: ",cap.C*1e12,"pF")
-
-  filtcap = IDC(1.0)
-  filtcap.nfinger = 128
-  filtcap.cellname = 'FilterCapacitor'
-  filtcapcell = filtcap.draw()
-  print("filtcap.C: ",filtcap.C*1e12,"pF")
-
-  filtind = InductorMeander()
-  filtind.cellname = 'FilterInductor'
-  filtind.boxheight = 400
-  filtind.boxwidth = 140
-  filtindcell = filtind.draw()
-
-  tankcap = gdspy.CellReference(capcell,rotation=90)
-  tankind = gdspy.CellReference(indcell)
-  moveright(tankcap,tankind,-10)
-  centery(tankcap,tankind)
-
-  coupcap = IDC(1.0)
-  coupcap.nfinger = 15
-  coupcap.finger_length = 25
-  coupcap.cellname = 'CouplingCap'
-  coupcapcell = coupcap.draw()
-  print("coupcap: ",coupcap.C*1e12,"pF")
-
-  coupcaphigh = gdspy.CellReference(coupcapcell)
-  coupcaplow = gdspy.CellReference(coupcapcell)
-  moveleft(tankcap,coupcaphigh,10)
-  moveleft(tankcap,coupcaplow,10)
-
-  (x0,y0),(x1,y1) = coupcaphigh.get_bounding_box()
-  (x2,y2),(x3,y3) = tankcap.get_bounding_box()
-  coupcaphigh.translate(0,y3-y1)
-  (x0,y0),(x1,y1) = coupcaplow.get_bounding_box()
-  coupcaplow.translate(0,y2-y0)
-
-  ccw1 = gdspy.Rectangle((x2-10,y3-2),(x2,y3))
-  ccw2 = gdspy.Rectangle((x2-10,y2),(x2,y2+2))
-  #gndtrace = gdspy.Rectangle((x0,y2-60),(x0+2160,y2-10))
-  gndtrace = gdspy.Path(2,(x0+1,y2))
-  gndtrace.segment(35,direction='-y')
-  gndtrace.segment(1,direction='-x')
-  gndtrace.segment(0,final_width=40,direction='+x')
-  gndtrace.segment(2950)
-
-  rotrace = gdspy.Rectangle((x0-25,y3-2),(x0,y3))
-
-  #movebelow(coupcaphigh,coupcaplow,10)
-
-  (cx0,cy0),(cx1,cy1) = tankcap.get_bounding_box()
-  (ix0,iy0),(ix1,iy1) = tankind.get_bounding_box()
-
-  cap2indcell = gdspy.Cell('Cap2Tankind')
-  wire1 = gdspy.Path(2,(cx1,cy0+1))
-  wire1.segment(9,direction='+x')
-  wire1.turn(2,'l',**specturn)
-  wire1.segment(iy0-cy0-3.0)
-  wire2 = gdspy.Path(2,(cx1,cy1-1))
-  wire2.segment(9,direction='+x')
-  wire2.turn(2,'r',**specturn)
-  wire2.segment(cy1-iy1-3.0)
-  cap2indcell.add(wire1)
-  cap2indcell.add(wire2)
-
-  tankcap2tankind = gdspy.CellReference(cap2indcell)
-
-  # Pair two inductors
-  filtind1 = gdspy.CellReference(filtindcell,rotation=-90)
-  filtind2 = gdspy.CellReference(filtindcell,rotation=90)
-  movebelow(filtind1,filtind2,10)
-  centerx(filtind1,filtind2)
-  indpaircell = gdspy.Cell('InductorPair')
-  indpaircell.add(filtind1)
-  indpaircell.add(filtind2)
-
-  indpair1 = gdspy.CellReference(indpaircell)
-  centery(tankcap,indpair1)
-  
-  ind2indpaircell = gdspy.Cell('ind2indpair')
-  (px0,py0),(px1,py1) = indpair1.get_bounding_box()
-  (ix0,iy0),(ix1,iy1) = tankind.get_bounding_box()
-  wire1 = gdspy.Path(2,(ix1-2.5,iy0))
-  wire1.segment(iy0-py0-3.0,direction='-y')
-  wire1.turn(2,'l',**specturn)
-  wire1.segment(10.5)
-
-  wire2 = gdspy.Path(2,(ix1-2.5,iy1))
-  wire2.segment(py1-iy1-3.0,direction='+y')
-  wire2.turn(2,'r',**specturn)
-  wire2.segment(10.5)
-  ind2indpaircell.add(wire1)
-  ind2indpaircell.add(wire2)
-
-  tankind2indpair1 = gdspy.CellReference(ind2indpaircell)
-
-  filtcap1 = gdspy.CellReference(filtcapcell,rotation=90)
-  moveright(indpair1,filtcap1,-10)
-  centery(indpair1,filtcap1)
-
-  filterstagecell = gdspy.Cell('FilterStage')
-  filterstagecell.add(indpair1)
-  filterstagecell.add(filtcap1)
-
-  (px0,py0),(px1,py1) = indpair1.get_bounding_box()
-  (cx0,cy0),(cx1,cy1) = filtcap1.get_bounding_box()
-  wire1 = gdspy.Path(1,(px1-0.5,py0))
-  wire1.segment(py0-cy0-3.0,direction='-y',final_width=2)
-  wire1.turn(2,'l',**specturn)
-  wire1.segment(8.5)
-  wire2 = gdspy.Path(1,(px1-0.5,py1))
-  wire2.segment(cy1-py1-3.0,direction='+y',final_width=2)
-  wire2.turn(2,'r',**specturn)
-  wire2.segment(8.5)
-  wire3 = gdspy.Path(2,(cx1,cy1-1.))
-  wire3.segment(8.5)
-  wire3.turn(2,'r',**specturn)
-  wire3.segment(py0-cy0-3.0,final_width=1)
-  wire4 = gdspy.Path(2,(cx1,cy0+1.))
-  wire4.segment(8.5)
-  wire4.turn(2,'l',**specturn)
-  wire4.segment(py0-cy0-3.0,final_width=1)
-
-  filterstagecell.add(wire1)
-  filterstagecell.add(wire2)
-  filterstagecell.add(wire3)
-  filterstagecell.add(wire4)
-
-  filterstage1 = gdspy.CellReference(filterstagecell)
-  moveright(tankind,filterstage1,-10)
-  centery(tankind,filterstage1)
-
-  filterstage2 = gdspy.CellReference(filterstagecell)
-  moveright(filterstage1,filterstage2,1.5)
-  centery(filterstage1,filterstage2)
-
-  finalind = gdspy.CellReference(indpaircell)
-  moveright(filterstage2,finalind,1.5)
-  centery(filterstage2,finalind)
-
-  pad = gdspy.Rectangle((0,0),(140,140))
-  padcell = gdspy.Cell('WirebondPad')
-  padcell.add(pad)
-
-  pad1 = gdspy.CellReference(padcell)
-  pad2 = gdspy.CellReference(padcell)
-  movebelow(pad1,pad2,10)
-
-  stubcell = gdspy.Cell('PadStub')
-  stub1 = gdspy.Rectangle((0,0),(10,2))
-  stubcell.add(stub1)
-
-  padstackcell = gdspy.Cell('Padstack')
-  padstackcell.add(pad1)
-  padstackcell.add(pad2)
-  stub1 = gdspy.CellReference(stubcell)
-  stub2 = gdspy.CellReference(stubcell)
-  moveabove(padstackcell,stub1,2)
-  moveleft(padstackcell,stub1)
-  movebelow(padstackcell,stub2,-2)
-  moveleft(padstackcell,stub2)
-  padstackcell.add(stub1)
-  padstackcell.add(stub2)
-
-  padstack1 = gdspy.CellReference(padstackcell)
-  moveright(finalind,padstack1,0)
-  centery(finalind,padstack1)
-
-  cells = [indcell,indpaircell,filtcapcell,padcell,padstackcell]
-  cells += [filterstagecell,filtindcell,cap2indcell,ind2indpaircell]
-  cells += [coupcapcell]
-  cells += [stubcell]
-
-  kpupcell = gdspy.Cell('kpup')
-  kpupcell.add(tankind)
-  kpupcell.add(filterstage1)
-  kpupcell.add(filterstage2)
-  kpupcell.add(finalind)
-  kpupcell.add(padstack1)
-  kpupcell.add(tankcap2tankind)
-  kpupcell.add(tankind2indpair1)
-  kpupcell.add(coupcaphigh)
-  kpupcell.add(coupcaplow)
-  kpupcell.add(ccw1)
-  kpupcell.add(ccw2)
-  kpupcell.add(gndtrace)
-  kpupcell.add(rotrace)
-  cells += [kpupcell]
-
-  #fs = np.linspace(1,1.066,33)
-  fs = np.arange(200, 800, 2) # Aiming for 300 resonators with a 2 MHz spacing.
-  capfracs = 1 / np.sqrt(fs)
-  #capfracs = np.linspace(0.6,1,33)
-  ncap = len(capfracs)
-
-  kpuparray = gdspy.CellArray(kpupcell,1,ncap,[0,380])
-  chipcell = gdspy.Cell('Chip')
-  for i in range(ncap):
-    cap = IDC(capfracs[i])
-    cap.nfinger = 64
-    cap.cellname = 'cap%03d'%i
-    capcell = cap.draw()
-    origin = (0,380*i)
-    #kpupref = gdspy.CellReference(kpup,origin)
-    capref = gdspy.CellReference(capcell,origin,rotation=90)
-    chipcell.add(capref)
-    #chipcell.add(kpupref)
-    cells += [capcell]
-  chipcell.add(kpuparray)
-
-
-  chipref = gdspy.CellReference(chipcell)
-  (x0,y0),(x1,y1) = chipref.get_bounding_box()
-
-  rolinecell = gdspy.Cell('roline')
-  roline = gdspy.Path(40,(x0,y0-40))
-  roline.segment(y1-y0+80,direction='+y')
-  rolinecell.add(roline)
-  cells += [rolinecell]
-
-  rflinecell = gdspy.Cell('signalline')
-  roline = gdspy.CellReference(rolinecell)
-  moveleft(kpupcell,roline)
-  rflinecell.add(roline)
-  pad1 = gdspy.CellReference(padcell)
-  pad2 = gdspy.CellReference(padcell)
-  centerx(roline,pad1)
-  centerx(roline,pad2)
-  pad1.translate(50,0)
-  pad2.translate(50,0)
-  moveabove(roline,pad1)
-  movebelow(roline,pad2)
-  rflinecell.add(pad1)
-  rflinecell.add(pad2)
-  rfline = gdspy.CellReference(rflinecell)
-  chipcell.add(rfline)
-
-  gndlinecell = gdspy.Cell('gndline')
-  roline = gdspy.CellReference(rolinecell)
-  moveright(kpupcell,roline)
-  gndlinecell.add(roline)
-  pad1 = gdspy.CellReference(padcell)
-  pad2 = gdspy.CellReference(padcell)
-  centerx(roline,pad1)
-  centerx(roline,pad2)
-  pad1.translate(-50,0)
-  pad2.translate(-50,0)
-  moveabove(roline,pad1)
-  movebelow(roline,pad2)
-  gndlinecell.add(pad1)
-  gndlinecell.add(pad2)
-  gndline = gdspy.CellReference(gndlinecell)
-  chipcell.add(gndline)
-  cells += [gndlinecell]
-
-  chipref = gdspy.CellReference(chipcell)
-  (x0,y0),(x1,y1) = chipref.get_bounding_box()
-  outlinecell = gdspy.Cell('ChipOutline')
-  path = gdspy.Path(1,(x0-100,y0-100))
-  w = x1 - x0 + 200
-  h = y1 - y0 + 200
-  path.segment(w,direction='+x',layer=2)
-  path.segment(h,direction='+y',layer=2)
-  path.segment(w,direction='-x',layer=2)
-  path.segment(h,direction='-y',layer=2)
-  outlinecell.add(path)
-  outline = gdspy.CellReference(outlinecell)
-  chipcell.add(outline)
-  cells += [chipcell,rflinecell,outlinecell]
-
-  mstxtcell = gdspy.Cell('MSTXT')
-  mstxt = gdspy.Text('MS',140)
-  mstxtcell.add(mstxt)
-  gndtxtcell = gdspy.Cell('GNDTXT')
-  gndtxt = gdspy.Text('GND',140)
-  gndtxtcell.add(gndtxt)
-
-  labeltxtcell = gdspy.Cell('LABELTXT')
-  labeltxt = gdspy.Text('BAS20180114',140)
-  labeltxtcell.add(labeltxt)
-
-  mstxt1 = gdspy.CellReference(mstxtcell)
-  moveleft(chipcell,mstxt1)
-  moveabove(chipcell,mstxt1)
-  mstxt1.translate(470,-220)
-  chipcell.add(mstxt1)
-  mstxt2 = gdspy.CellReference(mstxtcell)
-  moveleft(chipcell,mstxt2)
-  movebelow(chipcell,mstxt2)
-  mstxt2.translate(470,220)
-  chipcell.add(mstxt2)
-
-  gndtxt1 = gdspy.CellReference(gndtxtcell)
-  moveright(chipcell,gndtxt1)
-  moveabove(chipcell,gndtxt1)
-  gndtxt1.translate(-610,-220)
-  chipcell.add(gndtxt1)
-  gndtxt2 = gdspy.CellReference(gndtxtcell)
-  moveright(chipcell,gndtxt2)
-  movebelow(chipcell,gndtxt2)
-  gndtxt2.translate(-610,220)
-  chipcell.add(gndtxt2)
-
-  labeltxt1 = gdspy.CellReference(labeltxtcell)
-  centerx(chipcell,labeltxt1)
-  movebelow(chipcell,labeltxt1,-220)
-  chipcell.add(labeltxt1)
-
-  cells += [mstxtcell,gndtxtcell,labeltxtcell]
-
-  gdspy.write_gds('kpup.gds',cells=cells,unit=1e-6,precision=1e-9)
 
 if __name__=='__main__':
   main()
