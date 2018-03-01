@@ -19,6 +19,10 @@ bondpad_size = 140
 island_halfwidth = 400
 Qi = 40000
 Z0 = 50 * u.Ohm
+gnd_box_margin = 200
+
+
+
 
 def moveabove_get_shift(box_fixed,box_free):
   (fixed_llx,fixed_lly),(fixed_urx,fixed_ury) = box_fixed
@@ -341,6 +345,7 @@ def makerestankmodel(nfingers):
     model_cap.nfinger = 1
   model_cap.finger_length = finger_length
   model_cap.cellname = 'Model_Res_Tank_%d' %model_cap.nfinger
+  model_cap.layer = 6
   return model_cap
 
 # I'm defining a series of template capacitors used to build up all the
@@ -373,6 +378,38 @@ def update_origins(cap_array):
     curr = (curr[0] - dx +2, curr[1])
     arr.origin = curr
 
+# Finds the total size of a capacitor made from a collection of smaller
+# capacitors
+def get_full_cap_size(cap_array):
+  #get dx, dy for the largest capacitor
+  (xmin_s, ymin_s), (xmax_s, ymax_s) = cap_array[0].get_bounding_box()
+  dy = ymax_s - ymin_s #same for all of them.
+  dx_s = xmax_s - xmin_s
+  origin_s = cap_array[0].origin
+  origin_l = cap_array[-1].origin
+  if len(cap_array) == 1:
+    dx = dx_s
+  else:
+    dx = (origin_s[0] - origin_l[0]) + dx_s
+
+  return dx, dy
+
+# Returns the bounding box of a capacitor made from a collection of smaller
+# capacitors
+# FIXME
+def get_full_cap_bbox(cap_array):
+  #get dx, dy for the largest capacitor
+  (xmin_s, ymin_s), (xmax_s, ymax_s) = cap_array[0].get_bounding_box()
+  dy = ymax_s - ymin_s #same for all of them.
+  dx_s = xmax_s - xmin_s
+  origin_s = cap_array[0].origin
+  origin_l = cap_array[-1].origin
+  if len(cap_array) == 1:
+    dx = dx_s
+  else:
+    dx = (origin_s[0] - origin_l[0]) + dx_s
+
+  return dx, dy
 def make_capacitor(cap, model, model_fingers):
   cap_array = []
   origin = (0,0)
@@ -412,13 +449,13 @@ def get_cap_position(cap, index, N_res, nrows, ncols, w_spacing, l_spacing,\
 
 def make_connector(len_conn):
   connector = gdspy.Path(2, (0,0))
-  connector.segment(6, '+x', layer=1)
-  connector.turn(2, 'r', layer=1)
-  connector.segment(len_conn, '-y', layer=1)
-  connector.turn(2, 'l', layer=1)
-  connector.segment(island_halfwidth -1.5 * 2, '+x', layer=1)
-  connector.turn(2, 'l', layer=1)
-  connector.segment(11, '+y', layer=1)
+  connector.segment(6, '+x', layer=8)
+  connector.turn(2, 'r', layer=8)
+  connector.segment(len_conn, '-y', layer=8)
+  connector.turn(2, 'l', layer=8)
+  connector.segment(island_halfwidth -1.5 * 2, '+x', layer=8)
+  connector.turn(2, 'l', layer=8)
+  connector.segment(11, '+y', layer=8)
   conn = gdspy.Cell('connectors')
   conn.add(connector)
   return conn
@@ -607,42 +644,60 @@ def make_main_feedline(ms_width, sf_start, sf_len, nrows, ncols, indspacing):
   feedline.add([row_feed_arr, left_connectors, right_connectors, corners])
   return gdspy.CellReference(feedline)
 
-def make_ground_plane(ms_width, sf_start, sf_len, ms_start, nrows, ncols,\
-    yspacing, cap_size, ind_size, y_edge_margin):
-  # Making the ground trunk lines running on the sides of the chip
-  gnd_width = 500
-  gnd_feed = gdspy.Path(gnd_width)
-  gnd_feed.segment(wafer_len - 2000, '-y', layer=3)
-  gnd_mainfeed = gdspy.Cell('gnd_trunk_line')
-  gnd_mainfeed.add(gnd_feed)
-  gnd_start_left = (sf_start[0] // 2, ms_start[1])
-  gnd_start_right = (wafer_width - gnd_start_left[0], ms_start[1])
+def make_ground_plane(indspacing, cap_size, conn_dx, nrows, ncols,\
+    indbbox, ind_arr_origin):
+  gnd_box_width = cap_size[0] + conn_dx + indboxwidth + gnd_box_margin
+  gnd_box_height = cap_size[1] +  2*coup_cap_finger_length
+  gnd_box = gdspy.Rectangle((-gnd_box_width/2, gnd_box_height/2),\
+      (gnd_box_width/2, -gnd_box_height/2), layer=4)
+  gnd_plane_cutout = gdspy.Cell('Ground_Plane_Cutout')
+  gnd_plane_cutout.add(gnd_box)
+  gnd_box_arr = gdspy.CellArray(gnd_plane_cutout, ncols, nrows, indspacing)
 
-  # Make the row tines that serve each row of capacitors
-  gnd_sfeed = gdspy.Path(gnd_width)
-  gnd_sfeed.segment(sf_len, '+x', layer=3)
-  gnd_sidefeed = gdspy.Cell('gnd_row_line')
-  gnd_sidefeed.add(gnd_sfeed)
-  num_rrows = nrows //2
-  num_lrows = nrows - num_rrows
-  gnd_lsidefeedarr = gdspy.CellArray(gnd_sidefeed, columns=1,\
-      rows=num_lrows ,spacing=[0, 2*yspacing])
-  gnd_rsidefeedarr = gdspy.CellArray(gnd_sidefeed, columns=1,\
-      rows=num_rrows , spacing=[0, 2*yspacing])
-  gnd_sf_offset_y = (cap_size - ind_size)/2 + coup_cap_finger_length + gnd_width//2
-  gnd_sf_start = (gnd_start_left[0], y_edge_margin - gnd_sf_offset_y)
-  gnd_lsidefeedarr.origin = gnd_sf_start
-  gnd_rsidefeedarr.origin = gnd_sf_start
-  gnd_rsidefeedarr.translate(2 * gnd_start_left[0], yspacing)
+  gnd_box_arr.origin = ind_arr_origin
+  # Make final positioning adjustments to the GP
+  dx = gnd_box_width/2 - indboxwidth - gnd_box_margin/2
+  dy = indboxheight/2
+  gnd_box_arr.translate(-dx, dy)
+  return gnd_box_arr
 
-  # Assemble the full ground plane
-  gnd_plane = gdspy.Cell('Ground_Plane')
-  gnd_plane.add(gnd_lsidefeedarr)
-  gnd_plane.add(gnd_rsidefeedarr)
-  gnd_plane.add(gdspy.CellReference(gnd_mainfeed, gnd_start_left))
-  gnd_plane.add(gdspy.CellReference(gnd_mainfeed, gnd_start_right))
 
-  return gdspy.CellReference(gnd_plane)
+#def make_ground_plane(ms_width, sf_start, sf_len, ms_start, nrows, ncols,\
+#    yspacing, cap_size, ind_size, y_edge_margin):
+#  # Making the ground trunk lines running on the sides of the chip
+#  gnd_width = 500
+#  gnd_feed = gdspy.Path(gnd_width)
+#  gnd_feed.segment(wafer_len - 2000, '-y', layer=3)
+#  gnd_mainfeed = gdspy.Cell('gnd_trunk_line')
+#  gnd_mainfeed.add(gnd_feed)
+#  gnd_start_left = (sf_start[0] // 2, ms_start[1])
+#  gnd_start_right = (wafer_width - gnd_start_left[0], ms_start[1])
+#
+#  # Make the row tines that serve each row of capacitors
+#  gnd_sfeed = gdspy.Path(gnd_width)
+#  gnd_sfeed.segment(sf_len, '+x', layer=3)
+#  gnd_sidefeed = gdspy.Cell('gnd_row_line')
+#  gnd_sidefeed.add(gnd_sfeed)
+#  num_rrows = nrows //2
+#  num_lrows = nrows - num_rrows
+#  gnd_lsidefeedarr = gdspy.CellArray(gnd_sidefeed, columns=1,\
+#      rows=num_lrows ,spacing=[0, 2*yspacing])
+#  gnd_rsidefeedarr = gdspy.CellArray(gnd_sidefeed, columns=1,\
+#      rows=num_rrows , spacing=[0, 2*yspacing])
+#  gnd_sf_offset_y = (cap_size - ind_size)/2 + coup_cap_finger_length + gnd_width//2
+#  gnd_sf_start = (gnd_start_left[0], y_edge_margin - gnd_sf_offset_y)
+#  gnd_lsidefeedarr.origin = gnd_sf_start
+#  gnd_rsidefeedarr.origin = gnd_sf_start
+#  gnd_rsidefeedarr.translate(2 * gnd_start_left[0], yspacing)
+#
+#  # Assemble the full ground plane
+#  gnd_plane = gdspy.Cell('Ground_Plane')
+#  gnd_plane.add(gnd_lsidefeedarr)
+#  gnd_plane.add(gnd_rsidefeedarr)
+#  gnd_plane.add(gdspy.CellReference(gnd_mainfeed, gnd_start_left))
+#  gnd_plane.add(gdspy.CellReference(gnd_mainfeed, gnd_start_right))
+#
+#  return gdspy.CellReference(gnd_plane)
 
 def get_inductor():
   fn = '../resobolo_files/new_inductor.gds'
@@ -654,7 +709,7 @@ def get_inductor():
   #ind_view = gdspy.CellReference(ind, [-xmin, -ymin])
   inductor = gdspy.Cell('inductor')
   for poly in polys:
-    polygon = gdspy.Polygon(poly, layer=0)
+    polygon = gdspy.Polygon(poly, layer=3)
     polygon = polygon.translate(-xmin, -ymin)
     inductor.add(polygon)
   inductor.flatten()
@@ -790,6 +845,7 @@ def main():
     coupcap.finger_length = coup_cap_finger_length - 2
     coupcap.C = coupcap.capacitance()
     coupcap.cellname = 'Model_CoupRes_Tank_%d' %nfingers
+    coupcap.layer = 6
     all_modelcoupcaps.append(coupcap)
     model_coupcaps += [coupcap.draw(less_one=True)]
 
@@ -813,6 +869,8 @@ def main():
     wafer.add(coup_caps)
     wafer.add(cap_array)
 
+  #print ()
+  #print (get_full_cap_size(all_capacitors[-1]))
   unq, unq_counts = np.unique(indices, return_counts=True)
   #print (unq, unq_counts)
   num_caps = list(map(lambda x: np.sum(list(map\
@@ -838,13 +896,22 @@ def main():
   chi_c = 4 * rho_c/(1 + rho_c)**2
   #print (Qcs)
 
-  #fig, ax = plt.subplots(figsize=(10, 10))
-  #ax.plot(chi_c, 'bd' )
-  #ax.plot(coup_fingers, 'b', label='realized')
-  #ax.plot(coup_N_fingers, 'r', label='expected')
-  #ax.legend(loc='best')
+  fig, ax = plt.subplots(figsize=(10, 10))
+  ax.plot(fs, chi_c, 'bd' )
+  ax.set_xlabel(r'Frequency [MHz]')
+  ax.set_ylabel(r'$\chi_c$')
+  ax.grid(which='both')
+  plt.savefig('coupling_efficiency.png')
   #plt.show()
   #wafer.add(model_cap_ref)
+  fig, ax = plt.subplots(figsize=(10, 10))
+  ax.plot(fs, coup_fingers, 'b', label='realized')
+  ax.plot(fs, coup_N_fingers, 'r', label='expected')
+  ax.legend(loc='best')
+  ax.set_xlabel(r'Frequency [MHz]')
+  ax.set_ylabel(r'Number of Fingers')
+  ax.grid(which='both')
+  plt.savefig('coupling_cap_scheme.png')
 
 
   #for i in (range(N_res)):
@@ -867,16 +934,32 @@ def main():
   ind_size = indboxheight
   max_nfingers = np.max(N_fingers)
   sf_offset_y = (cap_size - ind_size)/2 + ind_size + 100 + ms_width //2
-  sf_offset_x = max_nfingers * 4 + 6
+  sf_offset_x =  max_nfingers * 4 + 6 +  4* gnd_box_margin
   sf_start = (ind_start[0] - sf_offset_x, y_edge_margin + sf_offset_y)
   sf_len = wafer_width - 2*sf_start[0]
+  print (sf_start)
   make_feedline_cells(sf_len, ms_width)
   main_feeds = make_main_feedline(ms_width, sf_start, sf_len, nrows, ncols,\
       indspacing)
+  ILD_layer = gdspy.Cell('ILD_layer')
+  polys = main_feeds.get_polygons(depth=2)
+  for poly in polys:
+    polygon = gdspy.Polygon(poly, layer=9)
+    ILD_layer.add(polygon)
+  ILD_layer.flatten()
   wafer.add(main_feeds)
+  wafer.add(gdspy.CellReference(ILD_layer))
 
-  gnd_plane = make_ground_plane(ms_width, sf_start, sf_len, ms_start,\
-      nrows, ncols, indspacing[1], cap_size, ind_size, y_edge_margin)
+  # To make the ground plane, I'll start by finding the size of the box around
+  # the capacitors and inductors from which the ground plane should be
+  # subtracted.
+  cap_sizes = list(map(lambda x: get_full_cap_size(x)[0], all_capacitors))
+  max_index = np.where(cap_sizes == np.max(cap_sizes))[0][0]
+  max_cap_size = get_full_cap_size(all_capacitors[max_index])
+  gnd_plane = make_ground_plane(indspacing, max_cap_size, conn_dx,\
+      nrows, ncols, indbbox, indarray.origin)
+  #gnd_plane = make_ground_plane(ms_width, sf_start, sf_len, ms_start,\
+  #    nrows, ncols, indspacing[1], cap_size, ind_size, y_edge_margin)
   wafer.add(gnd_plane)
 
 
