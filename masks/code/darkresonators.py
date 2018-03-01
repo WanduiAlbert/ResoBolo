@@ -416,7 +416,9 @@ def make_connector(len_conn):
   connector.turn(2, 'r', layer=1)
   connector.segment(len_conn, '-y', layer=1)
   connector.turn(2, 'l', layer=1)
-  connector.segment(island_halfwidth, '+x', layer=1)
+  connector.segment(island_halfwidth -1.5 * 2, '+x', layer=1)
+  connector.turn(2, 'l', layer=1)
+  connector.segment(11, '+y', layer=1)
   conn = gdspy.Cell('connectors')
   conn.add(connector)
   return conn
@@ -426,7 +428,7 @@ def add_connector_array(ncols, nrows, indspacing, start):
   len_conn = (finger_length - indboxheight )/2 -ms_width + 61.5#magic number
   connector = make_connector(len_conn)
   (xmin, ymin), (xmax, ymax) = connector.get_bounding_box()
-  dx = xmax - xmin
+  dx = xmax - xmin - 0.25 * ms_width
   dy = ymax - ymin - ms_width
   origin = (start[0] - dx + ms_width, start[1] + dy +(indboxheight/2 + ms_width))
   return gdspy.CellArray(connector, ncols, nrows, indspacing, origin)
