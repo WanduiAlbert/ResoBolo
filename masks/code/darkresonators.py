@@ -703,7 +703,7 @@ def get_inductor():
   fn = '../resobolo_files/new_inductor.gds'
   gdsii = gdspy.GdsLibrary()
   gdsii.read_gds(fn)
-  ind = gdsii.extract('Inductor_Winding')
+  ind = gdsii.extract('Al_Inductor_Islands_right')
   polys = ind.get_polygons()
   (xmin, ymin), (xmax, ymax) = ind.get_bounding_box()
   #ind_view = gdspy.CellReference(ind, [-xmin, -ymin])
