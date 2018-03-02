@@ -926,7 +926,7 @@ def main():
 
   # Feedlines
   ms_start = (wafer_width //2 , wafer_len - 1000)
-  ms_width = 40
+  ms_width =2 
 
   # First let's calculate the position of the side tines connecting to the main
   # microstrip
@@ -950,6 +950,7 @@ def main():
   wafer.add(main_feeds)
   wafer.add(gdspy.CellReference(ILD_layer))
 
+  print (main_feeds.area())
   # To make the ground plane, I'll start by finding the size of the box around
   # the capacitors and inductors from which the ground plane should be
   # subtracted.
