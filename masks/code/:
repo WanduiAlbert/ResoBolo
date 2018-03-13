@@ -460,20 +460,14 @@ def main():
   coupcaps = [IDC(1.0) for i in range(len(Cs))]
   
   caps = []
-  coup_Nfingers = []
   Nfingers = []
   cfracs = []
-  for idc, c, coupcap, freq in zip(idcs, Cs, coupcaps, fs):
+  for idc, c, freq in zip(idcs, Cs, fs):
     idc.finger_length = finger_length
     idc.cellname = "Capacitor_{0:3d}MHz".format(freq)
     nfinger, cfrac = getnumfingers(idc, c)
     Nfingers.append(nfinger)
     cfracs.append(cfrac)
-
-    coupcaps.finger_length = coup_cap_finger_length - 2
-    nfingers, capfrac = getnumfingers(coupcaps[i], Ccs[i])
-    coup_Nfingers.append(nfingers)
-
 
   Nfinger = int(round(np.max(Nfingers)/10)*10)
   common_Nfinger = np.min(Nfingers)
