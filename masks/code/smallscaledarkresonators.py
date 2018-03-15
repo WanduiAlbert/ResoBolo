@@ -22,7 +22,8 @@ island_halfwidth = 400
 Qi = 40000
 Z0 = 50 * u.Ohm
 gnd_box_margin = 200
-
+def_layers = {"Thin Gold":1, "PRO1":2, "ALUMINUM":3, "LSNSUB":4, "LSN1":5,
+    "120nm_NbWiring":6, "STEPPER":7, "400nm_NbWiring":8, "ILD":9}
 
 
 
@@ -343,9 +344,9 @@ def invert_cell(cell, rotation=0):
   inv_cell = gdspy.Cell(cell_name)
   cell = cell.flatten()
   cell_ref = gdspy.CellReference(cell, rotation=rotation)
-  (xmin, ymin), (xmax, ymax) = cell_ref.get_bounding_box()
-  dx = (xmax - xmin) + 2*inv_margin
-  dy = (ymax - ymin) + 2*inv_margin
+  dx, dy = get_size(cell_ref)
+  dx += 2*inv_margin
+  dy += 2*inv_margin
   layer = cell.get_layers().pop()
   polys = cell_ref.get_polygons(depth=1)
   polyset = gdspy.PolygonSet(polys, layer=layer)
@@ -407,6 +408,27 @@ def get_inductor():
   inductor.flatten()
   return inductor
 
+def get_size(cell):
+  (xmin, ymin), (xmax, ymax) = cell.get_bounding_box()
+  return (xmax - xmin), (ymax - ymin)
+
+def get_cap_tank(cap, coupcap):
+  Dx, Dy = get_size(cap)
+  tofeed = gdspy.CellReference(coupcap)
+  dx, dy = get_size(tofeed)
+  #print (Dx, Dy, dx, dy)
+  overlap = 2
+  displacement_y = -(Dy - dy)/2
+  displacement_x = (Dx + dx)/2 - overlap
+  tofeed.origin = [0, 0]
+  tofeed.translate(displacement_x, displacement_y)
+  cap.add(tofeed)
+  tognd = gdspy.CellReference(coupcap)
+  tognd.translate(-displacement_x, displacement_y)
+  cap.add(tognd)
+  cap.flatten()
+  return cap
+
 def rot(n, i, j, ri, rj):
   if (rj == 0):
     if (ri == 1):
@@ -435,6 +457,25 @@ def d2ij(d, n):
     t //= 4
   return (i, j)
 
+uint = np.frompyfunc(int, 1,1)
+
+def get_feedline():
+  cell_length = 100
+  cell_width = 20
+  main_width = 8
+  ms_fraction = 0.2
+  mainline = gdspy.Rectangle([-cell_length/2, main_width/2],\
+      [cell_length/2, -main_width/2], layer=def_layers['400nm_NbWiring'])
+  ild = gdspy.Rectangle([-cell_length/2, cell_width/2],\
+      [cell_length/2, -cell_width/2], layer=def_layers['ILD'])
+  gndsub = gdspy.Rectangle([-cell_length/2 + ms_fraction*cell_length,\
+    cell_width/2], [cell_length/2, -cell_width/2], layer=def_layers['LSNSUB'])
+
+  feedcell = gdspy.Cell('MainFeedline')
+  feedcell.add(mainline)
+  feedcell.add(ild)
+  feedcell.add(gndsub)
+  return feedcell
 
 
 def main():
@@ -458,22 +499,33 @@ def main():
   Qc = Qi
   Ccs = 2 * np.sqrt((Cs * u.F)/((Z0/2) * Qc * 2*np.pi*fs*u.MHz)).to(u.F).value
   coupcaps = [IDC(1.0) for i in range(len(Cs))]
-  
+
   caps = []
   coup_Nfingers = []
   Nfingers = []
   cfracs = []
-  for idc, c, coupcap, freq in zip(idcs, Cs, coupcaps, fs):
+  for idc, c, cs, coupcap, freq in zip(idcs, Cs, Ccs, coupcaps, fs):
     idc.finger_length = finger_length
     idc.cellname = "Capacitor_{0:3d}MHz".format(freq)
     nfinger, cfrac = getnumfingers(idc, c)
     Nfingers.append(nfinger)
     cfracs.append(cfrac)
 
-    coupcaps.finger_length = coup_cap_finger_length - 2
-    nfingers, capfrac = getnumfingers(coupcaps[i], Ccs[i])
+    coupcap.finger_length = coup_cap_finger_length - 2
+    nfingers, _ = getnumfingers(coupcap, cs)
+    nfingers = int(round(nfingers/5)*5)
     coup_Nfingers.append(nfingers)
 
+
+  coup_Nfingers = np.array(coup_Nfingers)
+  unq_nfingers, unq_indices, unq_inv = np.unique(coup_Nfingers,\
+      return_index=True, return_inverse=True)
+  unq_coupcaps = []
+  for index in unq_indices:
+    coupcaps[index].nfinger = coup_Nfingers[index]
+    coupcaps[index].cellname =\
+        "coupling_capacitor_{0:d}".format(coup_Nfingers[index])
+    unq_coupcaps.append(coupcaps[index].draw())
 
   Nfinger = int(round(np.max(Nfingers)/10)*10)
   common_Nfinger = np.min(Nfingers)
@@ -484,26 +536,28 @@ def main():
   common_idc.cellname = "Capacitor_common"
   common_cap = common_idc.draw(less_one=True)
   obtained_Cs = []
-  for idc in idcs:
-    idc.nfinger = Nfinger - common_Nfinger
-    idc.capfrac = (idc.capfrac - common_capfrac)/(1 - common_capfrac)
-    caps.append(idc.draw())
-    obtained_Cs.append(idc.capacitance())
+  obtained_Ccs = []
+  for ires, coup_index in zip(range(N_res), unq_inv):
+    idcs[ires].nfinger = Nfinger - common_Nfinger
+    idcs[ires].capfrac = (idcs[ires].capfrac - common_capfrac)/(1 - common_capfrac)
+    caps.append(get_cap_tank(idcs[ires].draw(), unq_coupcaps[coup_index]))
+    obtained_Cs.append(idcs[ires].C)
+    obtained_Ccs.append(coupcaps[ires].C)
 
   # We will need the size of the capacitor when positioning it finally
-  (xmin, ymin), (xmax, ymax) = caps[0].get_bounding_box()
-  cap_halfsize = (ymax - ymin)/2
+  dx, dy = get_size(caps[0])
+  cap_halfsize = dy/2
 
 
-  obtained_Cs = np.array(obtained_Cs)
-  fig, ax = plt.subplots(figsize=(10,10))
-  ax.plot(Cs*1e12, obtained_Cs*1e12, 'bs-')
-  ax.set_xlabel('Target C [pF]')
-  ax.set_ylabel('Actual C [pF]')
-  ax.grid()
-  ax.axis('tight')
-  plt.savefig('target_vs_actual_capacitance.png')
-  plt.show()
+  #obtained_Cs = np.array(obtained_Cs)
+  #fig, ax = plt.subplots(figsize=(10,10))
+  #ax.plot(Cs*1e12, obtained_Cs*1e12, 'bs-')
+  #ax.set_xlabel('Target C [pF]')
+  #ax.set_ylabel('Actual C [pF]')
+  #ax.grid()
+  #ax.axis('tight')
+  #plt.savefig('target_vs_actual_capacitance.png')
+  #plt.show()
 
   #  idcs.append(idc)
   #  caps.append(idc.draw())
@@ -514,15 +568,15 @@ def main():
   ind_ref = gdspy.CellReference(ind, origin = ind_origin)
   common_resonator.add(ind_ref)
   cap_ref = gdspy.CellReference(common_cap, rotation = 90)
-  (xmin, ymin), (xmax, ymax) = cap_ref.get_bounding_box()
-  cap_dx = -island_halfwidth/2 - (xmax-xmin)/2
+  ref_dx, ref_dy = get_size(cap_ref)
+  cap_dx = -island_halfwidth/2 - ref_dx/2
   cap_ref.translate(cap_dx, 0)
   common_resonator.add(cap_ref)
 
   ms_width = 2
   connector = make_cap_to_ind_lines()
-  (xmin, ymin), (xmax, ymax) = connector.get_bounding_box()
-  dy = (ymax - ymin)/2  + ms_width/2
+  conn_dx, conn_dy = get_size(connector)
+  dy = conn_dy/2  + ms_width/2
   top_conn_ref = gdspy.CellReference(connector, [0, dy] )
   bot_conn_ref = gdspy.CellReference(connector, [0, -dy], x_reflection=True)
 
@@ -561,6 +615,8 @@ def main():
     inv_caps.append(inv_cap)
     cap_shots.append(capshot)
 
+  #Make the feedline
+  feed_cell = get_feedline()
   chip_outline = makechipoutline(wafer_width, wafer_len)
   wafer.add(gdspy.CellReference(chip_outline, (-wafer_width/2, -wafer_len/2)))
 
@@ -571,7 +627,10 @@ def main():
   indshot = Shot(inv_ind, cell_shift=[xspacing/2, yspacing/2], is_arrayed=True, **ind_spec)
   inv_commoncap = invert_cell(common_cap, rotation=90)
   inv_connectors = invert_cell(resonator_connector)
-
+  #common_pixel = gdspy.Cell('pixel_r')
+  #common_pixel.add(gdspy.CellReference(inv_connectors))
+  #common_pixel.add(gdspy.CellReference(inv_commoncap, [cap_dx, 0]))
+  #common_pixel.add(gdspy.CellReference(inv_ind, ind_origin))
   gdspy.write_gds('sscale_darkres.gds',unit=1e-6,precision=1e-9)
 
 
