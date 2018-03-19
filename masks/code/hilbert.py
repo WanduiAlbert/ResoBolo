@@ -47,4 +47,5 @@ if __name__=="__main__":
   ax.scatter(x, y, s=40, color='b', marker='o')
   ax.set_xlabel('X Pos on Wafer')
   ax.set_ylabel('Y Pos on Wafer')
+  plt.savefig('hilbert.png')
   plt.show()

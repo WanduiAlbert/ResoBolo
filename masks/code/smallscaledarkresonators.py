@@ -339,6 +339,8 @@ def makechipoutline(wafer_w, wafer_l):
   outlinecell.add(outline)
   return outlinecell
 
+round_ten = lambda x: (x//10)*10
+
 def invert_cell(cell, rotation=0):
   cell_name = cell.name + '_r'
   inv_cell = gdspy.Cell(cell_name)
@@ -347,6 +349,8 @@ def invert_cell(cell, rotation=0):
   dx, dy = get_size(cell_ref)
   dx += 2*inv_margin
   dy += 2*inv_margin
+  dx = round_ten(dx)
+  dy = round_ten(dy)
   layer = cell.get_layers().pop()
   polys = cell_ref.get_polygons(depth=1)
   polyset = gdspy.PolygonSet(polys, layer=layer)
@@ -460,22 +464,79 @@ def d2ij(d, n):
 uint = np.frompyfunc(int, 1,1)
 
 def get_feedline():
+  n = 20
   cell_length = 100
   cell_width = 20
   main_width = 8
   ms_fraction = 0.2
-  mainline = gdspy.Rectangle([-cell_length/2, main_width/2],\
-      [cell_length/2, -main_width/2], layer=def_layers['400nm_NbWiring'])
-  ild = gdspy.Rectangle([-cell_length/2, cell_width/2],\
-      [cell_length/2, -cell_width/2], layer=def_layers['ILD'])
+  s_gndsub = gdspy.Cell('small_GP_subtract')
+
+  dx = n * cell_length
+  dy = main_width
+  mainline = gdspy.Rectangle([-dx/2, dy/2],\
+      [dx/2, -dy/2], layer=def_layers['400nm_NbWiring'])
+  main_cell = gdspy.Cell('feedline_main')
+  main_cell.add(mainline)
+
+  dy = cell_width
+  ild = gdspy.Rectangle([-dx/2, dy/2],\
+      [dx/2, -dy/2], layer=def_layers['ILD'])
+  ild_cell = gdspy.Cell('feedline_ILD')
+  ild_cell.add(ild)
+
   gndsub = gdspy.Rectangle([-cell_length/2 + ms_fraction*cell_length,\
     cell_width/2], [cell_length/2, -cell_width/2], layer=def_layers['LSNSUB'])
+  s_gndsub.add(gndsub)
+  gndsub_arr = gdspy.CellArray(s_gndsub, n, 1, [cell_length,0])
+  gndsub_arr.translate(-(dx - cell_length)/2, 0)
+  gndsub_cell = gdspy.Cell('feedline_GP_sub')
+  gndsub_cell.add(gndsub_arr)
+  gndsub_cell.flatten()
 
   feedcell = gdspy.Cell('MainFeedline')
-  feedcell.add(mainline)
-  feedcell.add(ild)
-  feedcell.add(gndsub)
+  feedcell.add(gdspy.CellReference(main_cell))
+  feedcell.add(gdspy.CellReference(ild_cell))
+  feedcell.add(gdspy.CellReference(gndsub_cell))
+  # feedcell.add(gdspy.CellReference(main_cell))
+  # feedcell.add(gdspy.CellReference(ild_cell))
+  # feedcell.add(gdspy.CellReference(gndsub_cell))
+
+  
+  # feedline = gdspy.Cell('large_feedline_sec')
+  # feedline.add(feedarr)
+  # # feedline.flatten
+  # print (get_size(feedarr))
+
   return feedcell
+
+# cres - common part of resonator
+# ures - unique part of resonator
+def get_resonator_GPsub(cres_bbox, ures_size):
+  u_dx, u_dy = ures_size
+  (xmin, ymin), (xmax, ymax) = cres_bbox
+  c_dx, c_dy = (xmax - xmin, ymax - ymin)
+  ymargin =  200
+  xmargin = 300
+  dx = c_dx + u_dx + 2 * xmargin
+  dy = u_dy + 2 * ymargin
+
+  # I want the gnd sub region to be a rounded to nearest 100
+  dx = (dx//100)*100
+  dy = (dy//100)*100
+  offset = dx/2 - (xmax + xmargin)
+  gnd = gdspy.Rectangle([-dx/2, dy/2], [dx/2, -dy/2], layer=def_layers['LSNSUB'])
+  gnd.translate(-offset, 0)
+
+  # Need to make a small GND plane sub region for connecting the coupling caps to the feedline
+  sdx = 20
+  sdy = 100
+  small = gdspy.Rectangle([-sdx/2, sdy/2], [sdx/2, -sdy/2], layer=def_layers['LSNSUB'])
+  small.translate(xmin - sdx, (dy + sdy)/2) #position relative to common arr
+
+  gndsub = gdspy.Cell('reso_GP_sub')
+  gndsub.add(gnd)
+  # gndsub.add(small)
+  return gndsub
 
 
 def main():
@@ -615,10 +676,27 @@ def main():
     inv_caps.append(inv_cap)
     cap_shots.append(capshot)
 
+  # Make the GND plane subtract region around each resonator
+  cres_bbox = common_resonator.get_bounding_box()
+  cap_ref = gdspy.CellReference(caps[0],rotation=90)
+
+  reso_gnd_sub = get_resonator_GPsub(cres_bbox, get_size(cap_ref))
+  reso_gnd_sub_arr = gdspy.CellArray(reso_gnd_sub, ncols, nrows, [xspacing, yspacing] )
+  reso_gnd_sub_arr.translate(-arr_xshift, -arr_yshift)
+  wafer.add(reso_gnd_sub_arr)
+  g_dx, g_dy = get_size(reso_gnd_sub)
+
+
   #Make the feedline
   feed_cell = get_feedline()
-  chip_outline = makechipoutline(wafer_width, wafer_len)
-  wafer.add(gdspy.CellReference(chip_outline, (-wafer_width/2, -wafer_len/2)))
+  f_dx, f_dy = get_size(feed_cell)
+  fncols = int((xspacing//f_dx)*ncols)
+  fnrows = nrows
+  farr_xshift = (f_dx/2)*(fncols-1)
+  feed_array = gdspy.CellArray(feed_cell, fncols, fnrows, [f_dx, yspacing])
+  feed_array.translate(-farr_xshift, -arr_yshift + (g_dy + f_dy)/2)
+  wafer.add(feed_array)
+  print (feed_array.get_bounding_box())
 
 
   # Generate the patch and shot table
@@ -627,10 +705,17 @@ def main():
   indshot = Shot(inv_ind, cell_shift=[xspacing/2, yspacing/2], is_arrayed=True, **ind_spec)
   inv_commoncap = invert_cell(common_cap, rotation=90)
   inv_connectors = invert_cell(resonator_connector)
+  reso_gnd_sub_inv = invert_cell(reso_gnd_sub)
+
   #common_pixel = gdspy.Cell('pixel_r')
   #common_pixel.add(gdspy.CellReference(inv_connectors))
   #common_pixel.add(gdspy.CellReference(inv_commoncap, [cap_dx, 0]))
   #common_pixel.add(gdspy.CellReference(inv_ind, ind_origin))
+  
+
+
+  chip_outline = makechipoutline(wafer_width, wafer_len)
+  wafer.add(gdspy.CellReference(chip_outline, (-wafer_width/2, -wafer_len/2)))
   gdspy.write_gds('sscale_darkres.gds',unit=1e-6,precision=1e-9)
 
 
