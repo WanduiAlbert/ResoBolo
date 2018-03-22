@@ -22,6 +22,8 @@ island_halfwidth = 400
 Qi = 40000
 Z0 = 50 * u.Ohm
 gnd_box_margin = 200
+main_lib = gdspy.GdsLibrary('main')
+gdspy.current_library = main_lib
 def_layers = {"Thin Gold":1, "PRO1":2, "ALUMINUM":3, "LSNSUB":4, "LSN1":5,
     "120nm_NbWiring":6, "STEPPER":7, "400nm_NbWiring":8, "ILD":9}
 
@@ -606,6 +608,7 @@ def make_vertical_feed(feed_cell):
   vertfeedcell.add(feed_box_l)
   vertfeedcell.add(ild_box_l)
   vertfeedcell.add(gndsub_box_l)
+
   return vertfeedcell
 
 def get_coupling_conns(g_dy, u_dy):
@@ -662,16 +665,46 @@ def get_common_resonator(ind, common_cap):
   common_resonator.add(ind_ref)
   moveleft(resonator_connector_ref, cap_ref, spacing=capconn_overlap)
   common_resonator.add(cap_ref)
+
   return common_resonator
+
+def get_bondpads():
+  size = 400
+  feedpad = gdspy.Rectangle([-size/2, size/2], [size/2, -size/2], layer=def_layers['400nm_NbWiring'])
+  feedpad_cell = gdspy.Cell('MSfeed_bondpad')
+  feedpad_cell.add(feedpad)
+
+  ildpad = gdspy.Rectangle([-size/2, size/2], [size/2, -size/2], layer=def_layers['ILD'])
+  ildpad_cell = gdspy.Cell('ILDfeed_bondpad')
+  ildpad_cell.add(ildpad)
+
+  gndpad = gdspy.Rectangle([-size/2, size/2], [size/2, -size/2], layer=def_layers['120nm_NbWiring'])
+  gndpad_cell = gdspy.Cell('GNDfeed_bondpad')
+  gndpad_cell.add(gndpad)
+
+  pad_cell = gdspy.Cell('Feed_Bonding_Pad')
+  pad_cell.add(gdspy.CellReference(feedpad_cell))
+  pad_cell.add(gdspy.CellReference(ildpad_cell))
+  pad_cell.add(gdspy.CellReference(gndpad_cell))
+  return pad_cell
+
+def make_inverted_cells():
+  allcells = main_lib.cell_dict
+
+  top = allcells['Global_Overlay']
+  for cell in top.get_dependencies():
+    inv_cellname = cell.name + '_r'
+    if not allcells[inv_cellname]:
+      invert_cell(cell)
 
 def main():
   # Wafer organization all dimensions in microns
   nrows = 8
   ncols = 8
   N_res = nrows * ncols
+
   wafer = gdspy.Cell('Global_Overlay')
   ind = get_inductor()
-  inv_ind = invert_cell(ind)
 
   # Generate all the capacitors
   L = 10 #nH
@@ -738,6 +771,7 @@ def main():
 
   # Make the common portion of the resonator
   common_resonator = get_common_resonator(ind, common_cap)
+
   cres_dx, cres_dy = get_size(common_resonator)
   cres_x_uneven = 1 #xmax - (-xmin) for the resonator
 
@@ -770,8 +804,6 @@ def main():
   x_origin = -arr_xshift
   y_origin = -arr_yshift
   # Need to now map the variable capacitor pieces relative to the full array
-  inv_caps = []
-  cap_shots = []
   for ires in range(N_res):
     i, j = d2ij(ires, nrows)
     xpos = x_origin + i*xspacing - u_xoffset
@@ -784,10 +816,6 @@ def main():
     wafer.add(cap_ref)
     #wafer.add(cap2feed_ref)
     #wafer.add(cap2gnd_ref)
-    inv_cap = invert_cell(caps[ires], rotation=90)
-    capshot = Shot(inv_cap, cell_shift=[xpos, ypos])
-    inv_caps.append(inv_cap)
-    cap_shots.append(capshot)
 
 
 
@@ -808,12 +836,18 @@ def main():
   leftconns = gdspy.CellArray(vertfeedcell, 1, nrows//2, [0, 2*fyspacing])
   rightconns = gdspy.CellArray(vertfeedcell, 1, nrows//2-1,[0, 2*fyspacing])
 
+  pad = get_bondpads()
+  p_dx, p_dy = get_size(pad)
+  top_pad_ref = gdspy.CellReference(pad, [fxmax + p_dx/2, fymax - f_dy/2])
+  bot_pad_ref = gdspy.CellReference(pad, [fxmax + p_dx/2, fymin - f_dy/2])
 
   leftconns.translate(fxmin , fymin + yspacing/2 + f_dy/2)
   rightconns.translate(fxmax , fymin + 1.5* yspacing + f_dy/2)
 
   wafer.add(leftconns)
   wafer.add(rightconns)
+  wafer.add(top_pad_ref)
+  wafer.add(bot_pad_ref)
 
   cap2feed, cap2gnd = get_coupling_conns(g_dy, u_dy)
   cap2feed_dx, cap2feed_dy = get_size(cap2feed)
@@ -829,20 +863,16 @@ def main():
   cap2gnd_arr.translate(-arr_xshift - cap2feed_xoffset, -arr_yshift -\
       u_dy/2 - cap2gnd_dy/2 + overlap)
   wafer.add(cap2gnd_arr)
-
+  chip_outline = makechipoutline(wafer_width, wafer_len)
+  wafer.add(gdspy.CellReference(chip_outline, (-wafer_width/2, -wafer_len/2)))
 
 
   #make_left_connectors(vertfeedcell, )
   # Generate the patch and shot table
-  ind_spec = {'num_cols':ncols, 'num_rows': nrows,\
-      'center':[0,0], 'stepsize':[xspacing, yspacing]}
-  indshot = Shot(inv_ind, cell_shift=[xspacing/2, yspacing/2], is_arrayed=True, **ind_spec)
-  inv_commoncap = invert_cell(common_cap, rotation=90)
-  reso_gnd_sub_inv = invert_cell(reso_gnd_sub)
 
-  chip_outline = makechipoutline(wafer_width, wafer_len)
-  wafer.add(gdspy.CellReference(chip_outline, (-wafer_width/2, -wafer_len/2)))
-  gdspy.write_gds('sscale_darkres.gds',unit=1e-6,precision=1e-9)
+  make_inverted_cells()
+
+  main_lib.write_gds('sscale_darkres.gds',unit=1e-6,precision=1e-9)
 
 
 

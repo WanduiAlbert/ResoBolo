@@ -103,6 +103,7 @@ L_g = 6.1 * u.nH # From simulations
 Rs = (rho/t).to('Ohm') # surface resistance in ohms/sq
 niceprint ("The surface resistance", Rs)
 L_k = (h * Rs/(2 * np.pi**2 * Delta) * N_sq).to('nH') # Kinetic inductance contribution
+niceprint("Kinetic Inductance per Square", (h * Rs/(2 * np.pi**2 * Delta)).to(u.pH))
 niceprint ("The kinetic inductance", L_k)
 L = L_g + L_k # total inductance
 
