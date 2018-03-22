@@ -540,22 +540,27 @@ def get_resonator_GPsub(cres_bbox, ures_size):
   dy = roundto(dy, 100)
   # The margins have changed. Adjust them accordingly
   xmargin = (dx + overlap - c_dx - u_dx)//2
+  excess = (dx + overlap - c_dx - u_dx) % 2
   ymargin = (dy - u_dy)//2
   #offset = dx/2 - (xmax + xmargin + overlap/2)
   gnd = gdspy.Rectangle([-dx/2, dy/2], [dx/2, -dy/2], layer=def_layers['LSNSUB'])
   #gnd.translate(-offset, 0)
 
+  c_xoffset = dx/2 - (xmargin + excess + c_dx//2 + c_dx % 2)
+  delta = c_dx//2 - (overlap + c_xoffset)
+  u_xoffset = delta + u_dx//2 + u_dx % 1
+
   # Need to make a small GND plane sub region for connecting the coupling caps to the feedline
   sdx = 20
   sdy = 100
   small = gdspy.Rectangle([-sdx/2, sdy/2], [sdx/2, -sdy/2], layer=def_layers['LSNSUB'])
-  x_offset = dx/2 - (c_dx + sdx/2  + xmargin - overlap)
-  small.translate(x_offset, (dy + sdy)/2) #position relative to common arr
+  small_xoffset = u_xoffset - (u_dx//2 + u_dx % 2 + sdx/2)
+  small.translate(small_xoffset, (dy + sdy)/2) #position relative to common arr
 
   gndsub = gdspy.Cell('reso_GP_sub')
   gndsub.add(gnd)
   #gndsub.add(small)
-  return gndsub, xmargin, ymargin
+  return gndsub, c_xoffset, u_xoffset
 
 def make_vertical_feed(feed_cell):
   vfeed = gdspy.CellReference(feed_cell, rotation=90)
@@ -563,12 +568,63 @@ def make_vertical_feed(feed_cell):
   vfeed.translate(0, vdy/2)
   vfeed2 = gdspy.CellReference(feed_cell, rotation=90)
   movebelow(vfeed, vfeed2)
+  l = 20
+  s = 8
+  # Small adjustments to make the proper connections between
+  # horizontal and vertical feedlines
+  feed = gdspy.Rectangle([-s/2,s/2], [s/2, -s/2],\
+      layer=def_layers['400nm_NbWiring'])
+  feed_corner = gdspy.Cell('feed_corner')
+  feed_corner.add(feed)
+  feed_box = gdspy.CellReference(feed_corner)
+  moveabove(vfeed, feed_box, spacing=s/2)
+  ild = gdspy.Rectangle([-l/2, l/2], [l/2, -l/2],\
+      layer=def_layers['ILD'])
+  ild_corner = gdspy.Cell('ILD_corner')
+  ild_corner.add(ild)
+  ild_box = gdspy.CellReference(ild_corner)
+  moveabove(vfeed, ild_box, spacing=l/2)
+  gndsub = gdspy.Rectangle([-l/2, l/2], [l/2, -l/2],\
+      layer=def_layers['LSNSUB'])
+  gndsub_corner = gdspy.Cell('gndsub_corner')
+  gndsub_corner.add(gndsub)
+  gndsub_box = gdspy.CellReference(gndsub_corner)
+  moveabove(vfeed, gndsub_box, spacing=l/2)
+  # Same corrections at the bottom side
+  feed_box_l = gdspy.CellReference(feed_corner)
+  movebelow(vfeed2, feed_box_l, spacing=-s/2)
+  ild_box_l = gdspy.CellReference(ild_corner)
+  movebelow(vfeed2, ild_box_l, spacing=-l/2)
+  gndsub_box_l = gdspy.CellReference(gndsub_corner)
+  movebelow(vfeed2, gndsub_box_l, spacing=-l/2)
   vertfeedcell = gdspy.Cell('MainFeedline_vert')
   vertfeedcell.add(vfeed)
   vertfeedcell.add(vfeed2)
+  vertfeedcell.add(feed_box)
+  vertfeedcell.add(ild_box)
+  vertfeedcell.add(gndsub_box)
+  vertfeedcell.add(feed_box_l)
+  vertfeedcell.add(ild_box_l)
+  vertfeedcell.add(gndsub_box_l)
   return vertfeedcell
 
+def get_coupling_conns(g_dy, u_dy):
+  ymargin = (g_dy - u_dy)//2
+  w = 8
+  l2gnd = ymargin + 2
+  l2feed = l2gnd + 14
 
+  c2gnd = gdspy.Rectangle([-w/2,l2gnd/2], [w/2, -l2gnd/2],\
+      layer=def_layers['400nm_NbWiring'])
+  c2feed = gdspy.Rectangle([-w/2,l2feed/2], [w/2, -l2feed/2],\
+      layer=def_layers['400nm_NbWiring'])
+  cap2feed = gdspy.Cell('cap_to_feed')
+  cap2feed.add(c2feed)
+
+  cap2gnd = gdspy.Cell('cap_to_gnd')
+  cap2gnd.add(c2gnd)
+
+  return cap2feed, cap2gnd
 
 def get_common_resonator(ind, common_cap):
   common_resonator = gdspy.Cell('common_resonator')
@@ -585,14 +641,26 @@ def get_common_resonator(ind, common_cap):
   resonator_connector.add(bot_conn_ref)
   resonator_connector.flatten()
   resonator_connector_ref = gdspy.CellReference(resonator_connector)
+  ind_ref = gdspy.CellReference(ind)
+  cap_ref = gdspy.CellReference(common_cap, rotation = 90)
+
+  conn_dx, conn_dy = get_size(resonator_connector)
+  ind_dx, ind_dy = get_size(ind)
+  cap_dx, cap_dy = get_size(cap_ref)
+
+  capconn_overlap = 0
+  indconn_overlap = 4
+  dx = conn_dx + ind_dx + cap_dx - indconn_overlap - capconn_overlap
+
+  # Currently the center is at the connector.
+  offset = dx//2 - (cap_dx + (conn_dx- indconn_overlap)/2 - capconn_overlap )
+  resonator_connector_ref.translate(-offset,0)
   common_resonator.add(resonator_connector_ref)
   #ind_origin = [island_halfwidth/2  + indboxwidth/2, 0]
   #ind_ref = gdspy.CellReference(ind, origin = ind_origin)
-  ind_ref = gdspy.CellReference(ind)
-  moveright(resonator_connector, ind_ref, spacing=4)
+  moveright(resonator_connector_ref, ind_ref, spacing=indconn_overlap)
   common_resonator.add(ind_ref)
-  cap_ref = gdspy.CellReference(common_cap, rotation = 90)
-  moveleft(resonator_connector, cap_ref, spacing=0)
+  moveleft(resonator_connector_ref, cap_ref, spacing=capconn_overlap)
   common_resonator.add(cap_ref)
   return common_resonator
 
@@ -601,8 +669,10 @@ def main():
   nrows = 8
   ncols = 8
   N_res = nrows * ncols
+  wafer = gdspy.Cell('Global_Overlay')
   ind = get_inductor()
   inv_ind = invert_cell(ind)
+
   # Generate all the capacitors
   L = 10 #nH
   fstart = 300 # MHz
@@ -663,50 +733,57 @@ def main():
     obtained_Ccs.append(coupcaps[ires].C)
 
   # We will need the size of the capacitor when positioning it finally
-  dx, dy = get_size(caps[0])
-  cap_halfsize = dy/2
+  cap_ref = gdspy.CellReference(caps[0],rotation=90)
+  u_dx, u_dy = get_size(cap_ref)
 
   # Make the common portion of the resonator
   common_resonator = get_common_resonator(ind, common_cap)
+  cres_dx, cres_dy = get_size(common_resonator)
+  cres_x_uneven = 1 #xmax - (-xmin) for the resonator
 
-  ms_width = 2
+  # Make an array from the common resonator
   xspacing = roundto(wafer_width/ncols, 100)
   yspacing = roundto(wafer_len/nrows, 100)
-  common_res_arr = gdspy.CellArray(common_resonator, ncols, nrows, [xspacing, yspacing] )
   arr_xshift = (xspacing/2)*(ncols-1)
   arr_yshift = (yspacing/2)*(nrows-1)
-  #recenter(common_res_arr)
+  common_res_arr = gdspy.CellArray(common_resonator, ncols, nrows, [xspacing, yspacing] )
   common_res_arr.translate(-arr_xshift, -arr_yshift)
-  wafer = gdspy.Cell('Global_Overlay')
   # Make the GND plane subtract region around each resonator
   cres_bbox = common_resonator.get_bounding_box()
-  cap_ref = gdspy.CellReference(caps[0],rotation=90)
 
-  reso_gnd_sub, xmargin, ymargin = get_resonator_GPsub(cres_bbox, get_size(cap_ref))
+  # Generate the region around the resonator where the ground plane is to be
+  # removed. Also return the offsets in the x direction from the center of this
+  # region where the common resonator and the unique capacitor are to be placed.
+  reso_gnd_sub, c_xoffset, u_xoffset = get_resonator_GPsub(cres_bbox, get_size(cap_ref))
+  g_dx, g_dy = get_size(reso_gnd_sub)
+
+
   reso_gnd_sub_arr = gdspy.CellArray(reso_gnd_sub, ncols, nrows, [xspacing, yspacing] )
   reso_gnd_sub_arr.translate(-arr_xshift, -arr_yshift)
   wafer.add(reso_gnd_sub_arr)
-  g_dx, g_dy = get_size(reso_gnd_sub)
-  overlap = 2
-  arr_offset = g_dx/2 - (cres_bbox[1,0] + xmargin + overlap/2)
-  common_res_arr.translate(arr_offset, 0)
+  cu_overlap = 2
+  common_res_arr.translate(c_xoffset, 0)
   wafer.add(common_res_arr)
 
-  (xmin, ymin), (xmax, ymax) = common_resonator.get_bounding_box()
   # The position of the bottom left corner of the resonator array which is the
   # origin of the i, j coordinate system
   x_origin = -arr_xshift
   y_origin = -arr_yshift
-  offset = xmin + ms_width - cap_halfsize
   # Need to now map the variable capacitor pieces relative to the full array
   inv_caps = []
   cap_shots = []
   for ires in range(N_res):
     i, j = d2ij(ires, nrows)
-    xpos = x_origin + i*xspacing + offset + arr_offset
+    xpos = x_origin + i*xspacing - u_xoffset
     ypos = y_origin + j*yspacing
     cap_ref = gdspy.CellReference(caps[ires], [xpos, ypos], rotation=90)
+    #cap2feed_ref = gdspy.CellReference(cap2feed)
+    #moveabove(cap_ref, cap2feed_ref, spacing=2)
+    #cap2gnd_ref = gdspy.CellReference(cap2gnd)
+    #movebelow(cap_ref, cap2gnd_ref, spacing=-2)
     wafer.add(cap_ref)
+    #wafer.add(cap2feed_ref)
+    #wafer.add(cap2gnd_ref)
     inv_cap = invert_cell(caps[ires], rotation=90)
     capshot = Shot(inv_cap, cell_shift=[xpos, ypos])
     inv_caps.append(inv_cap)
@@ -719,17 +796,17 @@ def main():
   f_dx, f_dy = get_size(feed_cell)
   fncols = int((xspacing//f_dx)*ncols) - 1
   fnrows = nrows
+  fxspacing = f_dx
+  fyspacing = yspacing
   # Need a small correction to center on the whole resonator instead of common
-  small_shift = (0-cres_bbox[0,0]) + get_size(cap_ref)[0] - 2
-  farr_xshift = (f_dx/2)*(fncols-1) + small_shift/2
-  feed_array = gdspy.CellArray(feed_cell, fncols, fnrows, [f_dx, yspacing])
+  feed_array = gdspy.CellArray(feed_cell, fncols, fnrows, [fxspacing, fyspacing])
   feed_array.translate(-arr_xshift, -arr_yshift + (g_dy + f_dy)/2 )#+ 50)
   wafer.add(feed_array)
   (fxmin, fymin), (fxmax, fymax) = feed_array.get_bounding_box()
 
   vertfeedcell = make_vertical_feed(feed_cell)
-  leftconns = gdspy.CellArray(vertfeedcell, 1, nrows//2, [0, 2*yspacing])
-  rightconns = gdspy.CellArray(vertfeedcell, 1, nrows//2-1,[0, 2*yspacing])
+  leftconns = gdspy.CellArray(vertfeedcell, 1, nrows//2, [0, 2*fyspacing])
+  rightconns = gdspy.CellArray(vertfeedcell, 1, nrows//2-1,[0, 2*fyspacing])
 
 
   leftconns.translate(fxmin , fymin + yspacing/2 + f_dy/2)
@@ -737,6 +814,21 @@ def main():
 
   wafer.add(leftconns)
   wafer.add(rightconns)
+
+  cap2feed, cap2gnd = get_coupling_conns(g_dy, u_dy)
+  cap2feed_dx, cap2feed_dy = get_size(cap2feed)
+  cap2gnd_dx, cap2gnd_dy = get_size(cap2gnd)
+  overlap = 2
+  cap2feed_xoffset = u_xoffset - (u_dx//2 + u_dx % 2) + 8
+
+  cap2feed_arr = gdspy.CellArray(cap2feed, ncols, nrows, [xspacing, yspacing])
+  cap2feed_arr.translate(-arr_xshift - cap2feed_xoffset, -arr_yshift +\
+      u_dy/2+ cap2feed_dy/2 - overlap)
+  wafer.add(cap2feed_arr)
+  cap2gnd_arr = gdspy.CellArray(cap2gnd, ncols, nrows, [xspacing, yspacing])
+  cap2gnd_arr.translate(-arr_xshift - cap2feed_xoffset, -arr_yshift -\
+      u_dy/2 - cap2gnd_dy/2 + overlap)
+  wafer.add(cap2gnd_arr)
 
 
 
