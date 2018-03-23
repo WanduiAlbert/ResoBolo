@@ -351,18 +351,22 @@ def makechipoutline(wafer_w, wafer_l):
   outlinecell.add(outline)
   return outlinecell
 
-round_ten = lambda x: (x//10)*10
 
-def invert_cell(cell, rotation=0):
+def cellIsPresent(cellname):
+  allcellnames = main_lib.cell_dict.keys()
+  return cellname in allcellnames
+
+def inverter(cell, rotation=0):
   cell_name = cell.name + '_r'
+  if cellIsPresent(cell_name): return
   inv_cell = gdspy.Cell(cell_name)
   cell = cell.flatten()
   cell_ref = gdspy.CellReference(cell, rotation=rotation)
   dx, dy = get_size(cell_ref)
   dx += 2*inv_margin
   dy += 2*inv_margin
-  dx = round_ten(dx)
-  dy = round_ten(dy)
+  dx = roundto(dx, 100)
+  dy = roundto(dy, 100)
   layer = cell.get_layers().pop()
   polys = cell_ref.get_polygons(depth=1)
   polyset = gdspy.PolygonSet(polys, layer=layer)
@@ -370,7 +374,30 @@ def invert_cell(cell, rotation=0):
 
   new_polyset = gdspy.fast_boolean(polyset, bbox, 'xor', layer=layer)
   inv_cell.add(new_polyset)
-  return inv_cell
+
+def invert_cell(cell, rotation=0):
+  layers = cell.get_layers()
+
+  if len(layers) == 1:
+    inverter(cell, rotation)
+
+  for cell in cell.get_dependencies():
+    invert_cell(cell, rotation)
+
+  #cell_name = cell.name + '_r'
+  #inv_cell = gdspy.Cell(cell_name)
+  #cell = cell.flatten()
+  #cell_ref = gdspy.CellReference(cell, rotation=rotation)
+  #dx, dy = get_size(cell_ref)
+  #dx += 2*inv_margin
+  #dy += 2*inv_margin
+  #polys = cell_ref.get_polygons(depth=1)
+  #polyset = gdspy.PolygonSet(polys, layer=layer)
+  #bbox = gdspy.Rectangle([-dx/2, dy/2], [dx/2, -dy/2], layer=layer)
+
+  #new_polyset = gdspy.fast_boolean(polyset, bbox, 'xor', layer=layer)
+  #inv_cell.add(new_polyset)
+  #return inv_cell
 
 def make_cap_to_ind_lines():
   layer = 8
@@ -690,12 +717,27 @@ def get_bondpads():
 
 def make_inverted_cells():
   allcells = main_lib.cell_dict
-
+  cellnames = allcells.keys()
   top = allcells['Global_Overlay']
   for cell in top.get_dependencies():
     inv_cellname = cell.name + '_r'
-    if not allcells[inv_cellname]:
-      invert_cell(cell)
+    if inv_cellname not in cellnames:
+      if inv_cellname.startswith('Capacitor'):
+        invert_cell(cell, rotation=90)
+      else:
+        invert_cell(cell)
+
+
+
+def get_inverted_cells():
+  cellnames = main_lib.cell_dict.keys()
+
+  return [name for name in cellnames if name.endswith('_r') and name !=\
+      'WaferOutline_r']
+
+def get_cell_area(cell):
+  dx, dy = get_size(cell)
+  return dx * dy
 
 def main():
   # Wafer organization all dimensions in microns
@@ -870,8 +912,19 @@ def main():
   #make_left_connectors(vertfeedcell, )
   # Generate the patch and shot table
 
+  all_cells = main_lib.cell_dict
   make_inverted_cells()
 
+  inv_cell_list = get_inverted_cells()
+  print (len(inv_cell_list))
+
+  mask_len = 22000
+  mask_width = 26000
+
+  total_mask_area = mask_len * mask_width
+  total_area_needed = np.sum(list(map(lambda x: get_cell_area(all_cells[x]),\
+      inv_cell_list)))
+  print (total_mask_area/1e6 , total_area_needed/1e6)
   main_lib.write_gds('sscale_darkres.gds',unit=1e-6,precision=1e-9)
 
 
