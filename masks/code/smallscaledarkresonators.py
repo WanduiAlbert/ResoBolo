@@ -729,6 +729,7 @@ def make_inverted_cells():
   cellnames = allcells.keys()
   top = allcells['Global_Overlay']
   for cell in top.get_dependencies():
+    if cell.name == 'WaferOutline': continue
     inv_cellname = cell.name + '_r'
     if inv_cellname not in cellnames:
       if inv_cellname.startswith('Capacitor'):
@@ -749,6 +750,7 @@ def get_cell_area(cell):
   return dx * dy
 
 def getunitfeedline():
+  cells = main_lib.cell_dict
   dx = feed_cell_length
   dy = feed_main_width
   mainline = gdspy.Rectangle([-dx/2, dy/2],\
@@ -762,37 +764,40 @@ def getunitfeedline():
   ild_cell = gdspy.Cell('unit_ILD_feed')
   ild_cell.add(ild)
 
+  gndsub_cell = cells['unit_GP_sub']
   unitcell = gdspy.Cell('unit_feedline')
-  unitcell.add('unit_GP_sub')
-  unitcell.add(main_cell)
-  unitcell.add(ild_cell)
+  unitcell.add([gdspy.CellReference(gndsub_cell),\
+      gdspy.CellReference(main_cell), gdspy.CellReference(ild_cell)])
   return unitcell
 
 def getlinetopad(nrows):
   cells = main_lib.cell_dict
   unitfeed = getunitfeedline()
   dx, dy = get_size(unitfeed)
-  n = roundto(edge_margin/dx, 10)
+  n = int(roundto(2*edge_margin/dx, 10))
   hor_section = gdspy.CellArray(unitfeed, n, 1, [dx, dy])
-  vfeed = gdspy.CellReference('MainFeedline', rotation=90)
+  vfeed = cells['MainFeedline']
   vdx, vdy = get_size(vfeed)
-  vert_section = gdspy.CellArray(vfeed, 1, nrows - 1, [vdx, vdy])
-  #feed_corner = gdspy.CellReference(cells['feed_corner'])
-  #ild_corner = gdspy.CellReference(cells['ILD_corner'])
-  #gndsub_corner = gdspy.CellReference(cells['gndsub_corner'])
+  vert_section = gdspy.CellArray(vfeed, nrows-2, 1, [vdx, vdy], rotation=90)
+  feed_corner = gdspy.CellReference(cells['feed_corner'])
+  ild_corner = gdspy.CellReference(cells['ILD_corner'])
+  gndsub_corner = gdspy.CellReference(cells['gndsub_corner'])
+  idx, idy = get_size(ild_corner)
+  fdx, fdy = get_size(feed_corner)
 
-  #moveabove(vert_section, gndsub_corner)
-  #moveabove(vert_section, ild_corner)
-  #moveabove(vert_section, feed_corner)
+  moveright(hor_section, gndsub_corner, spacing=idx/2)
+  moveright(hor_section, ild_corner, spacing=idx/2)
+  moveright(hor_section, feed_corner, spacing=fdx/2)
 
-  #moveleft(ILD_corner, hor_section)
+  movebelow(ild_corner, vert_section, spacing=-idy/2)
+  moveright(ild_corner, vert_section, spacing=idx)
 
   terminus = gdspy.Cell('feedline_to_pad')
   terminus.add(hor_section)
-  #terminus.add(vert_section)
-  #terminus.add(gndsub_corner)
-  #terminus.add(ILD_corner)
-  #terminus.add(feed_corner)
+  terminus.add(vert_section)
+  terminus.add(gndsub_corner)
+  terminus.add(ild_corner)
+  terminus.add(feed_corner)
   return terminus
 
 def main():
@@ -935,19 +940,34 @@ def main():
   leftconns = gdspy.CellArray(vertfeedcell, 1, nrows//2, [0, 2*fyspacing])
   rightconns = gdspy.CellArray(vertfeedcell, 1, nrows//2-1,[0, 2*fyspacing])
 
-  linetopad = getlinetopad(nrows)
   pad = get_bondpads()
   p_dx, p_dy = get_size(pad)
-  top_pad_ref = gdspy.CellReference(pad, [fxmax + p_dx/2, fymax - f_dy/2])
-  bot_pad_ref = gdspy.CellReference(pad, [fxmax + p_dx/2, fymin - f_dy/2])
+  top_pad_ref = gdspy.CellReference(pad, [0,0])
+  bot_pad_ref = gdspy.CellReference(pad, [0,0])
 
   leftconns.translate(fxmin , fymin + yspacing/2 + f_dy/2)
   rightconns.translate(fxmax , fymin + 1.5* yspacing + f_dy/2)
+  linetopad = getlinetopad(nrows)
+  upperlinetopad = gdspy.CellReference(linetopad)
+  lowerlinetopad = gdspy.CellReference(linetopad, x_reflection=True)
+  uc_dx, uc_dy = get_size(upperlinetopad)
+  lc_dx, lc_dy = get_size(lowerlinetopad)
+
+  moveright(feed_array, upperlinetopad)
+  moveright(feed_array, lowerlinetopad)
+  moveabove(feed_array, upperlinetopad, spacing=uc_dy)
+  movebelow(feed_array, lowerlinetopad, spacing=-lc_dy)
+  movebelow(upperlinetopad, top_pad_ref)
+  moveright(upperlinetopad, top_pad_ref, spacing=(p_dx + feed_cell_width)/2)
+  moveright(lowerlinetopad, bot_pad_ref, spacing=(p_dx + feed_cell_width)/2)
+  moveabove(lowerlinetopad, bot_pad_ref)
 
   wafer.add(leftconns)
   wafer.add(rightconns)
   wafer.add(top_pad_ref)
   wafer.add(bot_pad_ref)
+  wafer.add(upperlinetopad)
+  wafer.add(lowerlinetopad)
 
   cap2feed, cap2gnd = get_coupling_conns(g_dy, u_dy)
   cap2feed_dx, cap2feed_dy = get_size(cap2feed)
