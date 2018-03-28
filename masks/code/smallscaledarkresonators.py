@@ -602,12 +602,43 @@ def get_resonator_GPsub(cres_bbox, ures_size):
   gndsub.add(small)
   return gndsub, c_xoffset, u_xoffset, small_xoffset
 
-def make_vertical_feed(feed_cell):
-  vfeed = gdspy.CellReference(feed_cell, rotation=90)
-  vdx, vdy = get_size(vfeed)
-  vfeed.translate(0, vdy/2)
-  vfeed2 = gdspy.CellReference(feed_cell, rotation=90)
-  movebelow(vfeed, vfeed2)
+def get_vertical_feed():
+  allcells = main_lib.cell_dict
+  gndsubcell = allcells['feedline_GP_sub']
+  ildcell = allcells['feedline_ILD']
+  maincell = allcells['feedline_main']
+
+  gndsubref = gdspy.CellReference(gndsubcell, rotation=90)
+  ildref = gdspy.CellReference(ildcell, rotation=90)
+  mainref = gdspy.CellReference(maincell, rotation=90)
+
+  # Since these three cells should be the same size only need one call to
+  # get_size
+  fdx, fdy = get_size(gndsubref)
+  gndsubref.translate(0, fdy/2)
+  ildref.translate(0, fdy/2)
+  mainref.translate(0, fdy/2)
+  gndsubref2 = gdspy.CellReference(gndsubcell, rotation=90)
+  ildref2 = gdspy.CellReference(ildcell, rotation=90)
+  mainref2 = gdspy.CellReference(maincell, rotation=90)
+  movebelow(gndsubref, gndsubref2)
+  movebelow(ildref, ildref2)
+  movebelow(mainref, mainref2)
+
+  vgndsubcell = gdspy.Cell('vert_feedline_GP_sub')
+  vgndsubcell.add(gndsubref)
+  vgndsubcell.add(gndsubref2)
+  vildcell = gdspy.Cell('vert_feedline_ILD')
+  vildcell.add(ildref)
+  vildcell.add(ildref2)
+  vmaincell = gdspy.Cell('vert_feedline_main')
+  vmaincell.add(mainref)
+  vmaincell.add(mainref2)
+
+  vgndsub_ref = gdspy.CellReference(vgndsubcell)
+  vild_ref = gdspy.CellReference(vildcell)
+  vmain_ref = gdspy.CellReference(vmaincell)
+
   l = 20
   s = 8
   # Small adjustments to make the proper connections between
@@ -617,29 +648,30 @@ def make_vertical_feed(feed_cell):
   feed_corner = gdspy.Cell('feed_corner')
   feed_corner.add(feed)
   feed_box = gdspy.CellReference(feed_corner)
-  moveabove(vfeed, feed_box, spacing=s/2)
+  moveabove(vmain_ref, feed_box, spacing=s/2)
   ild = gdspy.Rectangle([-l/2, l/2], [l/2, -l/2],\
       layer=def_layers['ILD'])
   ild_corner = gdspy.Cell('ILD_corner')
   ild_corner.add(ild)
   ild_box = gdspy.CellReference(ild_corner)
-  moveabove(vfeed, ild_box, spacing=l/2)
+  moveabove(vild_ref, ild_box, spacing=l/2)
   gndsub = gdspy.Rectangle([-l/2, l/2], [l/2, -l/2],\
       layer=def_layers['LSNSUB'])
   gndsub_corner = gdspy.Cell('gndsub_corner')
   gndsub_corner.add(gndsub)
   gndsub_box = gdspy.CellReference(gndsub_corner)
-  moveabove(vfeed, gndsub_box, spacing=l/2)
+  moveabove(vgndsub_ref, gndsub_box, spacing=l/2)
   # Same corrections at the bottom side
   feed_box_l = gdspy.CellReference(feed_corner)
-  movebelow(vfeed2, feed_box_l, spacing=-s/2)
+  movebelow(vmain_ref, feed_box_l, spacing=-s/2)
   ild_box_l = gdspy.CellReference(ild_corner)
-  movebelow(vfeed2, ild_box_l, spacing=-l/2)
+  movebelow(vild_ref, ild_box_l, spacing=-l/2)
   gndsub_box_l = gdspy.CellReference(gndsub_corner)
-  movebelow(vfeed2, gndsub_box_l, spacing=-l/2)
+  movebelow(vgndsub_ref, gndsub_box_l, spacing=-l/2)
   vertfeedcell = gdspy.Cell('MainFeedline_vert')
-  vertfeedcell.add(vfeed)
-  vertfeedcell.add(vfeed2)
+  vertfeedcell.add(vmain_ref)
+  vertfeedcell.add(vild_ref)
+  vertfeedcell.add(vgndsub_ref)
   vertfeedcell.add(feed_box)
   vertfeedcell.add(ild_box)
   vertfeedcell.add(gndsub_box)
@@ -804,6 +836,28 @@ def getlinetopad(nrows):
   terminus.add(feed_corner)
   return terminus
 
+def placeuniquecaps(caps_inv, mask, mcols, nrows, ncols):
+  # mrows, mcols are the number of rows and columns on the mask.
+  N = nrows * ncols
+  # All the capacitors have the same size
+  cap_dx, cap_dy = get_size(caps_inv[0])
+
+  caps_inv_ref = [None]*N
+  caps_inv_ref[0] = gdspy.CellReference(caps_inv[0],\
+      [-mask_width/2 + cap_dx/2, mask_length/2 - cap_dy/2])
+  for icap in range(1, N):
+    cap_ref = gdspy.CellReference(caps_inv[icap])
+    if icap % mcols == 0:
+      movebelow(caps_inv_ref[icap - mcols], cap_ref)
+      centerx(caps_inv_ref[icap - mcols], cap_ref)
+    else:
+      moveright(caps_inv_ref[icap - 1], cap_ref)
+      centery(caps_inv_ref[icap - 1], cap_ref)
+    caps_inv_ref[icap] = cap_ref
+
+  mask.add(caps_inv_ref)
+  return caps_inv_ref
+
 def main():
   # Wafer organization all dimensions in microns
   nrows = 8
@@ -940,7 +994,7 @@ def main():
   wafer.add(feed_array)
   (fxmin, fymin), (fxmax, fymax) = feed_array.get_bounding_box()
 
-  vertfeedcell = make_vertical_feed(feed_cell)
+  vertfeedcell = get_vertical_feed()
   leftconns = gdspy.CellArray(vertfeedcell, 1, nrows//2, [0, 2*fyspacing])
   rightconns = gdspy.CellArray(vertfeedcell, 1, nrows//2-1,[0, 2*fyspacing])
 
@@ -1005,33 +1059,168 @@ def main():
       inv_cell_list)))
 
   mask = gdspy.Cell('Mask')
-  caps_inv = [cell for cell in inv_cell_list if cell.name.startswith('Capacitor')]
-  caps_inv.sort(key=lambda x:x.name)
-  # All the capacitors have the same size
-  cap_dx, cap_dy = get_size(caps_inv[0])
-
-  caps_inv_ref = [None]*(nrows*ncols)
-  caps_inv_ref[0] = gdspy.CellReference(caps_inv[0],\
-      [-mask_width/2 + cap_dx/2, mask_length/2 - cap_dy/2])
-  for icap in range(1, nrows * ncols):
-    cap_ref = gdspy.CellReference(caps_inv[icap])
-    if icap % ncols == 0:
-      movebelow(caps_inv_ref[icap - ncols], cap_ref)
-      centerx(caps_inv_ref[icap - ncols], cap_ref)
-    else:
-      moveright(caps_inv_ref[icap - 1], cap_ref)
-      centery(caps_inv_ref[icap - 1], cap_ref)
-    caps_inv_ref[icap] = cap_ref
-
-  mask.add(caps_inv_ref)
-
-  # Now we deal with all the cells that haven't been placed in a mask
-  not_yet = set(inv_cell_list) - set(caps_inv)
-
   mask.add(gdspy.CellReference(makechipoutline(mask_width, mask_length,\
       'MaskOutline')))
-  main_lib.write_gds('sscale_darkres.gds',unit=1e-6,precision=1e-9)
 
+  # Placement of the unique capacitors on the mask
+  caps_inv = [cell for cell in inv_cell_list if cell.name.startswith('Capacitor')]
+  caps_inv.sort(key=lambda x:x.name)
+  mcols=5 #Number of rows when distributing caps on mask
+  N = nrows * ncols
+  iucaps_ref = placeuniquecaps(caps_inv, mask, mcols, nrows, ncols)
+
+  not_yet = set(inv_cell_list) - set(caps_inv)
+
+  # Placement of the common pixel on the mask
+  icommoncap = all_cells['Capacitor_common_r']
+  i_ind = all_cells['Al_inductor_r']
+  icap2ind = all_cells['Cap_to_Ind_lines_r']
+  iresogndsub = all_cells['reso_GP_sub_r']
+  icommoncap_ref = gdspy.CellReference(icommoncap)
+  i_ind_ref = gdspy.CellReference(i_ind)
+  icap2ind_ref = gdspy.CellReference(icap2ind)
+  iresogndsub_ref = gdspy.CellReference(iresogndsub)
+
+  moveabove(icap2ind_ref, iresogndsub_ref)
+  centerx(icap2ind_ref, iresogndsub_ref)
+  moveleft(icap2ind_ref, icommoncap_ref)
+  movebelow(iresogndsub_ref, icommoncap_ref)
+  #centery(icap2ind_ref, icommoncap_ref)
+  moveright(icap2ind_ref, i_ind_ref)
+  movebelow(iresogndsub_ref, i_ind_ref)
+  #centery(icap2ind_ref, i_ind_ref)
+
+  mask.add(icap2ind_ref)
+  mask.add(icommoncap_ref)
+  mask.add(i_ind_ref)
+  mask.add(iresogndsub_ref)
+
+  icommon_pixel = set([icommoncap, i_ind, icap2ind, iresogndsub])
+  not_yet -= icommon_pixel
+
+  # Placement of the feedline sections on the mask
+  imain = all_cells['feedline_main_r']
+  iILD = all_cells['feedline_ILD_r']
+  igndsub = all_cells['feedline_GP_sub_r']
+
+  fdx, fdy = get_size(imain)
+  imainref = gdspy.CellReference(imain)
+  iILDref = gdspy.CellReference(iILD)
+  igndsubref = gdspy.CellReference(igndsub)
+  moveright(iucaps_ref[mcols-1], imainref)
+  moveabove(iresogndsub_ref, imainref)
+  moveabove(imainref, iILDref)
+  centerx(imainref, iILDref)
+  moveabove(iILDref, igndsubref)
+  centerx(iILDref, igndsubref)
+
+  mask.add(imainref)
+  mask.add(iILDref)
+  mask.add(igndsubref)
+
+  not_yet -= set([imain, iILD, igndsub])
+
+  # Placement of the vertical feedline sections on the mask
+  ivmain = all_cells['vert_feedline_main_r']
+  ivILD = all_cells['vert_feedline_ILD_r']
+  ivgndsub = all_cells['vert_feedline_GP_sub_r']
+
+  fdx, fdy = get_size(ivmain)
+  ivmainref = gdspy.CellReference(ivmain)
+  ivILDref = gdspy.CellReference(ivILD)
+  ivgndsubref = gdspy.CellReference(ivgndsub)
+  moveright(imainref, ivmainref)
+  centery(iucaps_ref[N//2], ivmainref)
+  moveright(ivmainref, ivILDref)
+  centery(iucaps_ref[N//2], ivILDref)
+  moveright(ivILDref, ivgndsubref)
+  centery(iucaps_ref[N//2], ivgndsubref)
+
+  mask.add(ivmainref)
+  mask.add(ivILDref)
+  mask.add(ivgndsubref)
+
+  not_yet -= set([ivmain, ivILD, ivgndsub])
+
+  # Placement of the short coupling cap to feed and to gnd sections
+  i2feed = all_cells['cap_to_feed_r']
+  i2gnd = all_cells['cap_to_gnd_r']
+
+  i2feed_ref = gdspy.CellReference(i2feed)
+  i2gnd_ref = gdspy.CellReference(i2gnd)
+
+  movebelow(i_ind_ref, i2feed_ref)
+  moveright(icap2ind_ref, i2feed_ref)
+  moveright(i2feed_ref, i2gnd_ref)
+  movebelow(i_ind_ref, i2gnd_ref)
+
+  mask.add(i2feed_ref)
+  mask.add(i2gnd_ref)
+
+  not_yet -= set([i2feed, i2gnd])
+
+  # Placement of the bondpads
+  igndbp = all_cells['GNDfeed_bondpad_r']
+  iILDbp = all_cells['ILDfeed_bondpad_r']
+  imainbp = all_cells['MSfeed_bondpad_r']
+
+  igndbp_ref = gdspy.CellReference(igndbp)
+  iILDbp_ref = gdspy.CellReference(iILDbp)
+  imainbp_ref = gdspy.CellReference(imainbp)
+
+  moveright(iresogndsub_ref, imainbp_ref,spacing=-100)
+  movebelow(imainref, imainbp_ref)
+  movebelow(imainref, iILDbp_ref)
+  movebelow(imainref, igndbp_ref)
+  moveright(imainbp_ref, iILDbp_ref, spacing=-100)
+  moveright(iILDbp_ref, igndbp_ref, spacing=-100)
+
+  mask.add(imainbp_ref)
+  mask.add(iILDbp_ref)
+  mask.add(igndbp_ref)
+
+  # Placement of the unit feedline cells
+  igndunit = all_cells['unit_GP_sub_r']
+  iILDunit = all_cells['unit_ILD_feed_r']
+  imainunit = all_cells['unit_main_feed_r']
+
+  igndunit_ref = gdspy.CellReference(igndunit)
+  iILDunit_ref = gdspy.CellReference(iILDunit)
+  imainunit_ref = gdspy.CellReference(imainunit)
+
+  centerx(imainbp_ref, imainunit_ref)
+  movebelow(imainbp_ref, imainunit_ref)
+  centerx(iILDbp_ref, iILDunit_ref)
+  movebelow(iILDbp_ref, iILDunit_ref)
+  centerx(igndbp_ref, igndunit_ref)
+  movebelow(igndbp_ref, igndunit_ref)
+
+  mask.add(imainunit_ref)
+  mask.add(iILDunit_ref)
+  mask.add(igndunit_ref)
+
+  # Placement of the corner cells
+  igndsubcorner = all_cells['gndsub_corner_r']
+  iILDcorner = all_cells['ILD_corner_r']
+  ifeedcorner = all_cells['feed_corner_r']
+
+  igndsubcorner_ref = gdspy.CellReference(igndsubcorner)
+  iILDcorner_ref = gdspy.CellReference(iILDcorner)
+  ifeedcorner_ref = gdspy.CellReference(ifeedcorner)
+
+  moveright(i_ind_ref, ifeedcorner_ref)
+  movebelow(iresogndsub_ref, ifeedcorner_ref)
+  moveright(ifeedcorner_ref, iILDcorner_ref)
+  movebelow(iresogndsub_ref, iILDcorner_ref)
+  moveright(iILDcorner_ref, igndsubcorner_ref)
+  movebelow(iresogndsub_ref, igndsubcorner_ref)
+
+  mask.add(igndsubcorner_ref)
+  mask.add(iILDcorner_ref)
+  mask.add(ifeedcorner_ref)
+
+
+  main_lib.write_gds('sscale_darkres.gds',unit=1e-6,precision=1e-9)
 
 
 
