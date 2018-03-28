@@ -31,6 +31,8 @@ feed_cell_width = 20
 feed_main_width = 8
 feed_ms_fraction = 0.2
 feedres_dist = 210
+mask_width = 22000
+mask_length = 26000
 
 
 def moveabove_get_shift(box_fixed,box_free):
@@ -343,15 +345,16 @@ def getnumfingers(cap, target_C):
 
   return nfingers, capfrac
 
-def makechipoutline(wafer_w, wafer_l):
+def makechipoutline(width, length, outlinename):
   specs = {'layer':10}
   outline = gdspy.Path(1, (0,0))
   #outline.layers = [0]
-  outline.segment(wafer_w, '+x', layer=def_layers['PRO1'])
-  outline.segment(wafer_l, '+y', layer=def_layers['PRO1'])
-  outline.segment(wafer_w, '-x', layer=def_layers['PRO1'])
-  outline.segment(wafer_l, '-y', layer=def_layers['PRO1'])
-  outlinecell = gdspy.Cell('WaferOutline')
+  outline.segment(width, '+x', layer=def_layers['PRO1'])
+  outline.segment(length, '+y', layer=def_layers['PRO1'])
+  outline.segment(width, '-x', layer=def_layers['PRO1'])
+  outline.segment(length, '-y', layer=def_layers['PRO1'])
+  outline.translate(-width/2, -length/2)
+  outlinecell = gdspy.Cell(outlinename)
   outlinecell.add(outline)
   return outlinecell
 
@@ -740,9 +743,10 @@ def make_inverted_cells():
 
 
 def get_inverted_cells():
-  cellnames = main_lib.cell_dict.keys()
+  cells = main_lib.cell_dict
+  cellnames = cells.keys()
 
-  return [name for name in cellnames if name.endswith('_r') and name !=\
+  return [cells[name] for name in cellnames if name.endswith('_r') and name !=\
       'WaferOutline_r']
 
 def get_cell_area(cell):
@@ -983,8 +987,8 @@ def main():
   cap2gnd_arr.translate(-arr_xshift - feed_xoffset, -arr_yshift -\
       u_dy/2 - cap2gnd_dy/2 + overlap)
   wafer.add(cap2gnd_arr)
-  chip_outline = makechipoutline(wafer_width, wafer_len)
-  wafer.add(gdspy.CellReference(chip_outline, (-wafer_width/2, -wafer_len/2)))
+  chip_outline = makechipoutline(wafer_width, wafer_len,'WaferOutline')
+  wafer.add(gdspy.CellReference(chip_outline))
 
 
   #make_left_connectors(vertfeedcell, )
@@ -995,12 +999,37 @@ def main():
 
   inv_cell_list = get_inverted_cells()
 
-  mask_len = 22000
-  mask_width = 26000
 
-  total_mask_area = mask_len * mask_width
-  total_area_needed = np.sum(list(map(lambda x: get_cell_area(all_cells[x]),\
+  total_mask_area = mask_length * mask_width
+  total_area_needed = np.sum(list(map(lambda x: get_cell_area(x),\
       inv_cell_list)))
+
+  mask = gdspy.Cell('Mask')
+  caps_inv = [cell for cell in inv_cell_list if cell.name.startswith('Capacitor')]
+  caps_inv.sort(key=lambda x:x.name)
+  # All the capacitors have the same size
+  cap_dx, cap_dy = get_size(caps_inv[0])
+
+  caps_inv_ref = [None]*(nrows*ncols)
+  caps_inv_ref[0] = gdspy.CellReference(caps_inv[0],\
+      [-mask_width/2 + cap_dx/2, mask_length/2 - cap_dy/2])
+  for icap in range(1, nrows * ncols):
+    cap_ref = gdspy.CellReference(caps_inv[icap])
+    if icap % ncols == 0:
+      movebelow(caps_inv_ref[icap - ncols], cap_ref)
+      centerx(caps_inv_ref[icap - ncols], cap_ref)
+    else:
+      moveright(caps_inv_ref[icap - 1], cap_ref)
+      centery(caps_inv_ref[icap - 1], cap_ref)
+    caps_inv_ref[icap] = cap_ref
+
+  mask.add(caps_inv_ref)
+
+  # Now we deal with all the cells that haven't been placed in a mask
+  not_yet = set(inv_cell_list) - set(caps_inv)
+
+  mask.add(gdspy.CellReference(makechipoutline(mask_width, mask_length,\
+      'MaskOutline')))
   main_lib.write_gds('sscale_darkres.gds',unit=1e-6,precision=1e-9)
 
 
