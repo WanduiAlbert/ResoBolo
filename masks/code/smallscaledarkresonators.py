@@ -5,7 +5,9 @@ import gdspy
 import matplotlib.pyplot as plt
 from scipy import constants,special
 import astropy.units as u
-from stepper import Shot
+from patchshot_composer import Shot, makeshot
+from openpyxl import Workbook
+from string import ascii_uppercase
 number_of_points = 32
 
 mUnits = 1e-6
@@ -24,8 +26,10 @@ Z0 = 50 * u.Ohm
 gnd_box_margin = 200
 main_lib = gdspy.GdsLibrary('main')
 gdspy.current_library = main_lib
+wb = Workbook()
 def_layers = {"Thin Gold":1, "PRO1":2, "ALUMINUM":3, "LSNSUB":4, "LSN1":5,
     "120nm_NbWiring":6, "STEPPER":7, "400nm_NbWiring":8, "ILD":9}
+allshots = []
 feed_cell_length = 100
 feed_cell_width = 20
 feed_main_width = 8
@@ -33,6 +37,11 @@ feed_ms_fraction = 0.2
 feedres_dist = 210
 mask_width = 22000
 mask_length = 26000
+
+# Need this functionality to work with excel spreadsheets
+chars = list(ascii_uppercase)
+char2num = {char:(ind+1) for ind, char in enumerate(chars)}
+num2char = {(ind+1):char for ind, char in enumerate(chars)}
 
 
 def moveabove_get_shift(box_fixed,box_free):
@@ -858,6 +867,16 @@ def placeuniquecaps(caps_inv, mask, mcols, nrows, ncols):
   mask.add(caps_inv_ref)
   return caps_inv_ref
 
+
+
+def populate_column(sheet, col, startrow, dataset):
+  N = len(dataset)
+  for index in range(N):
+    row = startrow + index
+    sheet.cell(column = col, row=row, value = dataset[index])
+
+
+
 def main():
   # Wafer organization all dimensions in microns
   nrows = 8
@@ -1219,11 +1238,77 @@ def main():
   mask.add(iILDcorner_ref)
   mask.add(ifeedcorner_ref)
 
-
   main_lib.write_gds('sscale_darkres.gds',unit=1e-6,precision=1e-9)
 
+  # Now I want to generate the full patch shot table from the Global Overlay
+  # and the Mask file
+  globaloverlay = main_lib.cell_dict['Global_Overlay']
+  gcomponents = globaloverlay.elements
+  mcomponents = mask.elements
+  for component in gcomponents:
+    if component.ref_cell.name == "WaferOutline": continue
+    allshots.extend(makeshot(component))
 
+  for shot in allshots:
+    name = shot.cellname + '_r'
+    #if name == "WaferOutline_r": continue
+    match = list(filter(lambda x: x.ref_cell.name == name, mcomponents))[0]
+    shot.update_mask_location(match)
 
+  allshots.sort()
+
+  all_layers = np.array(list(map(lambda x: x.get_layer(), allshots)))
+  all_names = np.array(list(map(lambda x: x.get_name(), allshots)))
+  all_mask_shifts = np.array(list(map(lambda x: x.get_mask_shift(), allshots)))
+  all_cell_sizes = np.array(list(map(lambda x: x.get_cell_size(), allshots)))
+  all_cell_shifts = np.array(list(map(lambda x: x.get_cell_shift(), allshots)))
+  all_array_sizes = np.array(list(map(lambda x: x.get_array_size(), allshots)))
+  all_array_centers = np.array(list(map(lambda x: x.get_array_center(), allshots)))
+  all_array_stepsizes = np.array(list(map(lambda x: x.get_array_stepsize(), allshots)))
+
+  print (all_layers.shape)
+  print (all_names.shape)
+  print (all_mask_shifts.shape)
+  print (all_cell_sizes.shape)
+  print (all_cell_shifts.shape)
+  print (all_array_sizes.shape)
+  print (all_array_centers.shape)
+  print (all_array_stepsizes.shape)
+
+  N = len(all_layers)
+  ids = np.stack([all_layers, all_names], axis=-1)
+  table = np.stack([ids, all_mask_shifts, all_cell_sizes,\
+      all_cell_shifts, all_array_sizes, all_array_centers,\
+      all_array_stepsizes], axis=-1)
+
+  ws = wb.active #get the active worksheet in which to save the data
+
+  ws['A14'] = 'Layer'
+  ws['C14'] = 'Cell name'
+  ws['D13'] = 'Mask Shift'
+  ws.merge_cells('D13:E13')
+  ws['D14'] = 'x'
+  ws['E14'] = 'y'
+  ws['F13'] = 'Cell size'
+  ws.merge_cells('F13:G13')
+  ws['F14'] = 'x'
+  ws['G14'] = 'y'
+  ws['M13'] = 'Cell Shift'
+  ws.merge_cells('M13:N13')
+  ws['M14'] = 'x'
+  ws['N14'] = 'y'
+
+  startrow = 15
+  endrow = 15 + N
+
+  populate_column(ws, char2num['A'], 15, all_layers)
+  populate_column(ws, char2num['A'], 15, all_layers)
+  populate_column(ws, char2num['A'], 15, all_layers)
+  populate_column(ws, char2num['A'], 15, all_layers)
+  populate_column(ws, char2num['A'], 15, all_layers)
+  populate_column(ws, char2num['A'], 15, all_layers)
+  populate_column(ws, char2num['A'], 15, all_layers)
+  populate_column(ws, char2num['A'], 15, all_layers)
 
 
 
