@@ -35,7 +35,7 @@ feed_cell_length = 100
 feed_cell_width = 20
 feed_main_width = 8
 feed_ms_fraction = 0.2
-feedres_dist = 210
+feedres_dist = 209
 mask_width = 22000
 mask_length = 26000
 
@@ -696,7 +696,7 @@ def get_coupling_conns(g_dy, u_dy):
   w = 8
   l2gnd = ymargin + 2
   l2feed = l2gnd + feedres_dist
-  l2gnd += 4 # A little extra
+  l2gnd += 5 # A little extra
 
   c2gnd = gdspy.Rectangle([-w/2,l2gnd/2], [w/2, -l2gnd/2],\
       layer=def_layers['400nm_NbWiring'])
@@ -1051,7 +1051,6 @@ def main():
   cap2feed_dx, cap2feed_dy = get_size(cap2feed)
   cap2gnd_dx, cap2gnd_dy = get_size(cap2gnd)
   overlap = 2
-  cap2feed_xoffset = u_xoffset - (u_dx//2 + u_dx % 2) + 8
 
   cap2feed_arr = gdspy.CellArray(cap2feed, ncols, nrows, [xspacing, yspacing])
   cap2feed_arr.translate(-arr_xshift - feed_xoffset, -arr_yshift +\
@@ -1277,10 +1276,17 @@ def main():
   print (all_array_stepsizes.shape)
 
   N = len(all_layers)
-  ids = np.stack([all_layers, all_names], axis=-1)
-  table = np.stack([ids, all_mask_shifts, all_cell_sizes,\
-      all_cell_shifts, all_array_sizes, all_array_centers,\
-      all_array_stepsizes], axis=-1)
+  #ids = np.stack([all_layers, all_names], axis=-1)
+  #table = np.stack([ids, all_mask_shifts, all_cell_sizes,\
+  #    all_cell_shifts, all_array_sizes, all_array_centers,\
+  #    all_array_stepsizes], axis=-1)
+
+  xl = all_mask_shifts[:, 0] - all_cell_sizes[:,0]/2
+  xr = all_mask_shifts[:, 0] + all_cell_sizes[:,0]/2
+  yu = all_mask_shifts[:, 1] + all_cell_sizes[:,1]/2
+  yd = all_mask_shifts[:, 1] - all_cell_sizes[:,1]/2
+
+  all_wafer_shifts = all_mask_shifts - all_cell_shifts
 
   ws = wb.active #get the active worksheet in which to save the data
 
@@ -1310,6 +1316,54 @@ def main():
   populate_column(ws, char2num['G'], 15, all_cell_sizes[:, 1])
   populate_column(ws, char2num['M'], 15, all_cell_shifts[:, 0])
   populate_column(ws, char2num['N'], 15, all_cell_shifts[:, 1])
+
+  ws.merge_cells('H13:K13')
+  ws['H13'] = 'Blade Coordinates'
+  ws['H14'] = 'xl'
+  ws['I14'] = 'xr'
+  ws['J14'] = 'yu'
+  ws['K14'] = 'yd'
+  populate_column(ws, char2num['H'], 15, xl)
+  populate_column(ws, char2num['I'], 15, xr)
+  populate_column(ws, char2num['J'], 15, yu)
+  populate_column(ws, char2num['K'], 15, yd)
+
+  ws.merge_cells('O13:P13')
+  ws['O13'] = 'Wafer Shift'
+  ws['O14'] = 'x'
+  ws['P14'] = 'y'
+  populate_column(ws, char2num['O'], 15, all_wafer_shifts[:,0])
+  populate_column(ws, char2num['P'], 15, all_wafer_shifts[:,1])
+
+  ws.merge_cells('T12:Y12')
+  ws['T12'] = 'Alternate Array Layout'
+  ws.merge_cells('T13:U13')
+  ws['T13'] = 'size'
+  ws['T14'] = 'C'
+  ws['U14'] = 'R'
+  ws.merge_cells('V13:W13')
+  ws['V13'] = 'center'
+  ws['V14'] = 'x'
+  ws['W14'] = 'y'
+  ws.merge_cells('X13:Y13')
+  ws['X13'] = 'step size'
+  ws['X14'] = 'x'
+  ws['Y14'] = 'y'
+  populate_column(ws, char2num['T'], 15, all_array_sizes[:,0])
+  populate_column(ws, char2num['U'], 15, all_array_sizes[:,1])
+  populate_column(ws, char2num['V'], 15, all_array_centers[:, 0])
+  populate_column(ws, char2num['W'], 15, all_array_centers[:, 1])
+  populate_column(ws, char2num['X'], 15, all_array_stepsizes[:, 0])
+  populate_column(ws, char2num['Y'], 15, all_array_stepsizes[:, 1])
+
+
+
+
+
+
+
+
+
 
   wb.save(wbsavefile)
 

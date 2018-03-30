@@ -4,7 +4,11 @@ def_layers = {"Thin Gold":1, "PRO1":2, "ALUMINUM":3, "LSNSUB":4, "LSN1":5,
     "120nm_NbWiring":6, "STEPPER":7, "400nm_NbWiring":8, "ILD":9}
 inv_layers = {value:key for key, value in def_layers.items()}
 
+# scales all the values in an array by the scale
+def scalearr(arr, scale):
+  return tuple(map(lambda x: x/scale, arr))
 
+scale = 1000
 
 class Shot():
 
@@ -20,7 +24,7 @@ class Shot():
       raise RuntimeError ("Cannot construct a shot from a cell with multiple layers")
     self.layer = layers[0]
     self.cell_size = cell_size
-    self.cell_shift = tuple(cell_shift)
+    self.cell_shift = cell_shift
     self.isArray = isArray
     #self.blade_coords = {'xl':, 'xr':, 'yt':, 'yb':}
     if isArray:
@@ -35,8 +39,8 @@ class Shot():
     assert(maskcellname.startswith(self.cellname))
 
     self.maskcell = maskcellref.ref_cell
-    self.maskcellsize = get_size(maskcellref)
-    self.mask_shift = tuple(maskcellref.origin)
+    self.maskcellsize = scalearr(get_size(maskcellref), scale)
+    self.mask_shift = scalearr(maskcellref.origin, scale)
 
   def __repr__(self):
     if not self.isArray:
@@ -104,8 +108,8 @@ def makeshot(element):
   # element. Otherwise loop through the elements of the current element and
   # obtain shots from each of them.
   if not deps:
-    cell_shift = element.origin
-    cell_size = get_size(element)
+    cell_shift = scalearr(element.origin, scale)
+    cell_size = scalearr(get_size(element), scale)
   else:
     shotlist = []
     for el in cell.elements:
@@ -113,26 +117,27 @@ def makeshot(element):
       # For each shot that has been made from each element, update its origin
       # relative to the origin for  the element
       for shot in shots:
-        translate(shot, el.origin)
+        translate(shot, scalearr(el.origin, scale))
       shotlist.extend(shots)
     # Update again because all the element are positioned relative to the whole
     # global overlay
     for shot in shotlist:
-      translate(shot, element.origin)
+      translate(shot, scalearr(element.origin, scale))
       if isArray:
         shot.isArray = True
         shot.center = shot.cell_shift
         shot.ncols = element.columns
         shot.nrows = element.rows
-        shot.xspacing, shot.yspacing = element.spacing
+        shot.xspacing, shot.yspacing = scalearr(element.spacing, scale)
     return shotlist
 
   if isArray:
     cell_size = get_size(cell)
-    arr_origin = element.origin
+    cell_shift = scalearr(element.origin, scale)
+    arr_origin = scalearr(element.origin, scale)
     ncols = element.columns
     nrows = element.rows
-    xspacing, yspacing = element.spacing
+    xspacing, yspacing = scalearr(element.spacing, scale)
     args = {'num_cols':ncols, 'num_rows':nrows,\
         'center':arr_origin, 'xspacing':xspacing, 'yspacing':yspacing}
     shot = Shot(cell, cell_shift, cell_size, isArray=True, **args)
