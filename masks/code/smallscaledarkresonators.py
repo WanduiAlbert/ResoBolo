@@ -27,6 +27,7 @@ gnd_box_margin = 200
 main_lib = gdspy.GdsLibrary('main')
 gdspy.current_library = main_lib
 wb = Workbook()
+wbsavefile = "ResonatorArray.xlsx"
 def_layers = {"Thin Gold":1, "PRO1":2, "ALUMINUM":3, "LSNSUB":4, "LSN1":5,
     "120nm_NbWiring":6, "STEPPER":7, "400nm_NbWiring":8, "ILD":9}
 allshots = []
@@ -1302,15 +1303,15 @@ def main():
   endrow = 15 + N
 
   populate_column(ws, char2num['A'], 15, all_layers)
-  populate_column(ws, char2num['A'], 15, all_layers)
-  populate_column(ws, char2num['A'], 15, all_layers)
-  populate_column(ws, char2num['A'], 15, all_layers)
-  populate_column(ws, char2num['A'], 15, all_layers)
-  populate_column(ws, char2num['A'], 15, all_layers)
-  populate_column(ws, char2num['A'], 15, all_layers)
-  populate_column(ws, char2num['A'], 15, all_layers)
+  populate_column(ws, char2num['C'], 15, all_names)
+  populate_column(ws, char2num['D'], 15, all_mask_shifts[:,0])
+  populate_column(ws, char2num['E'], 15, all_mask_shifts[:,1])
+  populate_column(ws, char2num['F'], 15, all_cell_sizes[:, 0])
+  populate_column(ws, char2num['G'], 15, all_cell_sizes[:, 1])
+  populate_column(ws, char2num['M'], 15, all_cell_shifts[:, 0])
+  populate_column(ws, char2num['N'], 15, all_cell_shifts[:, 1])
 
-
+  wb.save(wbsavefile)
 
 
 if __name__=='__main__':
