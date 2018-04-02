@@ -20,7 +20,7 @@ indboxwidth = 325.
 indboxheight = 127.
 coup_cap_finger_length = 100
 bondpad_size = 140
-island_halfwidth = 400
+island_halfwidth = 800
 Qi = 40000
 Z0 = 50 * u.Ohm
 gnd_box_margin = 200
@@ -416,26 +416,34 @@ def invert_cell(cell, rotation=0):
   #inv_cell.add(new_polyset)
   #return inv_cell
 
+# Note that I have defined island_halfwidth to be the distance in the x direction 
+# between the interface between the capacitor and lines and between the inductor 
+# and lines.
 def make_cap_to_ind_lines():
-  layer = 8
+  layer = def_layers["400nm_NbWiring"]
   cell_name = 'connector'
   ms_width = 2
-  len_conn = (finger_length + 3 * ms_width -ms_width)/2
+  xlen_short = 5 * ms_width
+  ind_overlap = 1.25 * ms_width
+  xlen_long = island_halfwidth - xlen_short + ms_width + ind_overlap
+  cap_overlap = ms_width
+  ylen = (finger_length + 3 * ms_width -ms_width)/2
+  ylen_short = 6.25 * ms_width
   cap2ind_conn = gdspy.Cell(cell_name)
   #box = gdspy.Rectangle(layer=layer)
   conn1 = gdspy.Path(ms_width, (0,0))
-  conn1.segment(5*ms_width, '+x', layer=layer)
+  conn1.segment(xlen_short + cap_overlap, '+x', layer=layer)
   conn2 = gdspy.Path(ms_width, (conn1.x - ms_width/2, conn1.y + ms_width/2))
-  conn2.segment(len_conn , '-y', layer=layer)
+  conn2.segment(ylen , '-y', layer=layer)
   conn3 = gdspy.Path(ms_width, (conn2.x - ms_width/2, conn2.y + ms_width/2))
-  conn3.segment(island_halfwidth - 5*ms_width + ms_width + 1.25*ms_width, '+x', layer=layer)
+  conn3.segment(xlen_long, '+x', layer=layer)
   conn4 = gdspy.Path(ms_width, (conn3.x - ms_width/2, conn3.y - ms_width/2))
-  conn4.segment(12.5, '+y', layer=layer)
+  conn4.segment(ylen_short, '+y', layer=layer)
   conn5 = gdspy.Path(2.5*ms_width, (conn4.x, conn4.y - ms_width/2))
-  conn5.segment(51, '+y', layer=layer)
+  conn5.segment(51, '+y', layer=layer) # Just magic
 
-  dx = island_halfwidth/2
-  dy = len_conn/2 - ms_width/2
+  dx = island_halfwidth/2 + cap_overlap
+  dy = ylen/2 - ms_width/2
   conn1.translate(-dx, dy)
   conn2.translate(-dx, dy)
   conn3.translate(-dx, dy)
@@ -447,7 +455,6 @@ def make_cap_to_ind_lines():
   cap2ind_conn.add(conn3)
   cap2ind_conn.add(conn4)
   cap2ind_conn.add(conn5)
-
 
   return cap2ind_conn
 
@@ -573,6 +580,39 @@ def get_feedline():
 def roundto(num, base):
   return ((num // base) + ((num % base) > (base//2))) * base
 
+def get_resonator_ILDsub(common_cap, unique_cap, u_xoffset, gndsub_margin):
+  c_dx, c_dy = get_size(common_cap)
+  u_dx, u_dy = get_size(unique_cap)
+  overlap = 2
+
+  xmargin, ymargin = gndsub_margin
+  xmargin -= 50
+  ymargin -= 50
+
+  dx = c_dx + u_dx - overlap + 2*xmargin
+  dy = u_dy + 2 * ymargin
+
+  # I want the ILD sub region to be a rounded to nearest 100
+  dx = roundto(dx, 50)
+  dy = roundto(dy, 50)
+
+  # The margins have changed. Adjust them accordingly
+  xmargin = (dx + overlap - c_dx - u_dx)//2
+  excess = (dx + overlap - c_dx - u_dx) % 2
+  ymargin = (dy - u_dy)//2
+
+  ild = gdspy.Rectangle([-dx/2, dy/2], [dx/2, -dy/2], layer=def_layers['ILD'])
+  #gnd.translate(-offset, 0)
+
+  i_xoffset = u_xoffset - (dx/2 - xmargin - u_dx/2)
+
+  ildsub = gdspy.Cell('reso_ILD_sub')
+  ildsub.add(ild)
+
+  # print (c_dx, u_dx, get_size(ildsub))
+
+  return ildsub, i_xoffset
+
 # cres - common part of resonator
 # ures - unique part of resonator
 def get_resonator_GPsub(cres_bbox, ures_size):
@@ -610,7 +650,7 @@ def get_resonator_GPsub(cres_bbox, ures_size):
   gndsub = gdspy.Cell('reso_GP_sub')
   gndsub.add(gnd)
   gndsub.add(small)
-  return gndsub, c_xoffset, u_xoffset, small_xoffset
+  return gndsub, c_xoffset, u_xoffset, small_xoffset, [xmargin, ymargin]
 
 def get_vertical_feed():
   allcells = main_lib.cell_dict
@@ -696,7 +736,7 @@ def get_coupling_conns(g_dy, u_dy):
   w = 8
   l2gnd = ymargin + 2
   l2feed = l2gnd + feedres_dist
-  l2gnd += 5 # A little extra
+  l2gnd += 20 # A little extra
 
   c2gnd = gdspy.Rectangle([-w/2,l2gnd/2], [w/2, -l2gnd/2],\
       layer=def_layers['400nm_NbWiring'])
@@ -732,19 +772,20 @@ def get_common_resonator(ind, common_cap):
   ind_dx, ind_dy = get_size(ind)
   cap_dx, cap_dy = get_size(cap_ref)
 
-  capconn_overlap = 0
-  indconn_overlap = 4
+  capconn_overlap = ms_width
+  indconn_overlap = 2*ms_width
+  # Get the total length of the common resonator
   dx = conn_dx + ind_dx + cap_dx - indconn_overlap - capconn_overlap
 
   # Currently the center is at the connector.
-  offset = dx//2 - (cap_dx + (conn_dx- indconn_overlap)/2 - capconn_overlap )
+  offset = dx//2 - (cap_dx + (conn_dx- indconn_overlap - capconn_overlap)/2 )
   resonator_connector_ref.translate(-offset,0)
   common_resonator.add(resonator_connector_ref)
   #ind_origin = [island_halfwidth/2  + indboxwidth/2, 0]
   #ind_ref = gdspy.CellReference(ind, origin = ind_origin)
   moveright(resonator_connector_ref, ind_ref, spacing=indconn_overlap)
   common_resonator.add(ind_ref)
-  moveleft(resonator_connector_ref, cap_ref, spacing=capconn_overlap)
+  moveleft(resonator_connector_ref, cap_ref, spacing=-capconn_overlap)
   common_resonator.add(cap_ref)
 
   return common_resonator
@@ -868,6 +909,45 @@ def placeuniquecaps(caps_inv, mask, mcols, nrows, ncols):
   mask.add(caps_inv_ref)
   return caps_inv_ref
 
+def get_via(dx):
+  via = gdspy.Cell('Via_to_Ground')
+
+  box = gdspy.Rectangle([-dx/2, dx/2], [dx/2, -dx/2], layer=def_layers["ILD"])
+  via.add(box)
+  return via
+
+def get_resonator_structures(reso_gnd_sub, reso_ild_sub, i_xoffset, feed_xoffset, u_dy):
+  reso_top = gdspy.Cell('reso_structure')
+  g_dx, g_dy = get_size(reso_gnd_sub)
+  g_dy -= feedres_dist
+  gndsub = gdspy.CellReference(reso_gnd_sub)
+  ildsub = gdspy.CellReference(reso_ild_sub)
+  ildsub.translate(-i_xoffset, 0)
+  
+  cap2feed, cap2gnd = get_coupling_conns(g_dy, u_dy)
+  cap2feed_dx, cap2feed_dy = get_size(cap2feed)
+  cap2gnd_dx, cap2gnd_dy = get_size(cap2gnd)
+  overlap = 2
+  cap2feed_yoffset = u_dy/2 + cap2feed_dy/2 - overlap
+  cap2gnd_yoffset = -u_dy/2 - cap2gnd_dy/2 + overlap
+
+  cap2feed_ref = gdspy.CellReference(cap2feed)
+  cap2feed_ref.translate(-feed_xoffset, cap2feed_yoffset)
+
+  cap2gnd_ref = gdspy.CellReference(cap2gnd)
+  cap2gnd_ref.translate(-feed_xoffset, cap2gnd_yoffset)
+
+  via = get_via(cap2gnd_dx*0.5)
+  via_ref = gdspy.CellReference(via)
+  movebelow(cap2gnd_ref, via_ref, spacing = -0.75*cap2gnd_dx)
+  centerx(cap2gnd_ref, via_ref)
+  reso_top.add(gndsub)
+  reso_top.add(ildsub)
+  reso_top.add(cap2feed_ref)
+  reso_top.add(cap2gnd_ref)
+  reso_top.add(via_ref)
+
+  return reso_top
 
 
 def populate_column(sheet, col, startrow, dataset):
@@ -937,6 +1017,7 @@ def main():
   common_idc.nfinger = common_Nfinger
   common_idc.cellname = "Capacitor_common"
   common_cap = common_idc.draw(less_one=True)
+  common_cap_ref = gdspy.CellReference(common_cap, rotation=90)
   obtained_Cs = []
   obtained_Ccs = []
   for ires, coup_index in zip(range(N_res), unq_inv):
@@ -969,12 +1050,30 @@ def main():
   # Generate the region around the resonator where the ground plane is to be
   # removed. Also return the offsets in the x direction from the center of this
   # region where the common resonator and the unique capacitor are to be placed.
-  reso_gnd_sub, c_xoffset, u_xoffset, feed_xoffset =\
+  reso_gnd_sub, c_xoffset, u_xoffset, feed_xoffset, gndsub_margin =\
       get_resonator_GPsub(cres_bbox, get_size(cap_ref))
   g_dx, g_dy = get_size(reso_gnd_sub)
   g_dy -= feedres_dist
 
-  reso_gnd_sub_arr = gdspy.CellArray(reso_gnd_sub, ncols, nrows, [xspacing, yspacing] )
+  reso_ild_sub, i_xoffset = get_resonator_ILDsub(common_cap_ref, cap_ref, u_xoffset, gndsub_margin)
+  
+
+
+  # cap2feed_arr = gdspy.CellArray(cap2feed, ncols, nrows, [xspacing, yspacing])
+  # cap2feed_arr.translate(-arr_xshift - feed_xoffset, -arr_yshift +\
+  #     u_dy/2+ cap2feed_dy/2 - overlap)
+  # wafer.add(cap2feed_arr)
+  # cap2gnd_arr = gdspy.CellArray(cap2gnd, ncols, nrows, [xspacing, yspacing])
+  # cap2gnd_arr.translate(-arr_xshift - feed_xoffset, -arr_yshift -\
+  #     u_dy/2 - cap2gnd_dy/2 + overlap)
+  # wafer.add(cap2gnd_arr)
+
+  reso_structure = get_resonator_structures(reso_gnd_sub, reso_ild_sub, i_xoffset, feed_xoffset, u_dy)
+
+
+
+
+  reso_gnd_sub_arr = gdspy.CellArray(reso_structure, ncols, nrows, [xspacing, yspacing] )
   reso_gnd_sub_arr.translate(-arr_xshift, -arr_yshift)
   wafer.add(reso_gnd_sub_arr)
   cu_overlap = 2
@@ -1047,19 +1146,7 @@ def main():
   wafer.add(upperlinetopad)
   wafer.add(lowerlinetopad)
 
-  cap2feed, cap2gnd = get_coupling_conns(g_dy, u_dy)
-  cap2feed_dx, cap2feed_dy = get_size(cap2feed)
-  cap2gnd_dx, cap2gnd_dy = get_size(cap2gnd)
-  overlap = 2
-
-  cap2feed_arr = gdspy.CellArray(cap2feed, ncols, nrows, [xspacing, yspacing])
-  cap2feed_arr.translate(-arr_xshift - feed_xoffset, -arr_yshift +\
-      u_dy/2+ cap2feed_dy/2 - overlap)
-  wafer.add(cap2feed_arr)
-  cap2gnd_arr = gdspy.CellArray(cap2gnd, ncols, nrows, [xspacing, yspacing])
-  cap2gnd_arr.translate(-arr_xshift - feed_xoffset, -arr_yshift -\
-      u_dy/2 - cap2gnd_dy/2 + overlap)
-  wafer.add(cap2gnd_arr)
+  
   chip_outline = makechipoutline(wafer_width, wafer_len,'WaferOutline')
   wafer.add(gdspy.CellReference(chip_outline))
 
