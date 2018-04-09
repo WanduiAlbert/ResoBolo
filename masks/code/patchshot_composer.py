@@ -85,13 +85,19 @@ class Shot():
 def translate(shot, shift):
   dx, dy = shot.cell_shift
   sdx, sdy = shift
-  shot.cell_shift = (dx + sdx, dy + sdy)
+  shot.cell_shift = (dx - sdx, dy - sdy)
 
 def get_size(cell):
   (xmin, ymin), (xmax, ymax) = cell.get_bounding_box()
   dx = (xmax - xmin)
   dy = (ymax - ymin)
   return dx, dy
+
+def get_center(cell):
+  (xmin, ymin), (xmax, ymax) = cell.get_bounding_box()
+  x0 = (xmax + xmin)//2
+  y0 = (ymax + ymin)/2
+  return x0, y0
 
 def makeshot(element):
   isArray = False
@@ -103,6 +109,16 @@ def makeshot(element):
   cell = element.ref_cell
   cellname = cell.name
   deps = cell.get_dependencies()
+
+  if isArray:
+    cell_size = get_size(cell)
+    cell_shift = scalearr(element.origin, scale)
+    arr_center = scalearr(get_center(element), scale)
+    ncols = element.columns
+    nrows = element.rows
+    xspacing, yspacing = scalearr(element.spacing, scale)
+    args = {'num_cols':ncols, 'num_rows':nrows,\
+        'center':arr_center, 'xspacing':xspacing, 'yspacing':yspacing}
 
   # If deps is an empty set then immediately construct the shot from the
   # element. Otherwise loop through the elements of the current element and
@@ -116,30 +132,25 @@ def makeshot(element):
       shots = makeshot(el)
       # For each shot that has been made from each element, update its origin
       # relative to the origin for  the element
-      for shot in shots:
-        translate(shot, scalearr(el.origin, scale))
+      # for shot in shots:
+      #   translate(shot, scalearr(el.origin, scale))
       shotlist.extend(shots)
     # Update again because all the element are positioned relative to the whole
     # global overlay
     for shot in shotlist:
-      translate(shot, scalearr(element.origin, scale))
+      cell_ref = gdspy.CellReference(cell)
+      translate(shot, scalearr(cell_ref.origin, scale))
       if isArray:
         shot.isArray = True
-        shot.center = shot.cell_shift
-        shot.ncols = element.columns
-        shot.nrows = element.rows
-        shot.xspacing, shot.yspacing = scalearr(element.spacing, scale)
+        shot.center = arr_center
+        shot.ncols = ncols
+        shot.nrows = nrows
+        shot.xspacing, shot.yspacing = xspacing, yspacing
     return shotlist
 
   if isArray:
-    cell_size = get_size(cell)
-    cell_shift = scalearr(element.origin, scale)
-    arr_origin = scalearr(element.origin, scale)
-    ncols = element.columns
-    nrows = element.rows
-    xspacing, yspacing = scalearr(element.spacing, scale)
     args = {'num_cols':ncols, 'num_rows':nrows,\
-        'center':arr_origin, 'xspacing':xspacing, 'yspacing':yspacing}
+        'center':arr_center, 'xspacing':xspacing, 'yspacing':yspacing}
     shot = Shot(cell, cell_shift, cell_size, isArray=True, **args)
   else:
     shot = Shot(cell, cell_shift, cell_size, isArray=isArray)

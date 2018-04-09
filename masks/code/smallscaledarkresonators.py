@@ -143,8 +143,8 @@ def centery(object_fixed,object_free):
 
 def recenter(obj):
   (xmin, ymin), (xmax, ymax) = obj.get_bounding_box()
-  midx = (xmax - xmin)/2
-  midy = (ymax - ymin)/2
+  midx = (xmax - xmin)//2
+  midy = (ymax - ymin)//2
   x0, y0 = obj.origin
   dx = (x0 - midx)
   dy = (y0 - midy)
@@ -425,7 +425,7 @@ def make_cap_to_ind_lines():
   xlen_short = 5 * ms_width
   ind_overlap = 1.25 * ms_width
   xlen_long = island_halfwidth - xlen_short + ms_width + ind_overlap
-  cap_overlap = ms_width
+  cap_overlap = ms_width * 2
   ylen = (finger_length + 3 * ms_width -ms_width)/2
   ylen_short = 6.25 * ms_width
   cap2ind_conn = gdspy.Cell(cell_name)
@@ -473,14 +473,17 @@ def get_inductor():
   ind = gdsii.extract('Al_Inductor_Islands_right')
   polys = ind.get_polygons()
   (xmin, ymin), (xmax, ymax) = ind.get_bounding_box()
+  dx = (xmax - xmin)
+  offset = dx % 2
   #ind_view = gdspy.CellReference(ind, [-xmin, -ymin])
   inductor = gdspy.Cell('Al_inductor')
   for poly in polys:
     polygon = gdspy.Polygon(poly, layer=3)
     polygon = polygon.translate(-xmin, -ymin)
-    polygon = polygon.translate(-(xmax - xmin)/2, -(ymax - ymin)/2)
+    polygon = polygon.translate(-(xmax - xmin)//2 + offset, -(ymax - ymin)/2)
     inductor.add(polygon)
   inductor.flatten()
+  # print (inductor.get_bounding_box())
   return inductor
 
 def get_size(cell):
@@ -712,16 +715,29 @@ def get_vertical_feed():
   # movebelow(vild_ref, ild_box_l, spacing=-l/2)
   gndsub_box_l = gdspy.CellReference(gndsub_corner)
   movebelow(vgndsub_ref, gndsub_box_l, spacing=-l/2)
+  main_w_corners = gdspy.Cell('vert_main_with_corners')
+  gpsub_w_corners = gdspy.Cell('vert_gndsub_with_corners')
+
+  main_w_corners.add(vmain_ref)
+  main_w_corners.add(feed_box)
+  main_w_corners.add(feed_box_l)
+  main_w_corners.flatten()
+
+  gpsub_w_corners.add(vgndsub_ref)
+  gpsub_w_corners.add(gndsub_box)
+  gpsub_w_corners.add(gndsub_box_l)
+  gpsub_w_corners.flatten()
+
   vertfeedcell = gdspy.Cell('MainFeedline_vert')
-  vertfeedcell.add(vmain_ref)
+  vertfeedcell.add(gdspy.CellReference(main_w_corners))
   # vertfeedcell.add(vild_ref)
-  vertfeedcell.add(vgndsub_ref)
-  vertfeedcell.add(feed_box)
-  # vertfeedcell.add(ild_box)
-  vertfeedcell.add(gndsub_box)
-  vertfeedcell.add(feed_box_l)
-  # vertfeedcell.add(ild_box_l)
-  vertfeedcell.add(gndsub_box_l)
+  vertfeedcell.add(gdspy.CellReference(gpsub_w_corners))
+  # vertfeedcell.add(feed_box)
+  # # vertfeedcell.add(ild_box)
+  # vertfeedcell.add(gndsub_box)
+  # vertfeedcell.add(feed_box_l)
+  # # vertfeedcell.add(ild_box_l)
+  # vertfeedcell.add(gndsub_box_l)
 
   return vertfeedcell
 
@@ -753,7 +769,6 @@ def get_common_resonator(ind, common_cap):
   dy = conn_dy/2  + ms_width/2
   top_conn_ref = gdspy.CellReference(connector, [0, dy] )
   bot_conn_ref = gdspy.CellReference(connector, [0, -dy], x_reflection=True)
-
   resonator_connector = gdspy.Cell('Cap_to_Ind_lines')
   resonator_connector.add(top_conn_ref)
   resonator_connector.add(bot_conn_ref)
@@ -763,25 +778,30 @@ def get_common_resonator(ind, common_cap):
   cap_ref = gdspy.CellReference(common_cap, rotation = 90)
 
   conn_dx, conn_dy = get_size(resonator_connector)
-  ind_dx, ind_dy = get_size(ind)
+  ind_dx, ind_dy = get_size(ind_ref)
   cap_dx, cap_dy = get_size(cap_ref)
 
-  capconn_overlap = ms_width
-  indconn_overlap = 2*ms_width
+  capconn_overlap = 2 * ms_width
+  indconn_overlap = 2 * ms_width
   # Get the total length of the common resonator
   dx = conn_dx + ind_dx + cap_dx - indconn_overlap - capconn_overlap
-
+  # print (dx)
   # Currently the center is at the connector.
-  offset = dx//2 - (cap_dx + (conn_dx- indconn_overlap - capconn_overlap)/2 )
+  offset = dx//2  - (cap_dx + (conn_dx - indconn_overlap - capconn_overlap)/2 )
   resonator_connector_ref.translate(-offset,0)
   common_resonator.add(resonator_connector_ref)
+  # print (resonator_connector_ref.get_bounding_box())
   #ind_origin = [island_halfwidth/2  + indboxwidth/2, 0]
   #ind_ref = gdspy.CellReference(ind, origin = ind_origin)
   moveright(resonator_connector_ref, ind_ref, spacing=indconn_overlap)
   common_resonator.add(ind_ref)
+  # print (ind_ref.get_bounding_box())
   moveleft(resonator_connector_ref, cap_ref, spacing=-capconn_overlap)
+  # print (cap_ref.origin)
   common_resonator.add(cap_ref)
-
+  # print (common_resonator.get_bounding_box())
+  # print (ind_ref.get_bounding_box())
+  # print (ind_ref.origin)
   return common_resonator
 
 def get_bondpads():
@@ -968,7 +988,7 @@ def get_resonator_structures(reso_gnd_sub, reso_ild_sub, feed,  i_xoffset, feed_
   ildsub.translate(-i_xoffset, 0)
   
   am = gdspy.CellReference(get_alignment_marks())
-  centery(gndsub, am)
+  centery(ildsub, am)
   moveleft(gndsub, am, spacing=500)
 
   cap2feed, cap2gnd = get_coupling_conns(g_dy, u_dy)
@@ -1112,7 +1132,7 @@ def main():
   common_res_arr.translate(-arr_xshift, -arr_yshift)
   # Make the GND plane subtract region around each resonator
   cres_bbox = common_resonator.get_bounding_box()
-
+ 
   # Generate the region around the resonator where the ground plane is to be
   # removed. Also return the offsets in the x direction from the center of this
   # region where the common resonator and the unique capacitor are to be placed.
@@ -1245,8 +1265,8 @@ def main():
   mask.add(gdspy.CellReference(maskoutline))
 
   # 1. Start with the largest feedline structures
-  ivmain = all_cells['vert_feedline_main_r']
-  ivgndsub = all_cells['vert_feedline_GP_sub_r']
+  ivmain = all_cells['vert_main_with_corners_r']
+  ivgndsub = all_cells['vert_gndsub_with_corners_r']
   iugndtopad = all_cells['upper_gndsub_feedline_to_pad_r']
   iumaintopad = all_cells['upper_main_feedline_to_pad_r']
   ilgndtopad = all_cells['lower_gndsub_feedline_to_pad_r']
@@ -1373,21 +1393,21 @@ def main():
   not_yet -= set([igndbp, imainbp])
 
   # Placement of the corner cells
-  igndsubcorner = all_cells['gndsub_corner_r']
-  ifeedcorner = all_cells['feed_corner_r']
+  # igndsubcorner = all_cells['gndsub_corner_r']
+  # ifeedcorner = all_cells['feed_corner_r']
 
-  igndsubcorner_ref = gdspy.CellReference(igndsubcorner)
-  ifeedcorner_ref = gdspy.CellReference(ifeedcorner)
+  # igndsubcorner_ref = gdspy.CellReference(igndsubcorner)
+  # ifeedcorner_ref = gdspy.CellReference(ifeedcorner)
 
-  centerx(i2feed_ref, ifeedcorner_ref)
-  movebelow(i2gnd_ref, ifeedcorner_ref)
-  moveleft(ivia_ref, igndsubcorner_ref)
-  centery(ivia_ref, igndsubcorner_ref)
+  # centerx(i2feed_ref, ifeedcorner_ref)
+  # movebelow(i2gnd_ref, ifeedcorner_ref)
+  # moveleft(ivia_ref, igndsubcorner_ref)
+  # centery(ivia_ref, igndsubcorner_ref)
 
-  mask.add(igndsubcorner_ref)
-  mask.add(ifeedcorner_ref)
+  # mask.add(igndsubcorner_ref)
+  # mask.add(ifeedcorner_ref)
 
-  not_yet -= set([igndsubcorner, ifeedcorner])
+  # not_yet -= set([igndsubcorner, ifeedcorner])
 
   # Placement of the common pixel on the mask
   icommoncap = all_cells['Capacitor_common_r']
@@ -1506,14 +1526,14 @@ def main():
   all_array_centers = np.array(list(map(lambda x: x.get_array_center(), allshots)))
   all_array_stepsizes = np.array(list(map(lambda x: x.get_array_stepsize(), allshots)))
 
-  print (all_layers.shape)
-  print (all_names.shape)
-  print (all_mask_shifts.shape)
-  print (all_cell_sizes.shape)
-  print (all_cell_shifts.shape)
-  print (all_array_sizes.shape)
-  print (all_array_centers.shape)
-  print (all_array_stepsizes.shape)
+  # print (all_layers.shape)
+  # print (all_names.shape)
+  # print (all_mask_shifts.shape)
+  # print (all_cell_sizes.shape)
+  # print (all_cell_shifts.shape)
+  # print (all_array_sizes.shape)
+  # print (all_array_centers.shape)
+  # print (all_array_stepsizes.shape)
 
   N = len(all_layers)
   #ids = np.stack([all_layers, all_names], axis=-1)
