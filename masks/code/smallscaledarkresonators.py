@@ -29,7 +29,7 @@ gdspy.current_library = main_lib
 wb = Workbook()
 wbsavefile = "ResonatorArray.xlsx"
 def_layers = {"Thin Gold":1, "PRO1":2, "ALUMINUM":3, "LSNSUB":4, "LSN1":5,
-    "120nm_NbWiring":6, "STEPPER":7, "400nm_NbWiring":8, "ILD":9}
+    "120nm_NbWiring":6, "STEPPER":7, "400nm_NbWiring":8, "ILD":9, "XeF2":10, "GP":12}
 allshots = []
 feed_cell_length = 100
 feed_cell_width = 20
@@ -400,20 +400,6 @@ def invert_cell(cell, rotation=0):
   for cell in cell.get_dependencies():
     invert_cell(cell, rotation)
 
-  #cell_name = cell.name + '_r'
-  #inv_cell = gdspy.Cell(cell_name)
-  #cell = cell.flatten()
-  #cell_ref = gdspy.CellReference(cell, rotation=rotation)
-  #dx, dy = get_size(cell_ref)
-  #dx += 2*inv_margin
-  #dy += 2*inv_margin
-  #polys = cell_ref.get_polygons(depth=1)
-  #polyset = gdspy.PolygonSet(polys, layer=layer)
-  #bbox = gdspy.Rectangle([-dx/2, dy/2], [dx/2, -dy/2], layer=layer)
-
-  #new_polyset = gdspy.fast_boolean(polyset, bbox, 'xor', layer=layer)
-  #inv_cell.add(new_polyset)
-  #return inv_cell
 
 # Note that I have defined island_halfwidth to be the distance in the x direction 
 # between the interface between the capacitor and lines and between the inductor 
@@ -1044,6 +1030,30 @@ def get_gnd_cutouts(yspacing):
 
   return vcutout_cell, hcutout_cell
 
+def get_island():
+  fn = '../resobolo_files/LSN_Island_280umlegs-R.gds'
+  gdsii = gdspy.GdsLibrary()
+  gdsii.read_gds(fn)
+  isl = gdsii.extract('LSN_Island_280umlegs_R')
+  island = gdspy.Cell('LSN_Island_280umlegs')
+  isl_ref = gdspy.CellReference(isl)
+  island.add(isl_ref)
+  island.flatten()
+  island.copy('LSN_Island_280umlegs_r')
+
+  return island
+
+def get_XeF2_release():
+  fn = '../resobolo_files/XeF2_release.gds'
+  gdsii = gdspy.GdsLibrary()
+  gdsii.read_gds(fn)
+  xef2 = gdsii.extract('XeF2_release')
+  invert_cell(xef2)
+  return xef2
+
+
+
+
 def main():
   # Wafer organization all dimensions in microns
   nrows = 8
@@ -1052,6 +1062,8 @@ def main():
 
   wafer = gdspy.Cell('Global_Overlay')
   ind = get_inductor()
+  island = get_island()
+  xef2 = get_XeF2_release()
 
   # Generate all the capacitors
   L = 10 #nH
@@ -1252,7 +1264,7 @@ def main():
   all_cells = main_lib.cell_dict
   make_inverted_cells()
 
-  inv_cell_list = get_inverted_cells()
+  inv_cell_list = get_inverted_cells() #+ [ixef2, i_island]
 
   not_yet = set(inv_cell_list)
   total_mask_area = mask_length * mask_width
@@ -1496,6 +1508,21 @@ def main():
   # map(lambda x:mask.add(x), caps_lflank)
 
   not_yet -= set(caps_inv)
+
+  # Add the island and xef2 release structure
+  ixef2 = all_cells['XeF2_release_r']
+  i_island = all_cells['LSN_Island_280umlegs_r']
+  isl_dx, isl_dy = get_size(i_island)
+  ixef2_ref = gdspy.CellReference(ixef2)
+  i_island_ref = gdspy.CellReference(i_island)
+  moveleft(icommoncap_ref, i_island_ref)
+  moveabove(icommoncap_ref, i_island_ref, spacing=isl_dy)
+  moveleft(icommoncap_ref, ixef2_ref)
+  movebelow(i_island_ref, ixef2_ref)
+  mask.add(i_island_ref)
+  mask.add(ixef2_ref)
+
+
 
 
   main_lib.write_gds('sscale_darkres.gds',unit=1e-6,precision=1e-9)
