@@ -890,6 +890,8 @@ def getlinetopad():
     feed_corner_ref_top = gdspy.CellReference(feed_corner)
     feed_corner_ref_bot = gdspy.CellReference(feed_corner)
     feedspacing = (feed_cell_width + feed_main_width)/2
+    gndsubmargin = (feed_cell_width - feed_main_width)/2
+
     moveabove(main_vert_section, feed_corner_ref_top)
     movebelow(main_vert_section, feed_corner_ref_bot)
     main_vert_cell.add(main_vert_section)
@@ -899,57 +901,32 @@ def getlinetopad():
 
     gndsub_corner_ref_top = gdspy.CellReference(gndsub_corner)
     gndsub_corner_ref_bot = gdspy.CellReference(gndsub_corner)
-    moveabove(gndsub_vert_section, gndsub_corner_ref_top, spacing=feedspacing)
-    movebelow(gndsub_vert_section, gndsub_corner_ref_bot, spacing=-feedspacing)
+    moveabove(gndsub_vert_section, gndsub_corner_ref_top, spacing=gndsubmargin)
+    movebelow(gndsub_vert_section, gndsub_corner_ref_bot, spacing=-gndsubmargin)
     gndsub_vert_cell.add(gndsub_vert_section)
     gndsub_vert_cell.add(gndsub_corner_ref_top)
     gndsub_vert_cell.add(gndsub_corner_ref_bot)
     gndsub_vert_cell.flatten()
 
-    # Calculations needed to properly center the lines at (0, 0)
-    #fcdx, fcdy = get_size(feed_corner)
-    #gcdx, gcdy = get_size(gndsub_corner)
-
-    #fhdx, fhdy = get_size(main_hor_section)
-    #ghdx, ghdy = get_size(gndsub_hor_section)
-
-    #fvdx, fvdy = get_size(main_vert_section)
-    #gvdx, gvdy = get_size(gndsub_vert_section)
-
-    #gndsub_xoffset = (ghdx + gvdx/2)/2
-    #gndsub_yoffset = (gvdy + ghdy/2)/2
-
-    #main_xoffset = (fhdx + fvdx/2)/2
-    #main_yoffset = (fvdy + fhdy/2)/2
-
-    #(gxmin, _), (_, _) = gndsub_hor_section.get_bounding_box()
-    #Dx = ghdx/2 + gxmin
-    #gndsub_hor_section.translate(-Dx, 0)
-    #(fxmin, _), (_, _) = main_hor_section.get_bounding_box()
-    #Dx = fhdx/2 + fxmin
-    #main_hor_section.translate(-Dx, 0)
-
-    ##Position the gndsub section properly
-    #gndsub_hor_section.translate(-gvdx/4, gndsub_yoffset)
-    #main_hor_section.translate(-fvdx/4, main_yoffset)
-
-    gndsubmargin = (feed_cell_width - feed_main_width)/2
     u_main_hor_ref = gdspy.CellReference(main_hor_cell)
     u_main_vert_ref = gdspy.CellReference(main_vert_cell)
     u_gndsub_hor_ref = gdspy.CellReference(gndsub_hor_cell)
     u_gndsub_vert_ref = gdspy.CellReference(gndsub_vert_cell)
 
+    # print (gndsubmargin, feedspacing)
     moveright(u_main_hor_ref, u_main_vert_ref, spacing=feed_main_width)
     moveabove(u_main_vert_ref, u_main_hor_ref, spacing=feed_main_width)
-    movebelow(u_main_hor_ref, u_gndsub_hor_ref, spacing=gndsubmargin)
-    moveright(u_main_vert_ref, u_gndsub_vert_ref, spacing=gndsubmargin)
+    centerx(u_main_vert_ref, u_gndsub_vert_ref)
+    centery(u_main_hor_ref, u_gndsub_hor_ref)
+    moveabove(u_main_hor_ref, u_gndsub_hor_ref, spacing=feedspacing)
+    moveright(u_main_vert_ref, u_gndsub_vert_ref, spacing=feedspacing)
 
-    print (u_main_hor_ref.get_bounding_box())
-    print (u_main_vert_ref.get_bounding_box())
-    print (u_gndsub_hor_ref.get_bounding_box())
-    print (u_gndsub_vert_ref.get_bounding_box())
+    # print (u_main_hor_ref.get_bounding_box())
+    # print (u_main_vert_ref.get_bounding_box())
+    # print (u_gndsub_hor_ref.get_bounding_box())
+    # print (u_gndsub_vert_ref.get_bounding_box())
 
-    sys.exit()
+    # sys.exit()
     l_main_hor_ref = gdspy.CellReference(main_hor_cell)
     l_main_vert_ref = gdspy.CellReference(main_vert_cell)
     l_gndsub_hor_ref = gdspy.CellReference(gndsub_hor_cell)
@@ -957,9 +934,20 @@ def getlinetopad():
 
     moveright(l_main_hor_ref, l_main_vert_ref, spacing=feed_main_width)
     movebelow(l_main_vert_ref, l_main_hor_ref, spacing=-feed_main_width)
-    moveright(l_gndsub_hor_ref, l_gndsub_vert_ref, spacing=feed_cell_width)
-    movebelow(l_gndsub_vert_ref, l_gndsub_hor_ref, spacing=-feed_cell_width)
+    centerx(l_main_vert_ref, l_gndsub_vert_ref)
+    centery(l_main_hor_ref, l_gndsub_hor_ref)
+    movebelow(l_main_hor_ref, l_gndsub_hor_ref, spacing=-feedspacing)
+    moveright(l_main_vert_ref, l_gndsub_vert_ref, spacing=feedspacing)
+    # moveright(l_main_hor_ref, l_main_vert_ref, spacing=feed_main_width)
+    # movebelow(l_main_vert_ref, l_main_hor_ref, spacing=-feed_main_width)
+    # moveright(l_gndsub_hor_ref, l_gndsub_vert_ref, spacing=feed_cell_width)
+    # movebelow(l_gndsub_vert_ref, l_gndsub_hor_ref, spacing=-feed_cell_width)
+    # print (l_main_hor_ref.get_bounding_box())
+    # print (l_main_vert_ref.get_bounding_box())
+    # print (l_gndsub_hor_ref.get_bounding_box())
+    # print (l_gndsub_vert_ref.get_bounding_box())
 
+    # sys.exit()
     #moveright(gndsub_hor_section, gndsub_corner, spacing=feed_cell_width/2)
     #moveright(main_hor_section, feed_corner, spacing=fcdx/2)
     #centery(gndsub_hor_section, gndsub_corner)
