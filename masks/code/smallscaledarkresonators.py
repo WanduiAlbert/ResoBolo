@@ -913,7 +913,6 @@ def getlinetopad():
     u_gndsub_hor_ref = gdspy.CellReference(gndsub_hor_cell)
     u_gndsub_vert_ref = gdspy.CellReference(gndsub_vert_cell)
 
-    # print (gndsubmargin, feedspacing)
     moveright(u_main_hor_ref, u_main_vert_ref, spacing=feed_main_width)
     moveabove(u_main_vert_ref, u_main_hor_ref, spacing=feed_main_width)
     centerx(u_main_vert_ref, u_gndsub_vert_ref)
@@ -921,12 +920,6 @@ def getlinetopad():
     moveabove(u_main_hor_ref, u_gndsub_hor_ref, spacing=feedspacing)
     moveright(u_main_vert_ref, u_gndsub_vert_ref, spacing=feedspacing)
 
-    # print (u_main_hor_ref.get_bounding_box())
-    # print (u_main_vert_ref.get_bounding_box())
-    # print (u_gndsub_hor_ref.get_bounding_box())
-    # print (u_gndsub_vert_ref.get_bounding_box())
-
-    # sys.exit()
     l_main_hor_ref = gdspy.CellReference(main_hor_cell)
     l_main_vert_ref = gdspy.CellReference(main_vert_cell)
     l_gndsub_hor_ref = gdspy.CellReference(gndsub_hor_cell)
@@ -938,26 +931,6 @@ def getlinetopad():
     centery(l_main_hor_ref, l_gndsub_hor_ref)
     movebelow(l_main_hor_ref, l_gndsub_hor_ref, spacing=-feedspacing)
     moveright(l_main_vert_ref, l_gndsub_vert_ref, spacing=feedspacing)
-    # moveright(l_main_hor_ref, l_main_vert_ref, spacing=feed_main_width)
-    # movebelow(l_main_vert_ref, l_main_hor_ref, spacing=-feed_main_width)
-    # moveright(l_gndsub_hor_ref, l_gndsub_vert_ref, spacing=feed_cell_width)
-    # movebelow(l_gndsub_vert_ref, l_gndsub_hor_ref, spacing=-feed_cell_width)
-    # print (l_main_hor_ref.get_bounding_box())
-    # print (l_main_vert_ref.get_bounding_box())
-    # print (l_gndsub_hor_ref.get_bounding_box())
-    # print (l_gndsub_vert_ref.get_bounding_box())
-
-    # sys.exit()
-    #moveright(gndsub_hor_section, gndsub_corner, spacing=feed_cell_width/2)
-    #moveright(main_hor_section, feed_corner, spacing=fcdx/2)
-    #centery(gndsub_hor_section, gndsub_corner)
-    #centery(main_hor_section, feed_corner)
-
-    #centerx(feed_corner, main_vert_section)
-    #centerx(feed_corner, gndsub_vert_section)
-
-    #movebelow(gndsub_corner, main_vert_section, spacing=-feed_cell_width/2)
-    #movebelow(gndsub_corner, gndsub_vert_section, spacing=-feed_cell_width/2)
 
     ufeed_terminus = gdspy.Cell('upper_main_feedline_to_pad')
     ufeed_terminus.add(u_main_hor_ref)
@@ -1126,7 +1099,19 @@ def get_XeF2_release():
     invert_cell(xef2)
     return xef2
 
+def get_wafer_edges():
+    edge_l = 50
+    edge_w = 15e3
+    hor = gdspy.Rectangle([-edge_w/2, edge_l/2], [edge_w/2, -edge_l/2],
+            layer=def_layers['120nm_NbWiring'])
+    vert = gdspy.Rectangle([-edge_l/2, edge_w/2], [edge_l/2, -edge_w/2],
+            layer=def_layers['120nm_NbWiring'])
+    hor_cell = gdspy.Cell('50umX15mm_Hline')
+    vert_cell = gdspy.Cell('50umX15mm_Vline')
+    hor_cell.add(hor)
+    vert_cell.add(vert)
 
+    return hor_cell, vert_cell
 
 
 def main():
@@ -1299,10 +1284,10 @@ def main():
     moveabove(reso_struct_arr, upperlinetopad, spacing=uc_dy)
     movebelow(reso_struct_arr, lowerlinetopad,\
             spacing=-(lc_dy + rs_dy - feed_cell_width))
-    movebelow(upperlinetopad, top_pad_ref)
+    movebelow(upperlinetopad, top_pad_ref, spacing=-feed_cell_width)
     moveright(upperlinetopad, top_pad_ref, spacing=(p_dx + feed_cell_width)/2)
     moveright(lowerlinetopad, bot_pad_ref, spacing=(p_dx + feed_cell_width)/2)
-    moveabove(lowerlinetopad, bot_pad_ref)
+    moveabove(lowerlinetopad, bot_pad_ref, spacing=feed_cell_width)
 
     wafer.add(leftconns)
     wafer.add(rightconns)
@@ -1313,7 +1298,7 @@ def main():
 
     hcutout, vcutout = get_gnd_cutouts(yspacing)
     cu_dx, cu_dy = get_size(hcutout)
-    hor_cutouts = gdspy.CellArray(hcutout, 2, 2,\
+    hor_cutouts = gdspy.CellArray(hcutout, 3, 2,\
             [cu_dx + 2* xspacing, (ncols + 1.08) * yspacing])
     # ver_cutouts.translate(-arr_xshift, -arr_yshift)
     recenter(hor_cutouts)
@@ -1324,7 +1309,7 @@ def main():
     wafer.add(hor_cutouts)
 
     cu_dx, cu_dy = get_size(vcutout)
-    ver_cutouts = gdspy.CellArray(vcutout, 2, 2,\
+    ver_cutouts = gdspy.CellArray(vcutout, 1, 3,\
             [(ncols + 1.08) * xspacing, cu_dy + 2* yspacing])
 
     recenter(ver_cutouts)
@@ -1332,11 +1317,20 @@ def main():
     x0 = (hxmax + hxmin)/2
     y0 = (hymax + hymin)/2
     ver_cutouts.translate(-x0, -y0)
+    ver_cutouts.translate(-wafer_width/2 + cu_dx/2 + 100, 0)
     wafer.add(ver_cutouts)
 
+    hor_edge, vert_edge = get_wafer_edges()
+    h_dx, h_dy = get_size(hor_edge)
+    verts = gdspy.CellArray(vert_edge, 4, 4, [h_dy, wafer_width])
+    recenter(verts)
+    horizs = gdspy.CellArray(hor_edge, 4, 4, [h_dx, h_dy])
+    recenter(horizs)
 
-    chip_outline = makechipoutline(wafer_width, wafer_len,'WaferOutline')
-    wafer.add(gdspy.CellReference(chip_outline))
+    wafer.add(verts)
+    wafer.add(horizs)
+    #chip_outline = makechipoutline(wafer_width, wafer_len,'WaferOutline')
+    #wafer.add(gdspy.CellReference(chip_outline))
 
     ##########################################################################
     #####       MASK GENERATION. GLOBAL OVERLAY COMPLETED.  ##################
