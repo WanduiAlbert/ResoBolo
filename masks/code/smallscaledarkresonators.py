@@ -537,12 +537,6 @@ def get_feedline(xspacing):
     main_cell = gdspy.Cell('feedline_main')
     main_cell.add(mainline)
 
-    # dy = feed_cell_width
-    # ild = gdspy.Rectangle([-dx/2, dy/2],\
-    #     [dx/2, -dy/2], layer=def_layers['ILD'])
-    # ild_cell = gdspy.Cell('feedline_ILD')
-    # ild_cell.add(ild)
-
     # To make each cell more symmetric, I'll divide the ground sub region into 2
     sub_len = (1 - feed_ms_fraction)*feed_cell_length/2
     sub1 = gdspy.Rectangle([-sub_len/2, feed_cell_width/2],\
@@ -562,17 +556,7 @@ def get_feedline(xspacing):
 
     feedcell = gdspy.Cell('MainFeedline')
     feedcell.add(gdspy.CellReference(main_cell))
-    # feedcell.add(gdspy.CellReference(ild_cell))
     feedcell.add(gdspy.CellReference(gndsub_cell))
-    # feedcell.add(gdspy.CellReference(main_cell))
-    # feedcell.add(gdspy.CellReference(ild_cell))
-    # feedcell.add(gdspy.CellReference(gndsub_cell))
-
-
-    # feedline = gdspy.Cell('large_feedline_sec')
-    # feedline.add(feedarr)
-    # # feedline.flatten
-    # print (get_size(feedarr))
 
     return feedcell
 
@@ -683,12 +667,6 @@ def get_vertical_feed():
     feed_corner.add(feed)
     feed_box = gdspy.CellReference(feed_corner)
     moveabove(vmain_ref, feed_box, spacing=s/2)
-    # ild = gdspy.Rectangle([-l/2, l/2], [l/2, -l/2],\
-    #     layer=def_layers['ILD'])
-    # ild_corner = gdspy.Cell('ILD_corner')
-    # ild_corner.add(ild)
-    # ild_box = gdspy.CellReference(ild_corner)
-    # moveabove(vild_ref, ild_box, spacing=l/2)
     gndsub = gdspy.Rectangle([-l/2, l/2], [l/2, -l/2],\
             layer=def_layers['LSNSUB'])
     gndsub_corner = gdspy.Cell('gndsub_corner')
@@ -717,14 +695,7 @@ def get_vertical_feed():
 
     vertfeedcell = gdspy.Cell('MainFeedline_vert')
     vertfeedcell.add(gdspy.CellReference(main_w_corners))
-    # vertfeedcell.add(vild_ref)
     vertfeedcell.add(gdspy.CellReference(gpsub_w_corners))
-    # vertfeedcell.add(feed_box)
-    # # vertfeedcell.add(ild_box)
-    # vertfeedcell.add(gndsub_box)
-    # vertfeedcell.add(feed_box_l)
-    # # vertfeedcell.add(ild_box_l)
-    # vertfeedcell.add(gndsub_box_l)
 
     return vertfeedcell
 
@@ -797,17 +768,12 @@ def get_bondpads():
     feedpad_cell = gdspy.Cell('MSfeed_bondpad')
     feedpad_cell.add(feedpad)
 
-    # ildpad = gdspy.Rectangle([-size/2, size/2], [size/2, -size/2], layer=def_layers['ILD'])
-    # ildpad_cell = gdspy.Cell('ILDfeed_bondpad')
-    # ildpad_cell.add(ildpad)
-
     gndpad = gdspy.Rectangle([-size/2, size/2], [size/2, -size/2], layer=def_layers['120nm_NbWiring'])
     gndpad_cell = gdspy.Cell('GNDfeed_bondpad')
     gndpad_cell.add(gndpad)
 
     pad_cell = gdspy.Cell('Feed_Bonding_Pad')
     pad_cell.add(gdspy.CellReference(feedpad_cell))
-    # pad_cell.add(gdspy.CellReference(ildpad_cell))
     pad_cell.add(gdspy.CellReference(gndpad_cell))
     return pad_cell
 
@@ -817,9 +783,8 @@ def make_inverted_cells():
     top = allcells['Global_Overlay']
     for cell in top.get_dependencies():
         if cell.name == 'WaferOutline': continue
-        inv_cellname = cell.name + '_r'
-        if inv_cellname not in cellnames:
-            if inv_cellname.startswith('Capacitor'):
+        if not cell.name.endswith('_r'):
+            if cell.name.startswith('Capacitor'):
                 invert_cell(cell, rotation=90)
             else:
                 invert_cell(cell)
@@ -845,15 +810,10 @@ def getunitfeedline():
             [dx/2, -dy/2], layer=def_layers['400nm_NbWiring'])
     main_cell = gdspy.Cell('unit_main_feed')
     main_cell.add(mainline)
-
-
     gndsub_cell = cells['unit_GP_sub']
-    # unitcell = gdspy.Cell('unit_feedline')
-    # unitcell.add([gdspy.CellReference(gndsub_cell),\
-    #     gdspy.CellReference(main_cell)])
     return main_cell, gndsub_cell
 
-def getlinetopad():
+def getlinetopad(nrows, spacing, pad):
     cells = main_lib.cell_dict
     umain, ugndsub = getunitfeedline()
     dx, dy = get_size(umain)
@@ -872,6 +832,7 @@ def getlinetopad():
     main_hor_cell.flatten()
     gndsub_hor_cell.add(gndsub_hor_section)
     gndsub_hor_cell.flatten()
+
 
     main_vert_cell = gdspy.Cell('main_vert_feedline_to_pad')
     gndsub_vert_cell = gdspy.Cell('gndsub_vert_feedline_to_pad')
@@ -908,54 +869,54 @@ def getlinetopad():
     gndsub_vert_cell.add(gndsub_corner_ref_bot)
     gndsub_vert_cell.flatten()
 
-    u_main_hor_ref = gdspy.CellReference(main_hor_cell)
-    u_main_vert_ref = gdspy.CellReference(main_vert_cell)
-    u_gndsub_hor_ref = gdspy.CellReference(gndsub_hor_cell)
-    u_gndsub_vert_ref = gdspy.CellReference(gndsub_vert_cell)
+    mh_dx, mh_dy = get_size(main_hor_cell)
+    main_hor_array = gdspy.CellArray(main_hor_cell, 1, 2, [0, (nrows-1)*spacing])
+    mha_dx, mha_dy = get_size(main_hor_array)
+    main_hor_array.translate(0, -(mha_dy - mh_dy)/2)
 
-    moveright(u_main_hor_ref, u_main_vert_ref, spacing=feed_main_width)
-    moveabove(u_main_vert_ref, u_main_hor_ref, spacing=feed_main_width)
-    centerx(u_main_vert_ref, u_gndsub_vert_ref)
-    centery(u_main_hor_ref, u_gndsub_hor_ref)
-    moveabove(u_main_hor_ref, u_gndsub_hor_ref, spacing=feedspacing)
-    moveright(u_main_vert_ref, u_gndsub_vert_ref, spacing=feedspacing)
+    mv_dx, mv_dy = get_size(main_vert_cell)
+    main_vert_array = gdspy.CellArray(main_vert_cell, 1, 2, [0, 3*spacing + mv_dy - 3*feed_main_width])
+    mva_dx, mva_dy = get_size(main_vert_array)
+    main_vert_array.translate(0, -(mva_dy - mv_dy)/2)
 
-    l_main_hor_ref = gdspy.CellReference(main_hor_cell)
-    l_main_vert_ref = gdspy.CellReference(main_vert_cell)
-    l_gndsub_hor_ref = gdspy.CellReference(gndsub_hor_cell)
-    l_gndsub_vert_ref = gdspy.CellReference(gndsub_vert_cell)
+    gh_dx, gh_dy = get_size(gndsub_hor_cell)
+    gndsub_hor_array = gdspy.CellArray(gndsub_hor_cell, 1, 2, [0, (nrows-1)*spacing])
+    gha_dx, gha_dy = get_size(gndsub_hor_array)
+    gndsub_hor_array.translate(0, -(gha_dy - gh_dy)/2)
 
-    moveright(l_main_hor_ref, l_main_vert_ref, spacing=feed_main_width)
-    movebelow(l_main_vert_ref, l_main_hor_ref, spacing=-feed_main_width)
-    centerx(l_main_vert_ref, l_gndsub_vert_ref)
-    centery(l_main_hor_ref, l_gndsub_hor_ref)
-    movebelow(l_main_hor_ref, l_gndsub_hor_ref, spacing=-feedspacing)
-    moveright(l_main_vert_ref, l_gndsub_vert_ref, spacing=feedspacing)
+    gv_dx, gv_dy = get_size(gndsub_vert_cell)
+    gndsub_vert_array = gdspy.CellArray(gndsub_vert_cell, 1, 2, [0, 3*spacing + gv_dy -\
+        feed_cell_width - 2*feed_main_width])
+    gva_dx, gva_dy = get_size(gndsub_vert_array)
+    gndsub_vert_array.translate(0, -(gva_dy - gv_dy)/2)
 
-    ufeed_terminus = gdspy.Cell('upper_main_feedline_to_pad')
-    ufeed_terminus.add(u_main_hor_ref)
-    ufeed_terminus.add(u_main_vert_ref)
+    centery(main_hor_array, gndsub_hor_array)
+    centerx(main_hor_array, gndsub_hor_array)
+    moveright(main_hor_array, main_vert_array, spacing=feed_main_width)
+    centerx(main_vert_array, gndsub_vert_array)
+    moveright(gndsub_hor_array, gndsub_vert_array, spacing=feedspacing)
 
-    ugndsub_terminus = gdspy.Cell('upper_gndsub_feedline_to_pad')
-    ugndsub_terminus.add(u_gndsub_hor_ref)
-    ugndsub_terminus.add(u_gndsub_vert_ref)
+    p_dx, p_dy = get_size(pad)
+    overlap = feedspacing
+    pad_spacing = mva_dy - 2*mv_dy - p_dy + 2*overlap
+    pad_arr = gdspy.CellArray(pad, 1, 2, [0, pad_spacing])
+    pa_dx, pa_dy = get_size(pad_arr)
+    pad_arr.translate(0, -(pa_dy - p_dy)/2)
+    centerx(gndsub_vert_array, pad_arr)
+    centery(gndsub_vert_array, pad_arr)
+    # top_pad_ref = gdspy.CellReference(pad, [0,0])
+    # bot_pad_ref = gdspy.CellReference(pad, [0,0])
 
-    uterminus = gdspy.Cell('upper_feedline_to_pad')
-    uterminus.add([gdspy.CellReference(ufeed_terminus),\
-            gdspy.CellReference(ugndsub_terminus)])
+    # Figure out where to add the pads
+    lines_pad = gdspy.Cell('terminal_lines_and_pad')
+    lines_pad.add(pad_arr)
+    lines_pad.add(main_hor_array)
+    lines_pad.add(main_vert_array)
+    lines_pad.add(gndsub_hor_array)
+    lines_pad.add(gndsub_vert_array)
 
-    lfeed_terminus = gdspy.Cell('lower_main_feedline_to_pad')
-    lfeed_terminus.add(l_main_hor_ref)
-    lfeed_terminus.add(l_main_vert_ref)
-
-    lgndsub_terminus = gdspy.Cell('lower_gndsub_feedline_to_pad')
-    lgndsub_terminus.add(l_gndsub_hor_ref)
-    lgndsub_terminus.add(l_gndsub_vert_ref)
-
-    lterminus = gdspy.Cell('lower_feedline_to_pad')
-    lterminus.add([gdspy.CellReference(lfeed_terminus),\
-            gdspy.CellReference(lgndsub_terminus)])
-    return uterminus, lterminus
+    
+    return gdspy.CellReference(lines_pad)
 
 def placeuniquecaps(caps_inv, mask, mcols, nrows, ncols):
     # mrows, mcols are the number of rows and columns on the mask.
@@ -1247,13 +1208,7 @@ def main():
         xpos = x_origin + i*xspacing - u_xoffset
         ypos = y_origin + j*yspacing
         cap_ref = gdspy.CellReference(caps[ires], [xpos, ypos], rotation=90)
-        #cap2feed_ref = gdspy.CellReference(cap2feed)
-        #moveabove(cap_ref, cap2feed_ref, spacing=2)
-        #cap2gnd_ref = gdspy.CellReference(cap2gnd)
-        #movebelow(cap_ref, cap2gnd_ref, spacing=-2)
         wafer.add(cap_ref)
-        #wafer.add(cap2feed_ref)
-        #wafer.add(cap2gnd_ref)
 
 
 
@@ -1267,40 +1222,20 @@ def main():
     moveright(reso_struct_arr, rightconns, spacing=feed_cell_width/2 )
     leftconns.translate(0, (rs_dy - f_dy)/2)
     rightconns.translate(0, (rs_dy - f_dy)/2)
+
     pad = get_bondpads()
-    p_dx, p_dy = get_size(pad)
-    top_pad_ref = gdspy.CellReference(pad, [0,0])
-    bot_pad_ref = gdspy.CellReference(pad, [0,0])
-
-
-    ulinetopad, llinetopad = getlinetopad()
-    upperlinetopad = gdspy.CellReference(ulinetopad)
-    lowerlinetopad = gdspy.CellReference(llinetopad)
-    uc_dx, uc_dy = get_size(upperlinetopad)
-    lc_dx, lc_dy = get_size(lowerlinetopad)
-
-    moveright(reso_struct_arr, upperlinetopad)
-    moveright(reso_struct_arr, lowerlinetopad)
-    moveabove(reso_struct_arr, upperlinetopad, spacing=uc_dy)
-    movebelow(reso_struct_arr, lowerlinetopad,\
-            spacing=-(lc_dy + rs_dy - feed_cell_width))
-    movebelow(upperlinetopad, top_pad_ref, spacing=-feed_cell_width)
-    moveright(upperlinetopad, top_pad_ref, spacing=(p_dx + feed_cell_width)/2)
-    moveright(lowerlinetopad, bot_pad_ref, spacing=(p_dx + feed_cell_width)/2)
-    moveabove(lowerlinetopad, bot_pad_ref, spacing=feed_cell_width)
-
+    terminal_lines = getlinetopad(nrows, yspacing, pad)
+    moveright(reso_struct_arr, terminal_lines)
+    centery(reso_struct_arr, terminal_lines)
+    terminal_lines.translate(0, (rs_dy - feed_cell_width)/2)
     wafer.add(leftconns)
     wafer.add(rightconns)
-    wafer.add(top_pad_ref)
-    wafer.add(bot_pad_ref)
-    wafer.add(upperlinetopad)
-    wafer.add(lowerlinetopad)
+    wafer.add(terminal_lines)
 
     hcutout, vcutout = get_gnd_cutouts(yspacing)
     cu_dx, cu_dy = get_size(hcutout)
     hor_cutouts = gdspy.CellArray(hcutout, 3, 2,\
             [cu_dx + 2* xspacing, (ncols + 1.08) * yspacing])
-    # ver_cutouts.translate(-arr_xshift, -arr_yshift)
     recenter(hor_cutouts)
     (hxmin, hymin), (hxmax, hymax) = hor_cutouts.get_bounding_box()
     x0 = (hxmax + hxmin)/2
@@ -1322,13 +1257,18 @@ def main():
 
     hor_edge, vert_edge = get_wafer_edges()
     h_dx, h_dy = get_size(hor_edge)
-    verts = gdspy.CellArray(vert_edge, 4, 4, [h_dy, wafer_width])
+    verts = gdspy.CellArray(vert_edge, 2, 8, [wafer_width, h_dx])
     recenter(verts)
-    horizs = gdspy.CellArray(hor_edge, 4, 4, [h_dx, h_dy])
+    verts.translate(0, h_dx/2)
+    horizs = gdspy.CellArray(hor_edge, 8, 2, [h_dx, wafer_len])
     recenter(horizs)
+    horizs.translate(h_dx/2, 0)
 
     wafer.add(verts)
     wafer.add(horizs)
+
+    # main_lib.write_gds('sscale_darkres.gds',unit=1e-6,precision=1e-9)
+
     #chip_outline = makechipoutline(wafer_width, wafer_len,'WaferOutline')
     #wafer.add(gdspy.CellReference(chip_outline))
 
@@ -1348,73 +1288,81 @@ def main():
             inv_cell_list)))
 
     mask = gdspy.Cell('Mask')
-    maskoutline = makechipoutline(mask_width, mask_length, 'MaskOutline')
+    # maskoutline = makechipoutline(mask_width, mask_length, 'MaskOutline')
     outline_width = 2
-    mask.add(gdspy.CellReference(maskoutline))
+    # mask.add(gdspy.CellReference(maskoutline))
 
     # 1. Start with the largest feedline structures
     ivmain = all_cells['vert_main_with_corners_r']
     ivgndsub = all_cells['vert_gndsub_with_corners_r']
-    iugndtopad = all_cells['upper_gndsub_feedline_to_pad_r']
-    iumaintopad = all_cells['upper_main_feedline_to_pad_r']
-    ilgndtopad = all_cells['lower_gndsub_feedline_to_pad_r']
-    ilmaintopad = all_cells['lower_main_feedline_to_pad_r']
+    ihgndtopad = all_cells['gndsub_hor_feedline_to_pad_r']
+    ihmaintopad = all_cells['main_hor_feedline_to_pad_r']
+    ivgndtopad = all_cells['gndsub_vert_feedline_to_pad_r']
+    ivmaintopad = all_cells['main_vert_feedline_to_pad_r']
     ivgndopening = all_cells['GP_edge_opening_vert_r']
     ihgndopening = all_cells['GP_edge_opening_hor_r']
     ivgndfiller = all_cells['GP_edge_filler_vert_r']
     ihgndfiller = all_cells['GP_edge_filler_hor_r']
+    ihedge = all_cells['50umX15mm_Hline_r']
+    ivedge = all_cells['50umX15mm_Vline_r']
 
     ivmain_ref = gdspy.CellReference(ivmain)
     ivgndsub_ref = gdspy.CellReference(ivgndsub)
-    iugndtopad_ref = gdspy.CellReference(iugndtopad)
-    iumaintopad_ref = gdspy.CellReference(iumaintopad)
-    ilgndtopad_ref = gdspy.CellReference(ilgndtopad)
-    ilmaintopad_ref = gdspy.CellReference(ilmaintopad)
+    ihgndtopad_ref = gdspy.CellReference(ihgndtopad)
+    ihmaintopad_ref = gdspy.CellReference(ihmaintopad)
+    ivgndtopad_ref = gdspy.CellReference(ivgndtopad)
+    ivmaintopad_ref = gdspy.CellReference(ivmaintopad)
     ivgndopening_ref = gdspy.CellReference(ivgndopening)
     ihgndopening_ref = gdspy.CellReference(ihgndopening)
     ivgndfiller_ref = gdspy.CellReference(ivgndfiller)
     ihgndfiller_ref = gdspy.CellReference(ihgndfiller)
+    ihedge_ref = gdspy.CellReference(ihedge)
+    ivedge_ref = gdspy.CellReference(ivedge)
 
-    go_dx, go_dy = get_size(ihgndopening_ref)
-    centerx(maskoutline, ihgndopening_ref)
-    centerx(maskoutline, ihgndfiller_ref)
-    movebelow(maskoutline, ihgndopening_ref, spacing=-go_dy-outline_width/2)
+    # go_dx, go_dy = get_size(ihgndopening_ref)
+    # # centerx(maskoutline, ihgndopening_ref)
+    # # centerx(maskoutline, ihgndfiller_ref)
+    # ihgndopening_ref.translate(0, -mask_length/2 + go_dy/2)
+    # # movebelow(maskoutline, ihgndopening_ref, spacing=-go_dy-outline_width/2)
 
-    moveabove(ihgndopening_ref, ihgndfiller_ref)
-    moveabove(ihgndopening_ref, ivgndfiller_ref)
-    moveabove(ihgndopening_ref, iumaintopad_ref)
-    moveabove(ihgndopening_ref, ilmaintopad_ref)
-    moveabove(ihgndopening_ref, iugndtopad_ref)
-    moveabove(ihgndopening_ref, ilgndtopad_ref)
-    moveabove(ihgndopening_ref, ivgndopening_ref)
-    moveabove(ihgndopening_ref, ivmain_ref)
-    moveabove(ihgndopening_ref, ivgndsub_ref)
+    # moveabove(ihgndopening_ref, ihgndfiller_ref)
+    # moveabove(ihgndopening_ref, ivgndfiller_ref)
+    # moveabove(ihgndopening_ref, ihmaintopad_ref)
+    # moveabove(ihgndopening_ref, ivmaintopad_ref)
+    # moveabove(ihgndopening_ref, ihgndtopad_ref)
+    # moveabove(ihgndopening_ref, ivgndtopad_ref)
+    # moveabove(ihgndopening_ref, ivgndopening_ref)
+    # moveabove(ihgndopening_ref, ivmain_ref)
+    # moveabove(ihgndopening_ref, ivgndsub_ref)
 
-    mp_dx, mp_dy = get_size(iumaintopad)
-    moveright(maskoutline, iumaintopad_ref, spacing=mp_dx + outline_width/2)
-    moveleft(iumaintopad_ref, iugndtopad_ref)
-    moveleft(maskoutline, ilmaintopad_ref, spacing=-mp_dx - outline_width/2)
-    moveright(ilmaintopad_ref, ilgndtopad_ref)
+    # mp_dx, mp_dy = get_size(ivmaintopad)
+    # ivmaintopad_ref.translate(mask_width/2 - mp_dx/2, 0)
+    # gp_dx, gp_dy = get_size(ivgndtopad)
+    # # moveright(maskoutline, ihmaintopad_ref, spacing=mp_dx + outline_width/2)
+    # moveleft(ivmaintopad_ref, ivgndtopad_ref)
+    # # ivmaintopad_ref.translate(mask_width/2 - mp_dx/2, 0)
+    # # # moveleft(maskoutline, ivmaintopad_ref, spacing=-mp_dx - outline_width/2)
+    # # moveright(ivmaintopad_ref, ivgndtopad_ref)
 
-    moveleft(iugndtopad_ref, ivgndopening_ref)
-    moveright(ilgndtopad_ref, ivmain_ref)
-    moveright(ivmain_ref, ivgndsub_ref)
-    moveright(ivgndsub_ref, ivgndfiller_ref)
+    # moveleft(ivgndtopad_ref, ivgndopening_ref)
+    # moveright(ivgndtopad_ref, ivmain_ref)
+    # moveright(ivmain_ref, ivgndsub_ref)
+    # moveright(ivgndsub_ref, ivgndfiller_ref)
 
 
-    mask.add(ivmain_ref)
-    mask.add(ivgndsub_ref)
-    mask.add(iugndtopad_ref)
-    mask.add(iumaintopad_ref)
-    mask.add(ilgndtopad_ref)
-    mask.add(ilmaintopad_ref)
-    mask.add(ivgndopening_ref)
-    mask.add(ihgndopening_ref)
-    mask.add(ihgndfiller_ref)
-    mask.add(ivgndfiller_ref)
+    # mask.add(ivmain_ref)
+    # mask.add(ivgndsub_ref)
+    # mask.add(ihgndtopad_ref)
+    # mask.add(ihmaintopad_ref)
+    # mask.add(ivgndtopad_ref)
+    # mask.add(ivmaintopad_ref)
+    # mask.add(ivgndopening_ref)
+    # mask.add(ihgndopening_ref)
+    # mask.add(ihgndfiller_ref)
+    # mask.add(ivgndfiller_ref)
 
-    not_yet -= set([ivmain, ivgndsub, iugndtopad, iumaintopad,\
-      ilgndtopad, ilmaintopad, ivgndopening, ihgndopening])
+    # not_yet -= set([ivmain, ivgndsub, ihgndtopad, ihmaintopad,\
+    #   ivgndtopad, ivmaintopad, ivgndopening, ihgndopening])
 
 
     # I want to lay the resonator structure cells at the margins of the feedlines
@@ -1446,7 +1394,7 @@ def main():
     moveleft(iresogndsub_ref, iILDsub_ref)
 
     mf_dx, mf_dy = get_size(imainfeed_ref)
-    moveabove(iugndtopad_ref, igndsubfeed_ref)#, spacing=mf_dy)
+    moveabove(ihgndtopad_ref, igndsubfeed_ref)#, spacing=mf_dy)
     moveabove(igndsubfeed_ref, imainfeed_ref)
     moveabove(imainfeed_ref, ihgndfiller_ref)
 
@@ -1613,6 +1561,8 @@ def main():
 
 
     main_lib.write_gds('sscale_darkres.gds',unit=1e-6,precision=1e-9)
+
+    sys.exit()
 
     # Now I want to generate the full patch shot table from the Global Overlay
     # and the Mask file
