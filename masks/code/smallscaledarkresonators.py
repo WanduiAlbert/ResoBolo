@@ -1288,10 +1288,12 @@ def main():
             inv_cell_list)))
 
     mask = gdspy.Cell('Mask')
-    # maskoutline = makechipoutline(mask_width, mask_length, 'MaskOutline')
+    maskoutline = makechipoutline(mask_width, mask_length, 'MaskOutline')
     outline_width = 2
-    # mask.add(gdspy.CellReference(maskoutline))
+    mask.add(gdspy.CellReference(maskoutline))
 
+    default_spacing=200 # A suitable spacing between the cells on the reticle
+    intercap_spacing=50
     # 1. Start with the largest feedline structures
     ivmain = all_cells['vert_main_with_corners_r']
     ivgndsub = all_cells['vert_gndsub_with_corners_r']
@@ -1319,50 +1321,55 @@ def main():
     ihedge_ref = gdspy.CellReference(ihedge)
     ivedge_ref = gdspy.CellReference(ivedge)
 
-    # go_dx, go_dy = get_size(ihgndopening_ref)
-    # # centerx(maskoutline, ihgndopening_ref)
-    # # centerx(maskoutline, ihgndfiller_ref)
-    # ihgndopening_ref.translate(0, -mask_length/2 + go_dy/2)
-    # # movebelow(maskoutline, ihgndopening_ref, spacing=-go_dy-outline_width/2)
+    go_dx, go_dy = get_size(ihgndopening_ref)
+    ihgndopening_ref.translate(0, -mask_length/2 + go_dy/2 + default_spacing)
+    centerx(ihgndopening_ref, ihgndfiller_ref)
+    centerx(ihgndopening_ref, ihgndtopad_ref)
+    centerx(ihgndopening_ref, ihmaintopad_ref)
+    centerx(ihgndopening_ref, ihedge_ref)
+    moveabove(ihgndopening_ref, ihgndfiller_ref, spacing=-default_spacing)
 
-    # moveabove(ihgndopening_ref, ihgndfiller_ref)
-    # moveabove(ihgndopening_ref, ivgndfiller_ref)
-    # moveabove(ihgndopening_ref, ihmaintopad_ref)
-    # moveabove(ihgndopening_ref, ivmaintopad_ref)
-    # moveabove(ihgndopening_ref, ihgndtopad_ref)
-    # moveabove(ihgndopening_ref, ivgndtopad_ref)
-    # moveabove(ihgndopening_ref, ivgndopening_ref)
-    # moveabove(ihgndopening_ref, ivmain_ref)
-    # moveabove(ihgndopening_ref, ivgndsub_ref)
+    e_dx, e_dy = get_size(ihedge_ref)
+    ihedge_ref.translate(0, mask_length/2 - e_dy/2 - default_spacing)
 
-    # mp_dx, mp_dy = get_size(ivmaintopad)
-    # ivmaintopad_ref.translate(mask_width/2 - mp_dx/2, 0)
-    # gp_dx, gp_dy = get_size(ivgndtopad)
-    # # moveright(maskoutline, ihmaintopad_ref, spacing=mp_dx + outline_width/2)
-    # moveleft(ivmaintopad_ref, ivgndtopad_ref)
-    # # ivmaintopad_ref.translate(mask_width/2 - mp_dx/2, 0)
-    # # # moveleft(maskoutline, ivmaintopad_ref, spacing=-mp_dx - outline_width/2)
-    # # moveright(ivmaintopad_ref, ivgndtopad_ref)
+    centery(ivgndopening_ref, ivmain_ref)
+    centery(ivgndopening_ref, ivmaintopad_ref)
+    centery(ivgndopening_ref, ivgndtopad_ref)
+    centery(ivgndopening_ref, ivedge_ref)
+    centery(ivgndopening_ref, ivgndsub_ref)
 
-    # moveleft(ivgndtopad_ref, ivgndopening_ref)
-    # moveright(ivgndtopad_ref, ivmain_ref)
-    # moveright(ivmain_ref, ivgndsub_ref)
-    # moveright(ivgndsub_ref, ivgndfiller_ref)
+    mp_dx, mp_dy = get_size(ivgndtopad_ref)
+    ivgndtopad_ref.translate(-mask_width/2 + mp_dx/2 + default_spacing, 0)
+    moveright(ivgndtopad_ref, ivedge_ref, spacing=-default_spacing)
+    moveright(ivedge_ref, ivmain_ref, spacing=-default_spacing)
+    moveright(ivmain_ref, ivgndsub_ref, spacing=-default_spacing)
+
+    mp_dx, mp_dy = get_size(ivmaintopad_ref)
+    ivmaintopad_ref.translate(mask_width/2 - mp_dx/2 - default_spacing, 0)
+    moveleft(ivmaintopad_ref, ivgndfiller_ref, spacing=default_spacing)
+    moveleft(ivgndfiller_ref, ivgndopening_ref, spacing=default_spacing)
+
+    # Placement of the common pixel on the mask
+    icommoncap = all_cells['Capacitor_common_r']
+    i_ind = all_cells['Al_inductor_r']
+    icap2ind = all_cells['Cap_to_Ind_lines_r']
+
+    icommoncap_ref = gdspy.CellReference(icommoncap)
+    i_ind_ref = gdspy.CellReference(i_ind)
+    icap2ind_ref = gdspy.CellReference(icap2ind)
+
+    i_dx, i_dy = get_size(i_ind_ref)
+    moveright(icap2ind_ref, i_ind_ref, spacing=-intercap_spacing)
+    moveabove(icap2ind_ref, i_ind_ref, spacing=i_dy)
+    moveleft(icap2ind_ref, icommoncap_ref, spacing=intercap_spacing)
+
+    mask.add(icap2ind_ref)
+    mask.add(icommoncap_ref)
+    mask.add(i_ind_ref)
 
 
-    # mask.add(ivmain_ref)
-    # mask.add(ivgndsub_ref)
-    # mask.add(ihgndtopad_ref)
-    # mask.add(ihmaintopad_ref)
-    # mask.add(ivgndtopad_ref)
-    # mask.add(ivmaintopad_ref)
-    # mask.add(ivgndopening_ref)
-    # mask.add(ihgndopening_ref)
-    # mask.add(ihgndfiller_ref)
-    # mask.add(ivgndfiller_ref)
-
-    # not_yet -= set([ivmain, ivgndsub, ihgndtopad, ihmaintopad,\
-    #   ivgndtopad, ivmaintopad, ivgndopening, ihgndopening])
+    icommon_pixel = set([icommoncap, i_ind, icap2ind])
+    not_yet -= icommon_pixel
 
 
     # I want to lay the resonator structure cells at the margins of the feedlines
@@ -1386,41 +1393,49 @@ def main():
     iam_ref = gdspy.CellReference(iam)
 
     ireso_struct = set([iresogndsub, iILDsub, imainfeed,\
-      igndsubfeed, i2feed, i2gnd, ivia, iam])
+      igndsubfeed, ivia, iam])
 
-    moveabove(ihgndopening_ref, iresogndsub_ref)
-    moveleft(ivgndopening_ref, iresogndsub_ref)
-    centery(iresogndsub_ref, iILDsub_ref)
-    moveleft(iresogndsub_ref, iILDsub_ref)
+    movebelow(i_ind_ref, iam_ref, spacing=intercap_spacing)
+    moveright(icap2ind_ref, iam_ref, spacing=-intercap_spacing)
+    moveright(i_ind_ref, ivia_ref, spacing=-default_spacing)
+    centery(i_ind_ref, ivia_ref)
+    moveleft(ivgndopening_ref, iresogndsub_ref, spacing=default_spacing)
+    centery(ivgndopening_ref, iresogndsub_ref)
+    moveleft(ivgndopening_ref, iILDsub_ref, spacing=default_spacing)
+    movebelow(iresogndsub_ref, iILDsub_ref, spacing=default_spacing)
 
-    mf_dx, mf_dy = get_size(imainfeed_ref)
-    moveabove(ihgndtopad_ref, igndsubfeed_ref)#, spacing=mf_dy)
-    moveabove(igndsubfeed_ref, imainfeed_ref)
-    moveabove(imainfeed_ref, ihgndfiller_ref)
+    movebelow(ihedge_ref, imainfeed_ref, spacing=default_spacing)
+    movebelow(imainfeed_ref, igndsubfeed_ref, spacing=default_spacing)
+    movebelow(igndsubfeed_ref, ihmaintopad_ref, spacing=default_spacing)
+    movebelow(ihmaintopad_ref, ihgndtopad_ref, spacing=default_spacing)
 
-    i2_dx, i2dy = get_size(i2feed_ref)
 
-    moveleft(iILDsub_ref, i2feed_ref)
-    moveabove(iILDsub_ref, i2feed_ref, spacing=i2dy)
-    centerx(i2feed_ref, i2gnd_ref)
-    movebelow(i2feed_ref, i2gnd_ref)
-    am_dx, am_dy = get_size(iam_ref)
-    moveleft(i2feed_ref, iam_ref)
-    moveabove(i2feed_ref, iam_ref, spacing=am_dy)
-    moveleft(i2feed_ref, ivia_ref)
-    movebelow(iam_ref, ivia_ref)
 
     mask.add(iresogndsub_ref)
     mask.add(iILDsub_ref)
     mask.add(imainfeed_ref)
     mask.add(igndsubfeed_ref)
-    mask.add(i2feed_ref)
-    mask.add(i2gnd_ref)
     mask.add(ivia_ref)
     mask.add(iam_ref)
 
     not_yet -= ireso_struct
 
+    mask.add(ivmain_ref)
+    mask.add(ivgndsub_ref)
+    mask.add(ihgndtopad_ref)
+    mask.add(ihmaintopad_ref)
+    mask.add(ivgndtopad_ref)
+    mask.add(ivmaintopad_ref)
+    mask.add(ivgndopening_ref)
+    mask.add(ihgndopening_ref)
+    mask.add(ihgndfiller_ref)
+    mask.add(ivgndfiller_ref)
+    mask.add(ihedge_ref)
+    mask.add(ivedge_ref)
+
+    not_yet -= set([ivmain, ivgndsub, ihgndtopad, ihmaintopad,\
+      ivgndtopad, ivmaintopad, ivgndopening, ihgndopening,\
+      ihedge, ivedge, ivgndfiller, ihgndfiller])
     # Placement of the bondpads
     igndbp = all_cells['GNDfeed_bondpad_r']
     imainbp = all_cells['MSfeed_bondpad_r']
@@ -1428,15 +1443,25 @@ def main():
     igndbp_ref = gdspy.CellReference(igndbp)
     imainbp_ref = gdspy.CellReference(imainbp)
 
-    moveleft(i2gnd_ref, igndbp_ref)
-    movebelow(ivia_ref, igndbp_ref)
-    moveleft(igndbp_ref, imainbp_ref)
-    centery(igndbp_ref, imainbp_ref)
+    gb_dx, gb_dy = get_size(igndbp_ref)
+    moveleft(iresogndsub_ref, igndbp_ref, spacing=default_spacing)
+    moveabove(iresogndsub_ref, igndbp_ref, spacing=gb_dx)
+    moveleft(iresogndsub_ref, imainbp_ref, spacing=default_spacing)
+    movebelow(igndbp_ref, imainbp_ref, spacing=default_spacing)
+
+    i2_dx, i2dy = get_size(i2feed_ref)
+    moveleft(igndbp_ref, i2feed_ref, spacing=default_spacing)
+    moveabove(igndbp_ref, i2feed_ref, spacing=i2dy)
+    movebelow(i2feed_ref, i2gnd_ref, spacing=default_spacing)
+    centerx(i2feed_ref, i2gnd_ref)
+    #moveleft(igndbp_ref, i2gnd_ref)
 
     mask.add(imainbp_ref)
     mask.add(igndbp_ref)
+    mask.add(i2feed_ref)
+    mask.add(i2gnd_ref)
 
-    not_yet -= set([igndbp, imainbp])
+    not_yet -= set([igndbp, imainbp, i2feed, i2gnd])
 
     # Placement of the corner cells
     # igndsubcorner = all_cells['gndsub_corner_r']
@@ -1455,25 +1480,6 @@ def main():
 
     # not_yet -= set([igndsubcorner, ifeedcorner])
 
-    # Placement of the common pixel on the mask
-    icommoncap = all_cells['Capacitor_common_r']
-    i_ind = all_cells['Al_inductor_r']
-    icap2ind = all_cells['Cap_to_Ind_lines_r']
-
-    icommoncap_ref = gdspy.CellReference(icommoncap)
-    i_ind_ref = gdspy.CellReference(i_ind)
-    icap2ind_ref = gdspy.CellReference(icap2ind)
-
-    moveright(icap2ind_ref, i_ind_ref)
-    moveleft(icap2ind_ref, icommoncap_ref)
-
-    mask.add(icap2ind_ref)
-    mask.add(icommoncap_ref)
-    mask.add(i_ind_ref)
-
-
-    icommon_pixel = set([icommoncap, i_ind, icap2ind])
-    not_yet -= icommon_pixel
 
     # Placement of the unique capacitors on the mask. I'll fit a set of 30 caps above the common pixel
     # another 30 below and 2 flanking each side of the common pixel
@@ -1500,13 +1506,33 @@ def main():
 
     u_dx, u_dy = get_size(caps_above[0])
 
+    u_dx += intercap_spacing
+    u_dy += intercap_spacing
+
+    ci_dx, ci_dy = get_size(icap2ind_ref)
+    # Place the right flanking caps
+    moveabove(icap2ind_ref, caps_rflank[0], spacing=-intercap_spacing)
+    moveleft(icap2ind_ref, caps_rflank[0], spacing=-ci_dx/2)
+    moveabove(icap2ind_ref, caps_rflank[1], spacing=-intercap_spacing)
+    moveright(icap2ind_ref, caps_rflank[1], spacing=ci_dx/2)
+    mask.add(caps_rflank[0])
+    mask.add(caps_rflank[1])
+
+    # Place the left flanking caps
+    movebelow(icap2ind_ref, caps_lflank[0], spacing=intercap_spacing)
+    moveleft(icap2ind_ref, caps_lflank[0], spacing=-ci_dx/2)
+    movebelow(icap2ind_ref, caps_lflank[1], spacing=intercap_spacing)
+    moveright(icap2ind_ref, caps_lflank[1], spacing=ci_dx/2)
+    mask.add(caps_lflank[0])
+    mask.add(caps_lflank[1])
+
     # Place all the caps above the common pixel
     for index, cap in enumerate(caps_above):
         irow, icol = index // mrows, index % mcols
         y_displacement = u_dy * (mrows - irow - 1)
         x_displacement = u_dx * (icol - (mcols//2))
         moveabove(icap2ind_ref, caps_above[index], spacing=-y_displacement)
-        caps_above[index].translate(x_displacement, 0)
+        caps_above[index].translate(x_displacement , intercap_spacing)
         mask.add(caps_above[index])
 
     # Place all the caps below the common pixel
@@ -1515,25 +1541,9 @@ def main():
         y_displacement = u_dy * (mrows - irow - 1)
         x_displacement = u_dx * (icol - (mcols//2))
         movebelow(icap2ind_ref, caps_below[index], spacing=y_displacement)
-        caps_below[index].translate(x_displacement, 0)
+        caps_below[index].translate(x_displacement , - intercap_spacing)
         mask.add(caps_below[index])
 
-    ci_dx, ci_dy = get_size(icap2ind_ref)
-    # Place the right flanking caps
-    moveabove(icap2ind_ref, caps_rflank[0])
-    moveleft(icap2ind_ref, caps_rflank[0], spacing=-ci_dx/2)
-    moveabove(icap2ind_ref, caps_rflank[1])
-    moveright(icap2ind_ref, caps_rflank[1], spacing=ci_dx/2)
-    mask.add(caps_rflank[0])
-    mask.add(caps_rflank[1])
-
-    # Place the left flanking caps
-    movebelow(icap2ind_ref, caps_lflank[0])
-    moveleft(icap2ind_ref, caps_lflank[0], spacing=-ci_dx/2)
-    movebelow(icap2ind_ref, caps_lflank[1])
-    moveright(icap2ind_ref, caps_lflank[1], spacing=ci_dx/2)
-    mask.add(caps_lflank[0])
-    mask.add(caps_lflank[1])
 
     # iucaps_ref = placeuniquecaps(caps_inv, mask, 10, nrows, ncols)
 
@@ -1550,10 +1560,10 @@ def main():
     isl_dx, isl_dy = get_size(i_island)
     ixef2_ref = gdspy.CellReference(ixef2)
     i_island_ref = gdspy.CellReference(i_island)
-    moveleft(icommoncap_ref, i_island_ref)
+    moveleft(icommoncap_ref, i_island_ref, spacing=default_spacing)
     moveabove(icommoncap_ref, i_island_ref, spacing=isl_dy)
-    moveleft(icommoncap_ref, ixef2_ref)
-    movebelow(i_island_ref, ixef2_ref)
+    moveleft(icommoncap_ref, ixef2_ref, spacing=default_spacing)
+    movebelow(i_island_ref, ixef2_ref, spacing=default_spacing)
     mask.add(i_island_ref)
     mask.add(ixef2_ref)
 
@@ -1562,7 +1572,14 @@ def main():
 
     main_lib.write_gds('sscale_darkres.gds',unit=1e-6,precision=1e-9)
 
-    sys.exit()
+    #sys.exit()
+
+    ###########################################################################
+    #                                                                         #
+    #           Generating the patch shot table                               #
+    #                                                                         #
+    ###########################################################################
+
 
     # Now I want to generate the full patch shot table from the Global Overlay
     # and the Mask file
