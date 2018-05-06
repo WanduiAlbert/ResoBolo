@@ -21,7 +21,7 @@ indboxwidth = 325.
 indboxheight = 127.
 coup_cap_finger_length = 100
 bondpad_size = 140
-island_halfwidth = 800
+island_halfwidth = 801
 Qi = 40000
 Z0 = 50 * u.Ohm
 gnd_box_margin = 200
@@ -1167,6 +1167,7 @@ def main():
     common_res_arr.translate(-arr_xshift, -arr_yshift)
     # Make the GND plane subtract region around each resonator
     cres_bbox = common_resonator.get_bounding_box()
+    # print (common_res_arr.get_bounding_box())
 
     # Generate the region around the resonator where the ground plane is to be
     # removed. Also return the offsets in the x direction from the center of this

@@ -1,7 +1,7 @@
 import gdspy
 import numpy as np
 def_layers = {"Thin Gold":1, "PRO1":2, "ALUMINUM":3, "LSNSUB":4, "LSN1":5,
-    "120nm_NbWiring":6, "STEPPER":7, "400nm_NbWiring":8, "ILD":9}
+        "120nm_NbWiring":6, "STEPPER":7, "400nm_NbWiring":8, "ILD":9, "XeF2":10, "GP":12}
 inv_layers = {value:key for key, value in def_layers.items()}
 
 # scales all the values in an array by the scale
@@ -96,7 +96,7 @@ def get_size(cell):
 def get_center(cell):
   (xmin, ymin), (xmax, ymax) = cell.get_bounding_box()
   x0 = (xmax + xmin)//2
-  y0 = (ymax + ymin)/2
+  y0 = (ymax + ymin)//2
   return x0, y0
 
 def makeshot(element):
