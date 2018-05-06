@@ -764,11 +764,13 @@ def get_common_resonator(ind, common_cap):
 
 def get_bondpads():
     size = 400
-    feedpad = gdspy.Rectangle([-size/2, size/2], [size/2, -size/2], layer=def_layers['400nm_NbWiring'])
+    feedpad = gdspy.Rectangle([-size/2, size/2], [size/2, -size/2],\
+            layer=def_layers['400nm_NbWiring'])
     feedpad_cell = gdspy.Cell('MSfeed_bondpad')
     feedpad_cell.add(feedpad)
 
-    gndpad = gdspy.Rectangle([-size/2, size/2], [size/2, -size/2], layer=def_layers['120nm_NbWiring'])
+    gndpad = gdspy.Rectangle([-size/2, size/2], [size/2, -size/2],\
+            layer=def_layers['GP'])
     gndpad_cell = gdspy.Cell('GNDfeed_bondpad')
     gndpad_cell.add(gndpad)
 
