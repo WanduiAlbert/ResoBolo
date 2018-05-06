@@ -755,11 +755,12 @@ def get_common_resonator(ind, common_cap):
     common_resonator.add(ind_ref)
     # print (ind_ref.get_bounding_box())
     moveleft(resonator_connector_ref, cap_ref, spacing=-capconn_overlap)
-    # print (cap_ref.origin)
+    #print (cap_ref.origin)
     common_resonator.add(cap_ref)
     # print (common_resonator.get_bounding_box())
     # print (ind_ref.get_bounding_box())
-    # print (ind_ref.origin)
+    #print (resonator_connector_ref.origin)
+    #print (ind_ref.origin)
     return common_resonator
 
 def get_bondpads():
@@ -961,10 +962,10 @@ def get_resonator_structures(reso_gnd_sub, reso_ild_sub, feed,  i_xoffset, feed_
     gndsub = gdspy.CellReference(reso_gnd_sub)
     ildsub = gdspy.CellReference(reso_ild_sub)
     ildsub.translate(-i_xoffset, 0)
-    
+
     am = gdspy.CellReference(get_alignment_marks())
     centery(ildsub, am)
-    moveleft(gndsub, am, spacing=500)
+    moveleft(gndsub, am, spacing=495)
 
     cap2feed, cap2gnd = get_coupling_conns(g_dy, u_dy)
     cap2feed_dx, cap2feed_dy = get_size(cap2feed)
@@ -997,6 +998,13 @@ def get_resonator_structures(reso_gnd_sub, reso_ild_sub, feed,  i_xoffset, feed_
     reso_top.add(feed_ref)
     reso_top.add(am)
 
+    print (gndsub.origin)
+    print (ildsub.origin)
+    print (cap2feed_ref.origin)
+    print (cap2gnd_ref.origin)
+    print (via_ref.origin)
+    print (feed_ref.origin)
+    print (am.origin)
     return reso_top
 
 
