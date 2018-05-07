@@ -540,9 +540,9 @@ def get_feedline(xspacing):
     # To make each cell more symmetric, I'll divide the ground sub region into 2
     sub_len = (1 - feed_ms_fraction)*feed_cell_length/2
     sub1 = gdspy.Rectangle([-sub_len/2, feed_cell_width/2],\
-            [sub_len/2, -feed_cell_width/2], layer=def_layers['LSNSUB'])
+            [sub_len/2, -feed_cell_width/2], layer=def_layers['GP'])
     sub2 = gdspy.Rectangle([-sub_len/2, feed_cell_width/2],\
-            [sub_len/2, -feed_cell_width/2], layer=def_layers['LSNSUB'])
+            [sub_len/2, -feed_cell_width/2], layer=def_layers['GP'])
     sdx = (sub_len + feed_ms_fraction * feed_cell_length)/2
     sub1.translate(-sdx, 0)
     sub2.translate(sdx, 0)
@@ -617,7 +617,7 @@ def get_resonator_GPsub(cres_bbox, ures_size):
     excess = (dx + overlap - c_dx - u_dx) % 2
     ymargin = (dy - u_dy)//2
     #offset = dx/2 - (xmax + xmargin + overlap/2)
-    gnd = gdspy.Rectangle([-dx/2, dy/2], [dx/2, -dy/2], layer=def_layers['LSNSUB'])
+    gnd = gdspy.Rectangle([-dx/2, dy/2], [dx/2, -dy/2], layer=def_layers['GP'])
     #gnd.translate(-offset, 0)
 
     c_xoffset = dx/2 - (xmargin + excess + c_dx//2 + c_dx % 2)
@@ -627,7 +627,7 @@ def get_resonator_GPsub(cres_bbox, ures_size):
     # Need to make a small GND plane sub region for connecting the coupling caps to the feedline
     sdx = 20
     sdy = feedres_dist
-    small = gdspy.Rectangle([-sdx/2, sdy/2], [sdx/2, -sdy/2], layer=def_layers['LSNSUB'])
+    small = gdspy.Rectangle([-sdx/2, sdy/2], [sdx/2, -sdy/2], layer=def_layers['GP'])
     small_xoffset = delta + sdx/2 - overlap + sdx/2 + feed_cell_length/2 -50
     small.translate(-small_xoffset, (dy + sdy)/2) #position relative to common arr
 
@@ -668,7 +668,7 @@ def get_vertical_feed():
     feed_box = gdspy.CellReference(feed_corner)
     moveabove(vmain_ref, feed_box, spacing=s/2)
     gndsub = gdspy.Rectangle([-l/2, l/2], [l/2, -l/2],\
-            layer=def_layers['LSNSUB'])
+            layer=def_layers['GP'])
     gndsub_corner = gdspy.Cell('gndsub_corner')
     gndsub_corner.add(gndsub)
     gndsub_box = gdspy.CellReference(gndsub_corner)
@@ -959,7 +959,8 @@ def get_via(dx):
     via.add(box)
     return via
 
-def get_resonator_structures(reso_gnd_sub, reso_ild_sub, feed,  i_xoffset, feed_xoffset, u_dy):
+def get_resonator_structures(common_resonator, reso_gnd_sub,\
+    reso_ild_sub, feed, c_xoffset, i_xoffset, feed_xoffset, u_dy):
     reso_top = gdspy.Cell('reso_structure')
     g_dx, g_dy = get_size(reso_gnd_sub)
     g_dy -= feedres_dist
@@ -994,6 +995,9 @@ def get_resonator_structures(reso_gnd_sub, reso_ild_sub, feed,  i_xoffset, feed_
     centerx(gndsub, feed_ref)
     f_dx, f_dy = get_size(feed_ref)
     moveabove(gndsub, feed_ref, spacing=f_dy/2)
+    cres_ref = gdspy.CellReference(common_resonator)
+    cres_ref.translate(c_xoffset, 0)
+    reso_top.add(cres_ref)
     reso_top.add(gndsub)
     reso_top.add(ildsub)
     reso_top.add(cap2feed_ref)
@@ -1187,8 +1191,8 @@ def main():
 
     feed_cell = get_feedline(xspacing)
 
-    reso_structure = get_resonator_structures(reso_gnd_sub, reso_ild_sub,\
-            feed_cell, i_xoffset, feed_xoffset, u_dy)
+    reso_structure = get_resonator_structures(common_resonator, reso_gnd_sub, reso_ild_sub,\
+            feed_cell, c_xoffset, i_xoffset, feed_xoffset, u_dy)
     rs_dx, rs_dy = get_size(reso_structure)
     #Make the feedline
     f_dx, f_dy = get_size(feed_cell)
@@ -1203,8 +1207,8 @@ def main():
     reso_struct_arr.translate(-arr_xshift, -arr_yshift)
     wafer.add(reso_struct_arr)
     cu_overlap = 2
-    common_res_arr.translate(c_xoffset, 0)
-    wafer.add(common_res_arr)
+    # common_res_arr.translate(c_xoffset, 0)
+    # wafer.add(common_res_arr)s
 
     # The position of the bottom left corner of the resonator array which is the
     # origin of the i, j coordinate system
