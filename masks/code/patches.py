@@ -1,6 +1,10 @@
 import gdspy
 import numpy as np
 import pdb
+from openpyxl import Workbook
+wb = Workbook()
+wbsavefile = "ResonatorArray.xlsx"
+
 def_layers = {"Thin Gold":1, "PRO1":2, "ALUMINUM":3, "LSNSUB":4, "LSN1":5,
         "120nm_NbWiring":6, "STEPPER":7, "400nm_NbWiring":8, "ILD":9, "XeF2":10, "GP":12}
 inv_layers = {value:key for key, value in def_layers.items()}
@@ -99,6 +103,28 @@ def get_center(cell):
     x0 = (xmax + xmin)//2
     y0 = (ymax + ymin)//2
     return x0, y0
+
+def gen_patches_table(globaloverlay, mask_list, ignore_set, layer_order):
+    gcomponents = globaloverlay.elements
+    mcomponents = []
+    allshots = []
+    for mask in mask_list:
+        mcomponents.append(mask.elements)
+    for component in gcomponents:
+        if component.ref_cell.name in ignore_set: continue
+        allshots.extend(makeshot(component))
+
+    for shot in allshots:
+        if shot.cellname.endswith('_r'):
+            name = shot.cellname
+        else:
+            name = shot.cellname + '_r'
+        #if name == "WaferOutline_r": continue
+        match = list(filter(lambda x: x.ref_cell.name == name, mcomponents))[0]
+        shot.update_mask_location(match)
+
+    allshots.sort(key=layer_order)
+
 
 def makeshot(element, parent=None, hierarchy=0):
     isArray = False

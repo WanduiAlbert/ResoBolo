@@ -6,7 +6,7 @@ import sys
 import matplotlib.pyplot as plt
 from scipy import constants,special
 import astropy.units as u
-from patchshot_composer import Shot, makeshot
+import patches
 from openpyxl import Workbook
 from string import ascii_uppercase
 number_of_points = 32
@@ -27,8 +27,7 @@ Z0 = 50 * u.Ohm
 gnd_box_margin = 200
 main_lib = gdspy.GdsLibrary('main')
 gdspy.current_library = main_lib
-wb = Workbook()
-wbsavefile = "ResonatorArray.xlsx"
+
 def_layers = {"Thin Gold":1, "PRO1":2, "ALUMINUM":3, "LSNSUB":4, "LSN1":5,
         "120nm_NbWiring":6, "STEPPER":7, "400nm_NbWiring":8, "ILD":9, "XeF2":10, "GP":12}
 allshots = []
@@ -1600,7 +1599,7 @@ def main():
     mcomponents = mask.elements
     for component in gcomponents:
         if component.ref_cell.name == "WaferOutline": continue
-        allshots.extend(makeshot(component))
+        allshots.extend(patches.makeshot(component))
 
     for shot in allshots:
         if shot.cellname.endswith('_r'):
