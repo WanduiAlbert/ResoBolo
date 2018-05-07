@@ -918,7 +918,11 @@ def getlinetopad(nrows, spacing, pad):
     lines_pad.add(gndsub_hor_array)
     lines_pad.add(gndsub_vert_array)
 
-    
+    print (pad_arr.origin)
+    print (main_hor_array.origin)
+    print (main_vert_array.origin)
+    print (gndsub_hor_array.origin)
+    print (gndsub_vert_array.origin)
     return gdspy.CellReference(lines_pad)
 
 def placeuniquecaps(caps_inv, mask, mcols, nrows, ncols):
@@ -998,13 +1002,6 @@ def get_resonator_structures(reso_gnd_sub, reso_ild_sub, feed,  i_xoffset, feed_
     reso_top.add(feed_ref)
     reso_top.add(am)
 
-    print (gndsub.origin)
-    print (ildsub.origin)
-    print (cap2feed_ref.origin)
-    print (cap2gnd_ref.origin)
-    print (via_ref.origin)
-    print (feed_ref.origin)
-    print (am.origin)
     return reso_top
 
 

@@ -100,7 +100,7 @@ def get_center(cell):
     y0 = (ymax + ymin)//2
     return x0, y0
 
-def makeshot(element, parent=None):
+def makeshot(element, parent=None, hierarchy=0):
     isArray = False
     if type(element) == gdspy.CellArray:
         isArray = True
@@ -118,8 +118,6 @@ def makeshot(element, parent=None):
         subelements = cell.elements
 
     if isArray:
-        #cell_size = get_size(cell)
-        #cell_shift = scalearr(element.origin, scale)
         arr_center = scalearr(get_center(element), scale)
         ncols = element.columns
         nrows = element.rows
@@ -136,12 +134,11 @@ def makeshot(element, parent=None):
     else:
         shotlist = []
         for el in subelements:
-            #pdb.set_trace()
-            shots = makeshot(el, parent=element)
+            shots = makeshot(el, parent=element, hierarchy=hierarchy + 1)
             # For each shot that has been made from each element, update its origin
             # relative to the origin for  the element
-            #for shot in shots:
-            #    translate(shot, scalearr(el.origin, scale))
+            if hierarchy >= 2:
+                translate(shot, scalearr(parent.origin, scale))
             shotlist.extend(shots)
         # If the current shot is part of a larger array, I want to keep track of
         # that information
@@ -159,9 +156,11 @@ def makeshot(element, parent=None):
             'center':arr_center, 'xspacing':xspacing, 'yspacing':yspacing}
         shot = Shot(cell, cell_shift, cell_size, isArray=True, **args)
     else:
-        shot = Shot(cell, cell_shift, cell_size, isArray=isArray)
+        args = {'num_cols':1, 'num_rows':1,\
+            'center':cell_shift, 'xspacing':0, 'yspacing':0}
+        shot = Shot(cell, (0, 0), cell_size, isArray=True, **args)
 
-    if type(parent) == gdspy.CellReference:
+    if hierarchy >= 2:
         translate(shot, scalearr(parent.origin, scale))
     return [shot]
 
