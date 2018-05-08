@@ -8,7 +8,6 @@ from scipy import constants,special
 import astropy.units as u
 import patches
 from openpyxl import Workbook
-from string import ascii_uppercase
 number_of_points = 32
 
 mUnits = 1e-6
@@ -30,7 +29,7 @@ gdspy.current_library = main_lib
 
 def_layers = {"Thin Gold":1, "PRO1":2, "ALUMINUM":3, "LSNSUB":4, "LSN1":5,
         "120nm_NbWiring":6, "STEPPER":7, "400nm_NbWiring":8, "ILD":9, "XeF2":10, "GP":12}
-allshots = []
+layer_order = [12, 9, 6, 3, 8 ]
 feed_cell_length = 100
 feed_cell_width = 20
 feed_main_width = 8
@@ -39,10 +38,6 @@ feedres_dist = 209
 mask_width = 22000
 mask_length = 26000
 
-# Need this functionality to work with excel spreadsheets
-chars = list(ascii_uppercase)
-char2num = {char:(ind+1) for ind, char in enumerate(chars)}
-num2char = {(ind+1):char for ind, char in enumerate(chars)}
 
 
 def moveabove_get_shift(box_fixed,box_free):
@@ -771,7 +766,7 @@ def get_bondpads():
 
     gndpad = gdspy.Rectangle([-size/2, size/2], [size/2, -size/2],\
             layer=def_layers['GP'])
-    gndpad_cell = gdspy.Cell('GNDfeed_bondpad')
+    gndpad_cell = gdspy.Cell('gndfeed_bondpad')
     gndpad_cell.add(gndpad)
 
     pad_cell = gdspy.Cell('Feed_Bonding_Pad')
@@ -1008,11 +1003,6 @@ def get_resonator_structures(common_resonator, reso_gnd_sub,\
     return reso_top
 
 
-def populate_column(sheet, col, startrow, dataset):
-    N = len(dataset)
-    for index in range(N):
-        row = startrow + index
-        sheet.cell(column = col, row=row, value = dataset[index])
 
 def get_gnd_cutouts(yspacing):
     dx = 1.5*yspacing
@@ -1298,7 +1288,7 @@ def main():
     total_area_needed = np.sum(list(map(lambda x: get_cell_area(x),\
             inv_cell_list)))
 
-    mask = gdspy.Cell('Mask')
+    mask = gdspy.Cell('ResoArray_Mask_May2018')
     maskoutline = makechipoutline(mask_width, mask_length, 'MaskOutline')
     outline_width = 2
     mask.add(gdspy.CellReference(maskoutline))
@@ -1448,7 +1438,7 @@ def main():
       ivgndtopad, ivmaintopad, ivgndopening, ihgndopening,\
       ihedge, ivedge, ivgndfiller, ihgndfiller])
     # Placement of the bondpads
-    igndbp = all_cells['GNDfeed_bondpad_r']
+    igndbp = all_cells['gndfeed_bondpad_r']
     imainbp = all_cells['MSfeed_bondpad_r']
 
     igndbp_ref = gdspy.CellReference(igndbp)
@@ -1595,133 +1585,11 @@ def main():
     # Now I want to generate the full patch shot table from the Global Overlay
     # and the Mask file
     globaloverlay = main_lib.cell_dict['Global_Overlay']
-    gcomponents = globaloverlay.elements
-    mcomponents = mask.elements
-    for component in gcomponents:
-        if component.ref_cell.name == "WaferOutline": continue
-        allshots.extend(patches.makeshot(component))
-
-    for shot in allshots:
-        if shot.cellname.endswith('_r'):
-            name = shot.cellname
-        else:
-            name = shot.cellname + '_r'
-        #if name == "WaferOutline_r": continue
-        match = list(filter(lambda x: x.ref_cell.name == name, mcomponents))[0]
-        shot.update_mask_location(match)
-
-    allshots.sort()
-
-    all_layers = np.array(list(map(lambda x: x.get_layer(), allshots)))
-    all_names = np.array(list(map(lambda x: x.get_name(), allshots)))
-    all_mask_shifts = np.array(list(map(lambda x: x.get_mask_shift(), allshots)))
-    all_cell_sizes = np.array(list(map(lambda x: x.get_cell_size(), allshots)))
-    all_cell_shifts = np.array(list(map(lambda x: x.get_cell_shift(), allshots)))
-    all_array_sizes = np.array(list(map(lambda x: x.get_array_size(), allshots)))
-    all_array_centers = np.array(list(map(lambda x: x.get_array_center(), allshots)))
-    all_array_stepsizes = np.array(list(map(lambda x: x.get_array_stepsize(), allshots)))
-
-    # print (all_layers.shape)
-    # print (all_names.shape)
-    # print (all_mask_shifts.shape)
-    # print (all_cell_sizes.shape)
-    # print (all_cell_shifts.shape)
-    # print (all_array_sizes.shape)
-    # print (all_array_centers.shape)
-    # print (all_array_stepsizes.shape)
-
-    N = len(all_layers)
-    #ids = np.stack([all_layers, all_names], axis=-1)
-    #table = np.stack([ids, all_mask_shifts, all_cell_sizes,\
-    #    all_cell_shifts, all_array_sizes, all_array_centers,\
-    #    all_array_stepsizes], axis=-1)
-
-    xl = all_mask_shifts[:, 0] - all_cell_sizes[:,0]/2
-    xr = all_mask_shifts[:, 0] + all_cell_sizes[:,0]/2
-    yu = all_mask_shifts[:, 1] + all_cell_sizes[:,1]/2
-    yd = all_mask_shifts[:, 1] - all_cell_sizes[:,1]/2
-
-    all_wafer_shifts = all_mask_shifts - all_cell_shifts
-
-    ws = wb.active #get the active worksheet in which to save the data
-
-    ws['A14'] = 'Layer'
-    ws['C14'] = 'Cell name'
-    ws['D13'] = 'Mask Shift'
-    ws.merge_cells('D13:E13')
-    ws['D14'] = 'x'
-    ws['E14'] = 'y'
-    ws['F13'] = 'Cell size'
-    ws.merge_cells('F13:G13')
-    ws['F14'] = 'x'
-    ws['G14'] = 'y'
-    ws['M13'] = 'Cell Shift'
-    ws.merge_cells('M13:N13')
-    ws['M14'] = 'x'
-    ws['N14'] = 'y'
-
-    startrow = 15
-    endrow = 15 + N
-
-    populate_column(ws, char2num['A'], 15, all_layers)
-    populate_column(ws, char2num['C'], 15, all_names)
-    populate_column(ws, char2num['D'], 15, all_mask_shifts[:,0])
-    populate_column(ws, char2num['E'], 15, all_mask_shifts[:,1])
-    populate_column(ws, char2num['F'], 15, all_cell_sizes[:, 0])
-    populate_column(ws, char2num['G'], 15, all_cell_sizes[:, 1])
-    populate_column(ws, char2num['M'], 15, all_cell_shifts[:, 0])
-    populate_column(ws, char2num['N'], 15, all_cell_shifts[:, 1])
-
-    ws.merge_cells('H13:K13')
-    ws['H13'] = 'Blade Coordinates'
-    ws['H14'] = 'xl'
-    ws['I14'] = 'xr'
-    ws['J14'] = 'yu'
-    ws['K14'] = 'yd'
-    populate_column(ws, char2num['H'], 15, xl)
-    populate_column(ws, char2num['I'], 15, xr)
-    populate_column(ws, char2num['J'], 15, yu)
-    populate_column(ws, char2num['K'], 15, yd)
-
-    ws.merge_cells('O13:P13')
-    ws['O13'] = 'Wafer Shift'
-    ws['O14'] = 'x'
-    ws['P14'] = 'y'
-    populate_column(ws, char2num['O'], 15, all_wafer_shifts[:,0])
-    populate_column(ws, char2num['P'], 15, all_wafer_shifts[:,1])
-
-    ws.merge_cells('T12:Y12')
-    ws['T12'] = 'Alternate Array Layout'
-    ws.merge_cells('T13:U13')
-    ws['T13'] = 'size'
-    ws['T14'] = 'C'
-    ws['U14'] = 'R'
-    ws.merge_cells('V13:W13')
-    ws['V13'] = 'center'
-    ws['V14'] = 'x'
-    ws['W14'] = 'y'
-    ws.merge_cells('X13:Y13')
-    ws['X13'] = 'step size'
-    ws['X14'] = 'x'
-    ws['Y14'] = 'y'
-    populate_column(ws, char2num['T'], 15, all_array_sizes[:,0])
-    populate_column(ws, char2num['U'], 15, all_array_sizes[:,1])
-    populate_column(ws, char2num['V'], 15, all_array_centers[:, 0])
-    populate_column(ws, char2num['W'], 15, all_array_centers[:, 1])
-    populate_column(ws, char2num['X'], 15, all_array_stepsizes[:, 0])
-    populate_column(ws, char2num['Y'], 15, all_array_stepsizes[:, 1])
-
-
-
-
-
-
-
-
-
-
-    wb.save(wbsavefile)
-
+    to_ignore = set("WaferOutline")
+    allshots = patches.gen_patches_table(globaloverlay, [mask], to_ignore, def_layers,\
+            layer_order)
+    patchtable = patches.PatchTable(allshots, 'ResonatorArray.xlsx')
+    patchtable.generate_spreadsheet()
 
 if __name__=='__main__':
     main()
