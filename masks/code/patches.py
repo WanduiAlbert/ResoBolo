@@ -16,7 +16,7 @@ chars = list(ascii_uppercase)
 char2num = {char:(ind+1) for ind, char in enumerate(chars)}
 num2char = {(ind+1):char for ind, char in enumerate(chars)}
 
-al = Alignment(horizontal="center", vertical="center", wrap_text=False)
+al = Alignment(horizontal="center", wrap_text=False)
 font = Font(name='Times New Roman', size=10)
 thin = Side(border_style='thin', color='000000')
 border = Border(top=thin, left=thin, right=thin, bottom=thin)
@@ -344,7 +344,7 @@ def gen_patches_table(globaloverlay, mask_list, ignored_cells, layer_dict=None,\
 
 
 def makeshot(element, parent=None, hierarchy=0):
-    pdb.set_trace()
+    #pdb.set_trace()
     isArray = False
     if type(element) == gdspy.CellArray:
         isArray = True
