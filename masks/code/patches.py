@@ -303,8 +303,18 @@ def get_center(cell):
     y0 = (ymax + ymin)//2
     return x0, y0
 
+def same_mask_cellname(shot):
+    return shot.cellname
+
+def inv_mask_cellname(shot):
+    if shot.cellname.endswith('_r'):
+        name = shot.cellname
+    else:
+        name = shot.cellname + '_r'
+    return name
+
 def gen_patches_table(globaloverlay, mask_list, ignored_cells, layer_dict=None,\
-        layer_order=None):
+        layer_order=None, cellsInverted=True):
     Shot.update_layers(layer_dict)
     if layer_order:
         Shot.update_layerorder(layer_order)
@@ -319,10 +329,10 @@ def gen_patches_table(globaloverlay, mask_list, ignored_cells, layer_dict=None,\
         mcomponents[mask.name] = mask.elements
 
     for shot in allshots:
-        if shot.cellname.endswith('_r'):
-            name = shot.cellname
+        if cellsInverted:
+            name = inv_mask_cellname(shot)
         else:
-            name = shot.cellname + '_r'
+            name = same_mask_cellname(shot)
         for mask in mcomponents:
             match = list(filter(lambda x: x.ref_cell.name == name,
                 mcomponents[mask]))[0]
@@ -334,6 +344,7 @@ def gen_patches_table(globaloverlay, mask_list, ignored_cells, layer_dict=None,\
 
 
 def makeshot(element, parent=None, hierarchy=0):
+    pdb.set_trace()
     isArray = False
     if type(element) == gdspy.CellArray:
         isArray = True
