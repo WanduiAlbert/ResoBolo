@@ -273,4 +273,4 @@ if __name__=="__main__":
     P_opt = ((Vdc/Rb)**2 * Rh).to(u.pW)
     op = OperatingPoint(P_opt=P_opt)
     op.calculate_noise()
-
+    

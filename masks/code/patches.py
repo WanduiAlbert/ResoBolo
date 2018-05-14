@@ -402,7 +402,11 @@ def makeshot(element, parent=None, hierarchy=0):
     else:
         args = {'num_cols':1, 'num_rows':1,\
             'center':cell_shift, 'xspacing':0, 'yspacing':0}
-        shot = Shot(cell, (0, 0), cell_size, isArray=True, **args)
+        try:
+            shot = Shot(cell, (0, 0), cell_size, isArray=True, **args)
+        except RuntimeError:
+            print ("Failed for", element)
+            return []
 
     if hierarchy >= 2:
         translate(shot, scalearr(parent.origin, scale))

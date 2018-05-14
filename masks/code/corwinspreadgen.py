@@ -11,7 +11,7 @@ def_layers = {"Alignment Layer":1, "PRO1":2, "ALUMINUM":3, "LSNSUB":4, "Aluminum
 
 
 if __name__ == "__main__":
-    fn = 'corwin_wafer.gds'
+    fn = 'corwin_wafer_edited.gds'
     gdsii = gdspy.GdsLibrary()
     gdsii.read_gds(fn)
     cell_dict = gdsii.cell_dict
