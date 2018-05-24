@@ -28,44 +28,64 @@ def cellIsPresent(possible_cell_names):
     return any(name in allcellnames for name in possible_cell_names)
 
 def inverter(cell, rotation=0):
-    possible_cell_names = set([cell.name + '_r', cell.name + '_R', 'R_' + cell.name])
+    possible_cell_names = set([cell.name + '_r'])
     if cellIsPresent(possible_cell_names): return
     cell_name = cell.name + '_r'
     inv_cell = gdspy.Cell(cell_name)
     cell = cell.flatten()
     cell_ref = gdspy.CellReference(cell, rotation=rotation)
-    dx, dy = get_size(cell_ref)
-    dx += 2*inv_margin
-    dy += 2*inv_margin
-    dx = roundto(dx, 100)
-    dy = roundto(dy, 100)
+    (xmin, ymin), (xmax, ymax) = cell_ref.get_bounding_box()
+    xmin = roundto(xmin - inv_margin, 50)
+    ymin = roundto(ymin - inv_margin, 50)
+    xmax = roundto(xmax + inv_margin, 50)
+    ymax = roundto(ymax + inv_margin, 50)
     layer = cell.get_layers().pop()
     polys = cell_ref.get_polygons(depth=1)
     polyset = gdspy.PolygonSet(polys, layer=layer)
-    bbox = gdspy.Rectangle([-dx/2, dy/2], [dx/2, -dy/2], layer=layer)
+    bbox = gdspy.Rectangle([xmin, ymin], [xmax, ymax], layer=layer)
     new_polyset = gdspy.fast_boolean(polyset, bbox, 'xor', layer=layer)
     inv_cell.add(new_polyset)
     main_lib.add(inv_cell)
 
 def invert_cell(cell, rotation=0):
-    layers = cell.get_layers()
-
-    if len(layers) == 1:
+    deps = cell.get_dependencies()    
+    if not deps:
         inverter(cell, rotation)
+    else:
+        for dep in deps:
+            invert_cell(deps, rotation)
 
-    for cell in cell.get_dependencies():
-        invert_cell(cell, rotation)
+def get_node_list(root_element, parent_origin=[0,0]):
+    root_cell = root_element.ref_cell
+    root_origin = root_element.origin
+    # Find the absolute origin
+    # abs_origin = root_origin
+    abs_origin = patches.cellNode.get_new_origin(parent_origin,\
+    root_origin)
 
-def get_cell_list(element, cell_list):
-    if not element.get_dependencies():
-        cell = element.ref_cell
+    haschildren = bool(root_cell.get_dependencies())
+    if not haschildren:
+        node = patches.cellNode(root_cell, abs_origin)
+        node.update_origin(parent_origin)
+        return [node]
+
+    children = root_cell.elements
+
+    child_nodes = []
+    for child in children:
+        child_nodes += get_node_list(child, abs_origin)
+    return child_nodes
+
+def get_cell_list(cell, cell_list):
+    deps = cell.get_dependencies()
+    if not deps:
         main_lib.add(cell)
-        cell_list.append(element)
-    elements = element.elements
-    for el in elements:
-
-        cell_list.extend(get_cell_list(el))
-    return cell_list
+        cell_list.append(cell)
+        return
+    
+    for dep in deps:
+        get_cell_list(dep, cell_list)
+    return
 
 def get_mask(fn, mask_name):
     gdsii = gdspy.GdsLibrary()
@@ -73,12 +93,43 @@ def get_mask(fn, mask_name):
 
     return gdsii.extract(mask_name)
 
+def generate_inverted_mask(node_list):
+    inv_list = []
+    for node in node_list:
+        node_cellname = node.cell.name
+        inv_node_cell = main_lib.cell_dict[node_cellname + '_r']
+        inv_cell = gdspy.CellReference(inv_node_cell, origin=node.origin)
+        inv_list.append(inv_cell)
+    return inv_list
+
 if __name__ == "__main__":
     fn = 'corwin_wafer_edited.gds'
-    mask = get_mask(fn, 'reticleGND')
-    cell_list = []
-    to_invert = get_cell_list(mask, cell_list)
-    for cell in to_invert:
+    gdsii = gdspy.GdsLibrary()
+    gdsii.read_gds(fn)
+    mask = gdsii.extract('reticleGND')
+    global_overlay = gdsii.extract('wafer')
+    mask2 = gdsii.extract('reticleMS')
+    pixel = gdsii.extract('pixel')
+    det_bias = gdsii.extract('MS_det_bias')
+    node_list = get_node_list(gdspy.CellReference(mask))
+    inv_cell_list = []
+    get_cell_list(mask, inv_cell_list)
+    # print (len(cell_list))
+    for cell in inv_cell_list:
         invert_cell(cell)
+    newmask = gdspy.Cell('reticleGNDinv')
+    newmask.add(generate_inverted_mask(node_list))
+    main_lib.add(newmask)
+    main_lib.add(mask)
+    mask2_cell_list = []
+    get_cell_list(mask2, mask2_cell_list)
+    main_lib.add(mask2_cell_list)
+    main_lib.add(mask2)
+    glob_cell_list = []
+    get_cell_list(global_overlay, glob_cell_list)
+    main_lib.add(pixel)
+    main_lib.add(det_bias)
+    main_lib.add(glob_cell_list)
+    main_lib.add(global_overlay)
 
-    main_lib.write_gds('corwin_wafer_inverted.gds',unit=1e-6,precision=1e-9)   
+    main_lib.write_gds('corwin_wafer_edited.gds',unit=1e-6,precision=1e-9)   

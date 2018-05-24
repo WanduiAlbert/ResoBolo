@@ -47,7 +47,7 @@
  </properties>
  <properties>
   <frame-color>#ffffff</frame-color>
-  <fill-color>#ff0000</fill-color>
+  <fill-color>#006400</fill-color>
   <frame-brightness>0</frame-brightness>
   <fill-brightness>0</fill-brightness>
   <dither-pattern>I12</dither-pattern>
@@ -153,11 +153,11 @@
  </properties>
  <name/>
  <properties>
-  <frame-color>#000000</frame-color>
-  <fill-color>#006400</fill-color>
+  <frame-color>#ff0000</frame-color>
+  <fill-color>#ff0000</fill-color>
   <frame-brightness>0</frame-brightness>
   <fill-brightness>0</fill-brightness>
-  <dither-pattern>I5</dither-pattern>
+  <dither-pattern>I3</dither-pattern>
   <valid>true</valid>
   <visible>true</visible>
   <transparent>false</transparent>

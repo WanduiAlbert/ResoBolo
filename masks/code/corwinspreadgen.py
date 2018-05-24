@@ -17,7 +17,7 @@ if __name__ == "__main__":
     cell_dict = gdsii.cell_dict
 
     globaloverlay = cell_dict['wafer']
-    mask_list = [cell_dict['reticleMS'], cell_dict['reticleGND']]
+    mask_list = [cell_dict['reticleMS'], cell_dict['reticleGND'], cell_dict['reticleGNDinv']]
     to_ignore = set('frame')
     allshots = patches.gen_patches_table(globaloverlay, mask_list, to_ignore,\
             layer_dict=def_layers, layer_order=None, cellsInverted=False)

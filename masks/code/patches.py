@@ -5,6 +5,25 @@ from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, Border, Side, PatternFill
 from string import ascii_uppercase
 
+
+class cellNode():
+
+    def get_new_origin(old, new):
+        x = old[0] + new[0]
+        y = old[1] + new[1]
+        return [x, y]
+
+    """
+    Keeps track of a single cell and its origin relative to the root
+    of the cell hierarchy tree
+    """
+    def __init__(self, cell, origin=[0,0]):
+        self.cell = cell
+        self.origin = origin
+
+    def update_origin(self, new_origin):
+        self.origin = cellNode.get_new_origin(self.origin, new_origin)
+
 # scales all the values in an array by the scale
 def scalearr(arr, scale):
   return tuple(map(lambda x: x/scale, arr))
@@ -109,7 +128,7 @@ class PatchTable():
         self.startrow = 15
         self.endrow = 15 + self.num_shots
 
-        cell_range = "A1:Y%d"%(self.endrow)
+        cell_range = "A11:Y%d"%(self.endrow)
         style_range(self.ws, cell_range, border=border, fill=fill,\
                 font=font, alignment=al)
 
@@ -342,75 +361,125 @@ def gen_patches_table(globaloverlay, mask_list, ignored_cells, layer_dict=None,\
     allshots.sort()
     return allshots
 
-
-def makeshot(element, parent=None, hierarchy=0):
-    #pdb.set_trace()
+def makeshot(curr_element, parent_origin=[0,0], parentIsArray=False, arrayArgs={}):
+    pdb.set_trace()
+    curr_cell = curr_element.ref_cell
+    curr_origin = curr_element.origin
+    abs_origin = cellNode.get_new_origin(parent_origin,\
+        curr_origin)
+    cell_shift = scalearr(abs_origin, scale)
+    cell_size = scalearr(get_size(curr_element), scale)
+    
     isArray = False
-    if type(element) == gdspy.CellArray:
+    if type(curr_element) == gdspy.CellArray:
+        arr_center = scalearr(get_center(curr_element), scale)   
+        xspacing, yspacing = scalearr(curr_element.spacing, scale)
+        args = {'num_cols':curr_element.columns, 'num_rows':curr_element.rows, 'center':arr_center,\
+        'xspacing':xspacing, 'yspacing':yspacing}
         isArray = True
-    elif type(element) != gdspy.CellReference:
+
+    elif type(curr_element) == gdspy.CellReference and parentIsArray:
+        args = arrayArgs
+        isArray = True
+
+    elif type(curr_element) == gdspy.CellReference and not parentIsArray:
+        args = {'num_cols':1, 'num_rows':1, 'center':cell_shift, 'xspacing':0, 'yspacing':0}
+        cell_shift = (0, 0)
+
+    elif type(curr_element) != gdspy.CellReference:
         return []
 
-    cell = element.ref_cell
-    cellname = cell.name
+    haschildren = bool(curr_cell.get_dependencies())
+
+    if not haschildren:
+        try:
+            shot = Shot(curr_cell, cell_shift, cell_size, isArray=True, **args)
+            return [shot]
+        except RuntimeError:
+            print ("Failed for", curr_element)
+            return []
+
+    child_elements = curr_cell.elements
     # If a cell has dependencies, then the elements gives a list of all the cell
     # references in this cell. If the cell has no dependencies, then subelements
     # just gives the polygon set that makes up the cell. I don't want the
     # polygonset stuff.
-    subelements = []
-    if cell.get_dependencies():
-        subelements = cell.elements
-
-    if isArray:
-        arr_center = scalearr(get_center(element), scale)
-        ncols = element.columns
-        nrows = element.rows
-        xspacing, yspacing = scalearr(element.spacing, scale)
-        args = {'num_cols':ncols, 'num_rows':nrows,\
-            'center':arr_center, 'xspacing':xspacing, 'yspacing':yspacing}
-
-    # If deps is an empty set then immediately construct the shot from the
-    # element. Otherwise loop through the dependencies of the current element and
-    # obtain shots from each of them.
-    if not subelements:
-        cell_shift = scalearr(element.origin, scale)
-        cell_size = scalearr(get_size(element), scale)
-    else:
-        shotlist = []
-        for el in subelements:
-            shots = makeshot(el, parent=element, hierarchy=hierarchy + 1)
-            # For each shot that has been made from each element, update its origin
-            # relative to the origin for  the element
-            if hierarchy >= 2:
-                translate(shot, scalearr(parent.origin, scale))
-            shotlist.extend(shots)
+    child_shotlist = []
+    for child in child_elements:
+        child_shotlist.extend(makeshot(child, abs_origin, isArray, args))
         # If the current shot is part of a larger array, I want to keep track of
         # that information
-        if isArray:
-            for shot in shotlist:
-                shot.isArray = True
-                shot.center = arr_center
-                shot.ncols = ncols
-                shot.nrows = nrows
-                shot.xspacing, shot.yspacing = xspacing, yspacing
-        return shotlist
+        return child_shotlist
 
-    if isArray:
-        args = {'num_cols':ncols, 'num_rows':nrows,\
-            'center':arr_center, 'xspacing':xspacing, 'yspacing':yspacing}
-        shot = Shot(cell, cell_shift, cell_size, isArray=True, **args)
-    else:
-        args = {'num_cols':1, 'num_rows':1,\
-            'center':cell_shift, 'xspacing':0, 'yspacing':0}
-        try:
-            shot = Shot(cell, (0, 0), cell_size, isArray=True, **args)
-        except RuntimeError:
-            print ("Failed for", element)
-            return []
 
-    if hierarchy >= 2:
-        translate(shot, scalearr(parent.origin, scale))
-    return [shot]
+# def makeshot(element, parent=None, hierarchy=0):
+#     #pdb.set_trace()
+#     isArray = False
+#     if type(element) == gdspy.CellArray:
+#         isArray = True
+#     elif type(element) != gdspy.CellReference:
+#         return []
+
+#     cell = element.ref_cell
+#     cellname = cell.name
+#     # If a cell has dependencies, then the elements gives a list of all the cell
+#     # references in this cell. If the cell has no dependencies, then subelements
+#     # just gives the polygon set that makes up the cell. I don't want the
+#     # polygonset stuff.
+#     subelements = []
+#     if cell.get_dependencies():
+#         subelements = cell.elements
+
+#     if isArray:
+#         arr_center = scalearr(get_center(element), scale)
+#         ncols = element.columns
+#         nrows = element.rows
+#         xspacing, yspacing = scalearr(element.spacing, scale)
+#         args = {'num_cols':ncols, 'num_rows':nrows,\
+#             'center':arr_center, 'xspacing':xspacing, 'yspacing':yspacing}
+
+#     # If deps is an empty set then immediately construct the shot from the
+#     # element. Otherwise loop through the dependencies of the current element and
+#     # obtain shots from each of them.
+#     if not subelements:
+#         cell_shift = scalearr(element.origin, scale)
+#         cell_size = scalearr(get_size(element), scale)
+#     else:
+#         shotlist = []
+#         for el in subelements:
+#             shots = makeshot(el, parent=element, hierarchy=hierarchy + 1)
+#             # For each shot that has been made from each element, update its origin
+#             # relative to the origin for  the element
+#             if hierarchy >= 2:
+#                 translate(shot, scalearr(parent.origin, scale))
+#             shotlist.extend(shots)
+#         # If the current shot is part of a larger array, I want to keep track of
+#         # that information
+#         if isArray:
+#             for shot in shotlist:
+#                 shot.isArray = True
+#                 shot.center = arr_center
+#                 shot.ncols = ncols
+#                 shot.nrows = nrows
+#                 shot.xspacing, shot.yspacing = xspacing, yspacing
+#         return shotlist
+
+#     if isArray:
+#         args = {'num_cols':ncols, 'num_rows':nrows,\
+#             'center':arr_center, 'xspacing':xspacing, 'yspacing':yspacing}
+#         shot = Shot(cell, cell_shift, cell_size, isArray=True, **args)
+#     else:
+#         args = {'num_cols':1, 'num_rows':1,\
+#             'center':cell_shift, 'xspacing':0, 'yspacing':0}
+#         try:
+#             shot = Shot(cell, (0, 0), cell_size, isArray=True, **args)
+#         except RuntimeError:
+#             print ("Failed for", element)
+#             return []
+
+#     if hierarchy >= 2:
+#         translate(shot, scalearr(parent.origin, scale))
+#     return [shot]
 
 
 

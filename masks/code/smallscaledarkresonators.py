@@ -20,7 +20,7 @@ indboxwidth = 325.
 indboxheight = 127.
 coup_cap_finger_length = 100
 bondpad_size = 140
-island_halfwidth = 801
+island_halfwidth = 800
 Qi = 40000
 Z0 = 50 * u.Ohm
 gnd_box_margin = 200
@@ -422,8 +422,10 @@ def make_cap_to_ind_lines():
     conn5 = gdspy.Path(2.5*ms_width, (conn4.x, conn4.y - ms_width/2))
     conn5.segment(51, '+y', layer=layer) # Just magic
 
+    # print (island_halfwidth, cap_overlap)
     dx = island_halfwidth/2 + cap_overlap
     dy = ylen/2 - ms_width/2
+    # print (dx, dy)
     conn1.translate(-dx, dy)
     conn2.translate(-dx, dy)
     conn3.translate(-dx, dy)
@@ -749,12 +751,15 @@ def get_common_resonator(ind, common_cap):
     common_resonator.add(ind_ref)
     # print (ind_ref.get_bounding_box())
     moveleft(resonator_connector_ref, cap_ref, spacing=-capconn_overlap)
-    #print (cap_ref.origin)
+    # print (cap_ref.origin)
     common_resonator.add(cap_ref)
+    # print (resonator_connector_ref.get_bounding_box())
+    # print (resonator_connector_ref.origin)
     # print (common_resonator.get_bounding_box())
     # print (ind_ref.get_bounding_box())
     #print (resonator_connector_ref.origin)
-    #print (ind_ref.origin)
+    # print (ind_ref.origin)
+    # sys.exit()
     return common_resonator
 
 def get_bondpads():
@@ -764,7 +769,8 @@ def get_bondpads():
     feedpad_cell = gdspy.Cell('MSfeed_bondpad')
     feedpad_cell.add(feedpad)
 
-    gndpad = gdspy.Rectangle([-size/2, size/2], [size/2, -size/2],\
+    gsize = size + 40
+    gndpad = gdspy.Rectangle([-gsize/2, gsize/2], [gsize/2, -gsize/2],\
             layer=def_layers['GP'])
     gndpad_cell = gdspy.Cell('gndfeed_bondpad')
     gndpad_cell.add(gndpad)
@@ -894,7 +900,7 @@ def getlinetopad(nrows, spacing, pad):
     moveright(gndsub_hor_array, gndsub_vert_array, spacing=feedspacing)
 
     p_dx, p_dy = get_size(pad)
-    overlap = feedspacing
+    overlap =  3*feedspacing + gndsubmargin - feed_cell_width
     pad_spacing = mva_dy - 2*mv_dy - p_dy + 2*overlap
     pad_arr = gdspy.CellArray(pad, 1, 2, [0, pad_spacing])
     pa_dx, pa_dy = get_size(pad_arr)
@@ -912,11 +918,11 @@ def getlinetopad(nrows, spacing, pad):
     lines_pad.add(gndsub_hor_array)
     lines_pad.add(gndsub_vert_array)
 
-    print (pad_arr.origin)
-    print (main_hor_array.origin)
-    print (main_vert_array.origin)
-    print (gndsub_hor_array.origin)
-    print (gndsub_vert_array.origin)
+    #print (pad_arr.origin)
+    #print (main_hor_array.origin)
+    #print (main_vert_array.origin)
+    #print (gndsub_hor_array.origin)
+    #print (gndsub_vert_array.origin)
     return gdspy.CellReference(lines_pad)
 
 def placeuniquecaps(caps_inv, mask, mcols, nrows, ncols):
@@ -1076,6 +1082,7 @@ def get_wafer_edges():
 
 
 def main():
+    print ("Generating the global overlay....\n\n ")
     # Wafer organization all dimensions in microns
     nrows = 8
     ncols = 8
@@ -1194,6 +1201,8 @@ def main():
     reso_struct_arr = gdspy.CellArray(reso_structure, ncols, nrows,\
             [xspacing, yspacing] )
     reso_struct_arr.translate(-arr_xshift, -arr_yshift)
+    print (reso_struct_arr.origin)
+    print (reso_struct_arr.get_bounding_box())
     wafer.add(reso_struct_arr)
     cu_overlap = 2
     # common_res_arr.translate(c_xoffset, 0)
@@ -1268,6 +1277,7 @@ def main():
     wafer.add(verts)
     wafer.add(horizs)
 
+    print ("Global Overlay Generation Completed.\n\n")
     # main_lib.write_gds('sscale_darkres.gds',unit=1e-6,precision=1e-9)
 
     #chip_outline = makechipoutline(wafer_width, wafer_len,'WaferOutline')
@@ -1277,7 +1287,7 @@ def main():
     #####       MASK GENERATION. GLOBAL OVERLAY COMPLETED.  ##################
     ##########################################################################
 
-
+    print ("Generating the mask....\n\n")
     all_cells = main_lib.cell_dict
     make_inverted_cells()
 
@@ -1291,7 +1301,7 @@ def main():
     mask = gdspy.Cell('ResoArray_Mask_May2018')
     maskoutline = makechipoutline(mask_width, mask_length, 'MaskOutline')
     outline_width = 2
-    mask.add(gdspy.CellReference(maskoutline))
+    # mask.add(gdspy.CellReference(maskoutline))
 
     default_spacing=200 # A suitable spacing between the cells on the reticle
     intercap_spacing=50
@@ -1573,6 +1583,7 @@ def main():
 
     main_lib.write_gds('sscale_darkres.gds',unit=1e-6,precision=1e-9)
 
+    print ("\n\nMask Generation Completed.\n\n")
     #sys.exit()
 
     ###########################################################################
@@ -1581,17 +1592,29 @@ def main():
     #                                                                         #
     ###########################################################################
 
+    # print ("Generating the patch shot spreadsheet....")
+    # # Now I want to generate the full patch shot table from the Global Overlay
+    # # and the Mask file
+    # globaloverlay = main_lib.cell_dict['Global_Overlay']
+    # to_ignore = set("WaferOutline")
+    # allshots = patches.gen_patches_table(globaloverlay, [mask], to_ignore, def_layers,\
+    #         layer_order)
+    # patchtable = patches.PatchTable(allshots, 'ResonatorArray.xlsx')
+    # patchtable.generate_spreadsheet()
+    # print ("Completed.")
 
+if __name__=='__main__':
+    main()
+    print ("Generating the patch shot spreadsheet....")
     # Now I want to generate the full patch shot table from the Global Overlay
     # and the Mask file
     globaloverlay = main_lib.cell_dict['Global_Overlay']
+    mask = main_lib.cell_dict['ResoArray_Mask_May2018']
     to_ignore = set("WaferOutline")
     allshots = patches.gen_patches_table(globaloverlay, [mask], to_ignore, def_layers,\
             layer_order)
     patchtable = patches.PatchTable(allshots, 'ResonatorArray.xlsx')
     patchtable.generate_spreadsheet()
-
-if __name__=='__main__':
-    main()
+    print ("Completed.")
 
 
