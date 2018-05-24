@@ -366,7 +366,7 @@ grid.alpha       :   1.0     # transparency, between 0.0 and 1.0
 legend.fancybox      : True  # if True, use a rounded box for the
                                # legend, else a rectangle
 legend.loc	     : Best
-legend.framealpha    : 0.8
+#legend.framealpha    : 0.8
 legend.numpoints     : 2      # the number of points in the legend line
 legend.fontsize      : 20
 legend.borderpad     : 0.5    # border whitespace in fontsize units
