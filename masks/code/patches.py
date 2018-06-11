@@ -339,9 +339,12 @@ def gen_patches_table(globaloverlay, mask_list, ignored_cells, layer_dict=None,\
         Shot.update_layerorder(layer_order)
     gcomponents = globaloverlay.elements
     allshots = []
+    #pdb.set_trace()
     for component in gcomponents:
         if component.ref_cell.name in ignored_cells: continue
-        allshots.extend(makeshot(component))
+        shots_made = makeshot(component)
+        print (component.ref_cell.name, len(shots_made))
+        allshots.extend(shots_made)
 
     mcomponents = {}
     for mask in mask_list:
@@ -361,7 +364,8 @@ def gen_patches_table(globaloverlay, mask_list, ignored_cells, layer_dict=None,\
     allshots.sort()
     return allshots
 
-def makeshot(curr_element, parent_origin=[0,0], parentIsArray=False, arrayArgs={}):
+empty_dict = dict()
+def makeshot(curr_element, parent_origin=[0,0], parentIsArray=False, arrayArgs=empty_dict):
     #pdb.set_trace()
     curr_cell = curr_element.ref_cell
     curr_origin = curr_element.origin
@@ -369,10 +373,10 @@ def makeshot(curr_element, parent_origin=[0,0], parentIsArray=False, arrayArgs={
         curr_origin)
     cell_shift = scalearr(abs_origin, scale)
     cell_size = scalearr(get_size(curr_element), scale)
-    
+
     isArray = False
     if type(curr_element) == gdspy.CellArray:
-        arr_center = scalearr(get_center(curr_element), scale)   
+        arr_center = scalearr(get_center(curr_element), scale)
         xspacing, yspacing = scalearr(curr_element.spacing, scale)
         args = {'num_cols':curr_element.columns, 'num_rows':curr_element.rows, 'center':arr_center,\
         'xspacing':xspacing, 'yspacing':yspacing}
@@ -406,10 +410,10 @@ def makeshot(curr_element, parent_origin=[0,0], parentIsArray=False, arrayArgs={
     # polygonset stuff.
     child_shotlist = []
     for child in child_elements:
-        child_shotlist.extend(makeshot(child, abs_origin, isArray, args))
         # If the current shot is part of a larger array, I want to keep track of
         # that information
-        return child_shotlist
+        child_shotlist.extend(makeshot(child, abs_origin, isArray, args))
+    return child_shotlist
 
 
 # def makeshot(element, parent=None, hierarchy=0):

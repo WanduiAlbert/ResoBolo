@@ -1613,7 +1613,7 @@ if __name__=='__main__':
     # and the Mask file
     globaloverlay = main_lib.cell_dict['Global_Overlay']
     mask = main_lib.cell_dict['ResoArray_Mask_May2018']
-    to_ignore = set("WaferOutline")
+    to_ignore = set(["WaferOutline"])
     allshots = patches.gen_patches_table(globaloverlay, [mask], to_ignore, def_layers,\
             layer_order)
     patchtable = patches.PatchTable(allshots, 'ResonatorArray.xlsx')
