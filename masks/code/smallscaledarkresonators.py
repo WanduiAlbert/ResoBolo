@@ -8,6 +8,10 @@ from scipy import constants,special
 import astropy.units as u
 import patches
 from openpyxl import Workbook
+import pdb
+import pprint
+pp = pprint.PrettyPrinter(indent=4)
+
 number_of_points = 32
 
 mUnits = 1e-6
@@ -371,6 +375,8 @@ def cellIsPresent(cellname):
 def inverter(cell, rotation=0):
     cell_name = cell.name + '_r'
     if cellIsPresent(cell_name): return
+    if cell.name.startswith('Capacitor'):
+        rotation = 90
     inv_cell = gdspy.Cell(cell_name)
     cell = cell.flatten()
     cell_ref = gdspy.CellReference(cell, rotation=rotation)
@@ -390,7 +396,7 @@ def invert_cell(cell, rotation=0):
     layers = cell.get_layers()
 
     if len(layers) == 1:
-        inverter(cell, rotation)
+        inverter(cell)
 
     for cell in cell.get_dependencies():
         invert_cell(cell, rotation)
@@ -787,11 +793,7 @@ def make_inverted_cells():
     for cell in top.get_dependencies():
         if cell.name == 'WaferOutline': continue
         if not cell.name.endswith('_r'):
-            if cell.name.startswith('Capacitor'):
-                invert_cell(cell, rotation=90)
-            else:
-                invert_cell(cell)
-
+            invert_cell(cell)
 
 
 def get_inverted_cells():
@@ -1289,6 +1291,7 @@ def main():
 
     print ("Generating the mask....\n\n")
     all_cells = main_lib.cell_dict
+    #pp.pprint(all_cells)
     make_inverted_cells()
 
     inv_cell_list = get_inverted_cells() #+ [ixef2, i_island]

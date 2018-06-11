@@ -362,7 +362,7 @@ def gen_patches_table(globaloverlay, mask_list, ignored_cells, layer_dict=None,\
     return allshots
 
 def makeshot(curr_element, parent_origin=[0,0], parentIsArray=False, arrayArgs={}):
-    pdb.set_trace()
+    #pdb.set_trace()
     curr_cell = curr_element.ref_cell
     curr_origin = curr_element.origin
     abs_origin = cellNode.get_new_origin(parent_origin,\
