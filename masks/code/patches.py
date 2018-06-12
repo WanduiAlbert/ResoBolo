@@ -41,6 +41,7 @@ thin = Side(border_style='thin', color='000000')
 border = Border(top=thin, left=thin, right=thin, bottom=thin)
 fill = PatternFill(fill_type=None, start_color='FFFFFFFF', end_color='FF000000')
 
+#def as_text(value): return str(value) if value is not None else ""
 
 def style_range(ws, cell_range, border=Border(), fill=None, font=None, alignment=None):
     """
@@ -50,14 +51,23 @@ def style_range(ws, cell_range, border=Border(), fill=None, font=None, alignment
     :param fill: An openpyxl PatternFill or GradientFill
     :param font: An openpyxl Font object
     """
-    rows = ws[cell_range]
 
+
+
+    rows = ws[cell_range]
+    dims = {}
     for row in rows:
         for cell in row:
             cell.font = font
             cell.border = border
             cell.fill = fill
             cell.alignment = alignment
+    #         if cell.value:
+    #             dims[cell.column] = max((dims.get(cell.column, 0), len(cell.value)))
+    # for col, value in dims.items():
+    #     ws.column_dimensions[col].width = value
+
+
     #first_cell = ws[cell_range.split(":")[0]]
     #if alignment:
     #    ws.merge_cells(cell_range)
@@ -132,50 +142,6 @@ class PatchTable():
         style_range(self.ws, cell_range, border=border, fill=fill,\
                 font=font, alignment=al)
 
-        self.ws['A14'] = 'Layer'
-        self.ws['B14'] = 'Description'
-        self.ws['C14'] = 'Cell name'
-        self.ws['D13'] = 'Mask Shift'
-        self.ws.merge_cells('D13:E13')
-        self.ws['D14'] = 'x'
-        self.ws['E14'] = 'y'
-        self.ws['F13'] = 'Cell size'
-        self.ws.merge_cells('F13:G13')
-        self.ws['F14'] = 'x'
-        self.ws['G14'] = 'y'
-        self.ws['M13'] = 'Cell Shift'
-        self.ws.merge_cells('M13:N13')
-        self.ws['M14'] = 'x'
-        self.ws['N14'] = 'y'
-        self.ws.merge_cells('H13:K13')
-        self.ws['H13'] = 'Blade Coordinates'
-        self.ws['H14'] = 'xl'
-        self.ws['I14'] = 'xr'
-        self.ws['J14'] = 'yu'
-        self.ws['K14'] = 'yd'
-        self.ws.merge_cells('O13:P13')
-        self.ws['O13'] = 'Wafer Shift'
-        self.ws['O14'] = 'x'
-        self.ws['P14'] = 'y'
-        self.ws['Q14'] = 'Patch'
-        self.ws['Q15'] = 'Frontside'
-        self.ws['R14'] = 'Dose'
-        self.ws['S14'] = 'Mask'
-        self.ws.merge_cells('T12:Y12')
-        self.ws['T12'] = 'Alternate Array Layout'
-        self.ws.merge_cells('T13:U13')
-        self.ws['T13'] = 'size'
-        self.ws['T14'] = 'C'
-        self.ws['U14'] = 'R'
-        self.ws.merge_cells('V13:W13')
-        self.ws['V13'] = 'center'
-        self.ws['V14'] = 'x'
-        self.ws['W14'] = 'y'
-        self.ws.merge_cells('X13:Y13')
-        self.ws['X13'] = 'step size'
-        self.ws['X14'] = 'x'
-        self.ws['Y14'] = 'y'
-
         populate_column(self.ws, char2num['A'], 15, self.layers)
         populate_column(self.ws, char2num['C'], 15, self.names)
         populate_column(self.ws, char2num['D'], 15, self.mask_shifts[:,0])
@@ -200,6 +166,58 @@ class PatchTable():
         populate_column(self.ws, char2num['W'], 15, self.array_centers[:, 1])
         populate_column(self.ws, char2num['X'], 15, self.array_stepsizes[:, 0])
         populate_column(self.ws, char2num['Y'], 15, self.array_stepsizes[:, 1])
+
+        # Adjust the spreadsheet to ensure that the width of the cells is enough
+        for column_cells in self.ws.columns:
+            length = max(len(str(cell.value or ""))+2 for cell in column_cells)
+            if length < 6: length = 6
+            self.ws.column_dimensions[column_cells[0].column].width = length
+        
+        self.ws['A14'] = 'Layer'
+        self.ws['B14'] = 'Description'
+        self.ws['C14'] = 'Cell name'
+        self.ws['D13'] = 'Mask Shift'
+        self.ws['D14'] = 'x'
+        self.ws['E14'] = 'y'
+        self.ws['F13'] = 'Cell size'
+        self.ws['F14'] = 'x'
+        self.ws['G14'] = 'y'
+        self.ws['M13'] = 'Cell Shift'
+        self.ws['M14'] = 'x'
+        self.ws['N14'] = 'y'
+        self.ws['H13'] = 'Blade Coordinates'
+        self.ws['H14'] = 'xl'
+        self.ws['I14'] = 'xr'
+        self.ws['J14'] = 'yu'
+        self.ws['K14'] = 'yd'
+        self.ws['O13'] = 'Wafer Shift'
+        self.ws['O14'] = 'x'
+        self.ws['P14'] = 'y'
+        self.ws['Q14'] = 'Patch'
+        self.ws['Q15'] = 'Frontside'
+        self.ws['R14'] = 'Dose'
+        self.ws['S14'] = 'Mask'
+        self.ws['T12'] = 'Alternate Array Layout'
+        self.ws['T13'] = 'size'
+        self.ws['T14'] = 'C'
+        self.ws['U14'] = 'R'
+        self.ws['V13'] = 'center'
+        self.ws['V14'] = 'x'
+        self.ws['W14'] = 'y'
+        self.ws['X13'] = 'step size'
+        self.ws['X14'] = 'x'
+        self.ws['Y14'] = 'y'
+
+        self.ws.merge_cells('D13:E13')
+        self.ws.merge_cells('F13:G13')
+        self.ws.merge_cells('M13:N13')
+        self.ws.merge_cells('H13:K13')
+        self.ws.merge_cells('O13:P13')
+        self.ws.merge_cells('T12:Y12')
+        self.ws.merge_cells('T13:U13')
+        self.ws.merge_cells('V13:W13')
+        self.ws.merge_cells('X13:Y13')
+
 
 
         self.wb.save(self.filename)
@@ -343,7 +361,7 @@ def gen_patches_table(globaloverlay, mask_list, ignored_cells, layer_dict=None,\
     for component in gcomponents:
         if component.ref_cell.name in ignored_cells: continue
         shots_made = makeshot(component)
-        print (component.ref_cell.name, len(shots_made))
+        #print (component.ref_cell.name, len(shots_made))
         allshots.extend(shots_made)
 
     mcomponents = {}
@@ -377,6 +395,8 @@ def makeshot(curr_element, parent_origin=[0,0], parentIsArray=False, arrayArgs=e
     isArray = False
     if type(curr_element) == gdspy.CellArray:
         arr_center = scalearr(get_center(curr_element), scale)
+        abs_origin = cellNode.get_new_origin(get_center(curr_element), curr_origin)
+        cell_shift = scalearr(abs_origin, scale)
         xspacing, yspacing = scalearr(curr_element.spacing, scale)
         args = {'num_cols':curr_element.columns, 'num_rows':curr_element.rows, 'center':arr_center,\
         'xspacing':xspacing, 'yspacing':yspacing}
