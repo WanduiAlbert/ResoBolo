@@ -1,28 +1,36 @@
 <literal>
 <script type=''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''text/javascript''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''>// <![CDATA[
 
-single_frequency = '254.5';
- 
-sfull_dir = '/twiki/pub/Resonators/20180413_TLS_Screener_NetAnal/low_power/';
+frequency = '320';
+txgain = '0';
 
-function update_qp_single_plots(){
-    summary_qp_single_link = full_dir+ "fig/diagnostics/resonator_"+single_frequency+"MHz_QvsP.png";
+sfull_dir = '/twiki/pub/Resonators/20180605_TLS_Screener_SingleTone/vna_noise_comparison/';
 
-    document["summary_qp_single"].src=summary_qp_single_link;
+function update_vna_noise_comp_plots(){
+    summary_vna_link = full_dir+ "VNA_vs_Noise_"+frequency+"MHz_txgain_"+ txgain+ "dB.png";
+
+    document["summary_vna"].src=summary_vna_link;
 }
 
-function set_single_frequency(x){
-    single_frequency = x;
-    update_qp_single_plots();
+function set_frequency(x){
+    frequency = x;
+    update_vna_noise_comp_plots();
+}
+
+function set_txgain(x){
+    txgain = x;
+    update_vna_noise_comp_plots();
 }
 
 // ]]></script>
 
 </literal> <sticky><table width="100%"><tr><td valign="top" width="25%"></sticky>
 
-|<sticky><literal><a href="javascript:set_single_frequency('253.3');">253.3MHz</a></literal></sticky>|<sticky><literal><a href="javascript:set_single_frequency('254.2');">254.2MHz</a></literal></sticky>|<sticky><literal><a href="javascript:set_single_frequency('254.5');">254.5MHz</a></literal></sticky>|<sticky><literal><a href="javascript:set_single_frequency('283.7');">283.7MHz</a></literal></sticky>|<sticky><literal><a href="javascript:set_single_frequency('284.0');">284.0MHz</a></literal></sticky>|<sticky><literal><a href="javascript:set_single_frequency('286.0');">286.0MHz</a></literal></sticky>|<sticky><literal><a href="javascript:set_single_frequency('394.3');">394.3MHz</a></literal></sticky>|
+|<sticky><literal><a href="javascript:set_frequency('320');">320MHz</a></literal></sticky>|<sticky><literal><a href="javascript:set_frequency('360');">360MHz</a></literal></sticky>|
 
-|<sticky><literal> <a  href="javascript:location.href=summary_qp_single;"> <img height=480  src="" name="summary_qp_single"></a> </literal></sticky>  |
+|<sticky><literal><a href="javascript:set_txgain('0');">0 dB</a></literal></sticky>|<sticky><literal><a href="javascript:set_txgain('5');">5 dB</a></literal></sticky>|<sticky><literal><a href="javascript:set_txgain('10');">10 dB</a></literal></sticky>|<sticky><literal><a href="javascript:set_txgain('15');">15 dB</a></literal></sticky>|<sticky><literal><a href="javascript:set_txgain('20');">20 dB</a></literal></sticky>|<sticky><literal><a href="javascript:set_txgain('25');">25 dB</a></literal></sticky>|
+
+|<sticky><literal> <a  href="javascript:location.href=summary_vna;"> <img height=480  src="" name="summary_vna"></a> </literal></sticky>  |
 
 
 <sticky></td></tr></table>
