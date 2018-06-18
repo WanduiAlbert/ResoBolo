@@ -1082,6 +1082,23 @@ def get_wafer_edges():
 
     return hor_cell, vert_cell
 
+# Makes a rectangle on a default layer
+def make_rectangle(width,length):
+    return gdspy.Rectangle([-width/2, length/2], [width/2, -length/2], layer=def_layers['120nm_NbWiring'])
+
+def fill_empty_space(cell, width, length):
+    filler = make_rectangle(width, length)
+    subcells = cell.elements
+    for subcell in subcells:
+        dx, dy = get_size(subcell)
+        subrect = make_rectangle(dx, dy)
+        subrect.translate(*subcell.origin)
+        filler = gdspy.fast_boolean(filler, subrect, 'xor',layer=def_layers['120nm_NbWiring'])
+        # print (subcell)
+    return filler
+
+
+
 
 def main():
     print ("Generating the global overlay....\n\n ")
@@ -1506,8 +1523,8 @@ def main():
     num_rflank = 2
     num_lflank = 2
 
-    mrows = 6
-    mcols = 5
+    mrows = 5
+    mcols = 6
 
     num_start, num_end = 0, num_above
     caps_above = list(map(lambda x: gdspy.CellReference(x), caps_inv[num_start:num_end]))
@@ -1542,21 +1559,21 @@ def main():
 
     # Place all the caps above the common pixel
     for index, cap in enumerate(caps_above):
-        irow, icol = index // mrows, index % mcols
-        y_displacement = u_dy * (mrows - irow - 1)
+        irow, icol = index // mcols, index % mcols
+        y_displacement = u_dy * (mrows - irow)
         x_displacement = u_dx * (icol - (mcols//2))
-        moveabove(icap2ind_ref, caps_above[index], spacing=-y_displacement)
-        caps_above[index].translate(x_displacement , intercap_spacing)
-        mask.add(caps_above[index])
+        moveabove(icap2ind_ref, cap, spacing=-y_displacement)
+        cap.translate(x_displacement , intercap_spacing)
+        mask.add(cap)
 
     # Place all the caps below the common pixel
     for index, cap in enumerate(caps_below):
-        irow, icol = index // mrows, index % mcols
-        y_displacement = u_dy * (mrows - irow - 1)
+        irow, icol = index // mcols, index % mcols
+        y_displacement = u_dy * (mrows - irow)
         x_displacement = u_dx * (icol - (mcols//2))
-        movebelow(icap2ind_ref, caps_below[index], spacing=y_displacement)
-        caps_below[index].translate(x_displacement , - intercap_spacing)
-        mask.add(caps_below[index])
+        movebelow(icap2ind_ref, cap, spacing=y_displacement)
+        cap.translate(x_displacement , - intercap_spacing)
+        mask.add(cap)
 
 
     # iucaps_ref = placeuniquecaps(caps_inv, mask, 10, nrows, ncols)
@@ -1582,12 +1599,13 @@ def main():
     mask.add(ixef2_ref)
 
 
-
+    filler = fill_empty_space(mask, mask_width, mask_length)
+    mask.add(filler)
 
     main_lib.write_gds('sscale_darkres.gds',unit=1e-6,precision=1e-9)
 
     print ("\n\nMask Generation Completed.\n\n")
-    #sys.exit()
+    # sys.exit()
 
     ###########################################################################
     #                                                                         #
