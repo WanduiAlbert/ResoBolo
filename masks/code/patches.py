@@ -5,6 +5,7 @@ from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, Border, Side, PatternFill
 from string import ascii_uppercase
 
+allowed_element_types = set([gdspy.Cell, gdspy.CellReference, gdspy.CellArray])
 
 class cellNode():
 
@@ -265,6 +266,10 @@ class Shot():
             self.center = kwargs['center']
             self.xspacing = kwargs['xspacing']
             self.yspacing = kwargs['yspacing']
+        # defaults
+        self.maskcell=""
+        self.maskcellsize=(0,0)
+        self.mask_shift=(0,0)
 
     def update_mask_location(self, maskcellref, maskname):
         self.mask_name = maskname
@@ -279,9 +284,9 @@ class Shot():
         if not self.isArray:
             return "Shot({0}, {1}, {2}, {3})".format(self.cellname,\
                     self.cell_shift,self.mask_shift, self.maskcellsize)
-            return "Shot({0}, {1}, {2}, {3}, {4}, {5})".format(self.cellname,\
-                    self.center, self.mask_shift, self.maskcellsize,\
-                    (self.ncols, self.nrows),(self.xspacing, self.yspacing))
+        return "Shot({0}, {1}, {2}, {3}, {4}, {5})".format(self.cellname,\
+            self.center, self.mask_shift, self.maskcellsize,\
+            (self.ncols, self.nrows),(self.xspacing, self.yspacing))
 
     def __eq__(self, other):
         if Shot.ordering[self.layer] == Shot.ordering[other.layer]:
@@ -346,6 +351,10 @@ def same_mask_cellname(shot):
 def inv_mask_cellname(shot):
     if shot.cellname.endswith('_r'):
         name = shot.cellname
+    elif shot.cellname.endswith('inv'):
+        name = shot.cellname
+    elif shot.cellname.endswith('-r'):
+        name = shot.cellname
     else:
         name = shot.cellname + '_r'
     return name
@@ -357,8 +366,9 @@ def gen_patches_table(globaloverlay, mask_list, ignored_cells, layer_dict=None,\
         Shot.update_layerorder(layer_order)
     gcomponents = globaloverlay.elements
     allshots = []
-    #pdb.set_trace()
+    # pdb.set_trace()
     for component in gcomponents:
+        if type(component) not in allowed_element_types: continue
         if component.ref_cell.name in ignored_cells: continue
         shots_made = makeshot(component)
         #print (component.ref_cell.name, len(shots_made))
@@ -366,7 +376,7 @@ def gen_patches_table(globaloverlay, mask_list, ignored_cells, layer_dict=None,\
 
     mcomponents = {}
     for mask in mask_list:
-        mcomponents[mask.name] = mask.elements
+        mcomponents[mask.name] = [x for x in mask.elements if type(x) in allowed_element_types]
 
     for shot in allshots:
         if cellsInverted:
@@ -374,10 +384,14 @@ def gen_patches_table(globaloverlay, mask_list, ignored_cells, layer_dict=None,\
         else:
             name = same_mask_cellname(shot)
         for mask in mcomponents:
-            match = list(filter(lambda x: x.ref_cell.name == name,
-                mcomponents[mask]))[0]
-            if not match: continue
-            shot.update_mask_location(match, mask)
+            try:
+                match = list(filter(lambda x: x.ref_cell.name == name,
+                    mcomponents[mask]))[0]
+                if not match: continue
+                shot.update_mask_location(match, mask)
+            except IndexError:
+                print ("Could not find a matching cell on mask for cell {:s}".format(name))
+                continue
 
     allshots.sort()
     return allshots
@@ -430,6 +444,7 @@ def makeshot(curr_element, parent_origin=[0,0], parentIsArray=False, arrayArgs=e
     # polygonset stuff.
     child_shotlist = []
     for child in child_elements:
+        if type(child) not in allowed_element_types: continue
         # If the current shot is part of a larger array, I want to keep track of
         # that information
         child_shotlist.extend(makeshot(child, abs_origin, isArray, args))
