@@ -1098,13 +1098,9 @@ def fill_empty_space(cell, width, length):
     return filler
 
 
+def generate_globaloverlay(nrows, ncols):
 
-
-def main():
     print ("Generating the global overlay....\n\n ")
-    # Wafer organization all dimensions in microns
-    nrows = 8
-    ncols = 8
     N_res = nrows * ncols
 
     wafer = gdspy.Cell('Global_Overlay')
@@ -1295,17 +1291,15 @@ def main():
 
     wafer.add(verts)
     wafer.add(horizs)
-
-    print ("Global Overlay Generation Completed.\n\n")
     # main_lib.write_gds('sscale_darkres.gds',unit=1e-6,precision=1e-9)
 
     #chip_outline = makechipoutline(wafer_width, wafer_len,'WaferOutline')
     #wafer.add(gdspy.CellReference(chip_outline))
 
-    ##########################################################################
-    #####       MASK GENERATION. GLOBAL OVERLAY COMPLETED.  ##################
-    ##########################################################################
+    print ("Global Overlay Generation Completed.\n\n")
+    return wafer
 
+def generate_mask():
     print ("Generating the mask....\n\n")
     all_cells = main_lib.cell_dict
     #pp.pprint(all_cells)
@@ -1602,40 +1596,96 @@ def main():
     filler = fill_empty_space(mask, mask_width, mask_length)
     mask.add(filler)
 
-    main_lib.write_gds('sscale_darkres.gds',unit=1e-6,precision=1e-9)
 
     print ("\n\nMask Generation Completed.\n\n")
-    # sys.exit()
+    return mask
 
+def generate_inverted_overlay(wafer, mask):
+    invwafer = gdspy.Cell()
+    gcomponents = wafer.elements
+    for component in gcomponents:
+        if type(component) not in allowed_element_types: continue
+        if component.ref_cell.name in ignored_cells: continue
+        shots_made = makeshot(component)
+        #print (component.ref_cell.name, len(shots_made))
+        allshots.extend(shots_made)
+
+    mcomponents = {}
+    for mask in mask_list:
+        mcomponents[mask.name] = [x for x in mask.elements if type(x) in allowed_element_types]
+
+    for shot in allshots:
+        if cellsInverted:
+            name = inv_mask_cellname(shot)
+        else:
+            name = same_mask_cellname(shot)
+        for mask in mcomponents:
+            try:
+                match = list(filter(lambda x: x.ref_cell.name == name,
+                    mcomponents[mask]))[0]
+                if not match: continue
+                shot.update_mask_location(match, mask)
+            except IndexError:
+                print ("Could not find a matching cell on mask for cell {:s}".format(name))
+                continue
+
+    return invwafer
+
+
+
+
+def main():
+    # Wafer organization all dimensions in microns
+    nrows = 8
+    ncols = 8
+    ###########################################################################
+    #                                                                         #
+    #                   GLOBAL OVERLAY GENERATION.                            #
+    #                                                                         #
+    ###########################################################################
+    wafer = generate_globaloverlay(nrows, ncols)
+
+
+    ###########################################################################
+    #                                                                         #
+    #              MASK GENERATION. GLOBAL OVERLAY COMPLETED.                 #
+    #                                                                         #
+    ###########################################################################
+    mask = generate_mask()
+
+    main_lib.write_gds('sscale_darkres.gds',unit=1e-6,precision=1e-9)
     ###########################################################################
     #                                                                         #
     #           Generating the patch shot table                               #
     #                                                                         #
     ###########################################################################
 
-    # print ("Generating the patch shot spreadsheet....")
-    # # Now I want to generate the full patch shot table from the Global Overlay
-    # # and the Mask file
-    # globaloverlay = main_lib.cell_dict['Global_Overlay']
-    # to_ignore = set("WaferOutline")
-    # allshots = patches.gen_patches_table(globaloverlay, [mask], to_ignore, def_layers,\
-    #         layer_order)
-    # patchtable = patches.PatchTable(allshots, 'ResonatorArray.xlsx')
-    # patchtable.generate_spreadsheet()
-    # print ("Completed.")
-
-if __name__=='__main__':
-    main()
     print ("Generating the patch shot spreadsheet....")
     # Now I want to generate the full patch shot table from the Global Overlay
     # and the Mask file
     globaloverlay = main_lib.cell_dict['Global_Overlay']
-    mask = main_lib.cell_dict['ResoArray_Mask_May2018']
-    to_ignore = set(["WaferOutline"])
+    to_ignore = set("WaferOutline")
     allshots = patches.gen_patches_table(globaloverlay, [mask], to_ignore, def_layers,\
-            layer_order)
+         layer_order)
     patchtable = patches.PatchTable(allshots, 'ResonatorArray.xlsx')
     patchtable.generate_spreadsheet()
     print ("Completed.")
+
+    ###########################################################################
+    #                                                                         #
+    #           Testing the wafer generation                                  #
+    #                                                                         #
+    ###########################################################################
+
+    print ("Running a set of tests on the global overlay and masks...")
+    invwafer = generate_inverted_overlay(wafer, mask)
+
+
+
+
+
+
+if __name__=='__main__':
+    main()
 
 
