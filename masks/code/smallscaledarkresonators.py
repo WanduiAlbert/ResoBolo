@@ -1220,8 +1220,8 @@ def main():
     reso_struct_arr = gdspy.CellArray(reso_structure, ncols, nrows,\
             [xspacing, yspacing] )
     reso_struct_arr.translate(-arr_xshift, -arr_yshift)
-    print (reso_struct_arr.origin)
-    print (reso_struct_arr.get_bounding_box())
+    # print (reso_struct_arr.origin)
+    # print (reso_struct_arr.get_bounding_box())
     wafer.add(reso_struct_arr)
     cu_overlap = 2
     # common_res_arr.translate(c_xoffset, 0)
