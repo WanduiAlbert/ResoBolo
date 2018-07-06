@@ -91,11 +91,11 @@
   <source>6/0@1</source>
  </properties>
  <properties>
-  <frame-color>#0000ff</frame-color>
-  <fill-color>#0000ff</fill-color>
+  <frame-color>#008080</frame-color>
+  <fill-color>#008080</fill-color>
   <frame-brightness>0</frame-brightness>
   <fill-brightness>0</fill-brightness>
-  <dither-pattern>I1</dither-pattern>
+  <dither-pattern>I5</dither-pattern>
   <valid>true</valid>
   <visible>true</visible>
   <transparent>false</transparent>
@@ -135,7 +135,6 @@
   <name>ILD</name>
   <source>9/0@1</source>
  </properties>
- <name/>
  <properties>
   <frame-color>#000000</frame-color>
   <fill-color>#00008b</fill-color>
@@ -151,7 +150,6 @@
   <name>XeF2</name>
   <source>10/0@1</source>
  </properties>
- <name/>
  <properties>
   <frame-color>#ff0000</frame-color>
   <fill-color>#ff0000</fill-color>
@@ -166,6 +164,21 @@
   <animation>0</animation>
   <name>GP</name>
   <source>12/0@1</source>
+ </properties>
+ <properties>
+  <frame-color>#ffc280</frame-color>
+  <fill-color>#ffc280</fill-color>
+  <frame-brightness>0</frame-brightness>
+  <fill-brightness>0</fill-brightness>
+  <dither-pattern>I11</dither-pattern>
+  <valid>true</valid>
+  <visible>true</visible>
+  <transparent>false</transparent>
+  <width/>
+  <marked>false</marked>
+  <animation>0</animation>
+  <name>Wafer Outline</name>
+  <source>22/0@1</source>
  </properties>
  <name/>
 </layer-properties>

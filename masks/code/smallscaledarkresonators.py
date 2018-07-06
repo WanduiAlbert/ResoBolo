@@ -32,7 +32,7 @@ main_lib = gdspy.GdsLibrary('main')
 gdspy.current_library = main_lib
 
 def_layers = {"Thin Gold":1, "PRO1":2, "ALUMINUM":3, "LSNSUB":4, "LSN1":5,
-        "120nm_NbWiring":6, "STEPPER":7, "400nm_NbWiring":8, "ILD":9, "XeF2":10, "GP":12}
+        "120nm_NbWiring":6, "STEPPER":7, "400nm_NbWiring":8, "ILD":9, "XeF2":10, "GP":12, 'Wafer Outline':22}
 layer_order = [12, 9, 6, 3, 8 ]
 feed_cell_length = 100
 feed_cell_width = 20
@@ -374,6 +374,7 @@ def cellIsPresent(cellname):
 
 def inverter(cell, rotation=0):
     cell_name = cell.name + '_r'
+    # print(cell_name)
     if cellIsPresent(cell_name): return
     if cell.name.startswith('Capacitor'):
         rotation = 90
@@ -391,6 +392,8 @@ def inverter(cell, rotation=0):
     bbox = gdspy.Rectangle([-dx/2, dy/2], [dx/2, -dy/2], layer=layer)
     new_polyset = gdspy.fast_boolean(polyset, bbox, 'xor', layer=layer)
     inv_cell.add(new_polyset)
+    # main_lib.add(inv_cell)
+    return inv_cell
 
 def invert_cell(cell, rotation=0):
     layers = cell.get_layers()
@@ -398,8 +401,10 @@ def invert_cell(cell, rotation=0):
     if len(layers) == 1:
         inverter(cell)
 
+    icells = []    
     for cell in cell.get_dependencies():
-        invert_cell(cell, rotation)
+        icells.append(invert_cell(cell, rotation))
+    return icells
 
 
 # Note that I have defined island_halfwidth to be the distance in the x direction 
@@ -789,6 +794,7 @@ def get_bondpads():
 def make_inverted_cells():
     allcells = main_lib.cell_dict
     cellnames = allcells.keys()
+    # print (cellnames)
     top = allcells['Global_Overlay']
     for cell in top.get_dependencies():
         if cell.name == 'WaferOutline': continue
@@ -1069,7 +1075,7 @@ def get_XeF2_release():
     return xef2
 
 def get_wafer_edges():
-    edge_l = 50
+    edge_l = 125
     edge_w = 15e3
     hor = gdspy.Rectangle([-edge_w/2, edge_l/2], [edge_w/2, -edge_l/2],
             layer=def_layers['120nm_NbWiring'])
@@ -1097,6 +1103,23 @@ def fill_empty_space(cell, width, length):
         # print (subcell)
     return filler
 
+def get_mask_lens():
+    diameter = 31112
+    radius = diameter/2
+    lens = gdspy.Round([0,0], radius, number_of_points=2000, layer=def_layers['STEPPER'])
+    return gdspy.fast_boolean(lens, None, 'or', layer=def_layers['STEPPER'])
+
+def get_wafer_outline():
+    o_diameter = 150000
+    o_radius = o_diameter/2
+    i_diameter = o_diameter - 6000
+    i_radius = i_diameter/2
+    o_outline= gdspy.Round([0,0], o_radius, number_of_points=2000, layer=def_layers['Wafer Outline'])
+    i_outline= gdspy.Round([0,0], i_radius, number_of_points=2000, layer=def_layers['Wafer Outline']) 
+
+    o_outline = gdspy.fast_boolean(o_outline, None, 'or', layer=def_layers['Wafer Outline'])
+    i_outline = gdspy.fast_boolean(i_outline, None, 'or', layer=def_layers['Wafer Outline'])
+    return o_outline, i_outline   
 
 def generate_globaloverlay(nrows, ncols):
 
@@ -1108,6 +1131,9 @@ def generate_globaloverlay(nrows, ncols):
     island = get_island()
     xef2 = get_XeF2_release()
 
+    o_outline, i_outline = get_wafer_outline()
+    wafer.add(o_outline)
+    wafer.add(i_outline)
     # Generate all the capacitors
     L = 10 #nH
     fstart = 300 # MHz
@@ -1306,7 +1332,7 @@ def generate_mask():
     make_inverted_cells()
 
     inv_cell_list = get_inverted_cells() #+ [ixef2, i_island]
-
+    # print ( list(x.name for x in inv_cell_list))
     not_yet = set(inv_cell_list)
     total_mask_area = mask_length * mask_width
     total_area_needed = np.sum(list(map(lambda x: get_cell_area(x),\
@@ -1364,14 +1390,16 @@ def generate_mask():
     centery(ivgndopening_ref, ivgndsub_ref)
 
     mp_dx, mp_dy = get_size(ivgndtopad_ref)
-    ivgndtopad_ref.translate(-mask_width/2 + mp_dx/2 + default_spacing, 0)
-    moveright(ivgndtopad_ref, ivedge_ref, spacing=-default_spacing)
+    ivedge_ref.translate(-mask_width/2 + mp_dx/2 + default_spacing, 0)
     moveright(ivedge_ref, ivmain_ref, spacing=-default_spacing)
     moveright(ivmain_ref, ivgndsub_ref, spacing=-default_spacing)
+    moveright(ivgndsub_ref, ivgndtopad_ref, spacing=-default_spacing)
+    moveright(ivgndtopad_ref, ivmaintopad_ref, spacing=-default_spacing)
+    moveabove(ihgndfiller_ref, ivmaintopad_ref, spacing=-2*default_spacing)
 
-    mp_dx, mp_dy = get_size(ivmaintopad_ref)
-    ivmaintopad_ref.translate(mask_width/2 - mp_dx/2 - default_spacing, 0)
-    moveleft(ivmaintopad_ref, ivgndfiller_ref, spacing=default_spacing)
+    mp_dx, mp_dy = get_size(ivgndfiller_ref)
+    ivgndfiller_ref.translate(mask_width/2 - mp_dx/2 - default_spacing, 0)
+    # moveleft(ivmaintopad_ref, ivgndfiller_ref, spacing=default_spacing)
     moveleft(ivgndfiller_ref, ivgndopening_ref, spacing=default_spacing)
 
     # Placement of the common pixel on the mask
@@ -1429,10 +1457,10 @@ def generate_mask():
     moveleft(ivgndopening_ref, iILDsub_ref, spacing=default_spacing)
     movebelow(iresogndsub_ref, iILDsub_ref, spacing=default_spacing)
 
-    movebelow(ihedge_ref, imainfeed_ref, spacing=default_spacing)
+    movebelow(ihedge_ref, imainfeed_ref, spacing=default_spacing/2)
     movebelow(imainfeed_ref, igndsubfeed_ref, spacing=default_spacing)
     movebelow(igndsubfeed_ref, ihmaintopad_ref, spacing=default_spacing)
-    movebelow(ihmaintopad_ref, ihgndtopad_ref, spacing=default_spacing)
+    movebelow(ihmaintopad_ref, ihgndtopad_ref, spacing=default_spacing/2)
 
 
 
@@ -1600,39 +1628,86 @@ def generate_mask():
     print ("\n\nMask Generation Completed.\n\n")
     return mask
 
+def get_inv_cellname(cellname):
+    if cellname.endswith('_r'):
+        inv_cell_name = cellname
+    else:
+        inv_cell_name = cellname + '_r'
+    return inv_cell_name
+
+def make_inverted_cell(cellref, mask_components):
+    cellname = cellref.ref_cell.name
+    # if cellname == "terminal_lines_and_pad":
+    #     pdb.set_trace()
+    invcellname = get_inv_cellname(cellname)
+    if invcellname in mask_components:
+        invcellref = gdspy.CellReference(invcellname)
+    else:
+        try:
+            invcell = main_lib.cell_dict[invcellname]
+            invcellref = gdspy.CellReference(invcell)
+        except KeyError:
+            invcell = gdspy.Cell(invcellname)
+            subcells = cellref.ref_cell.elements
+            for a_cell in subcells:
+                a_cellref = make_inverted_cell(a_cell, mask_components)
+                if type(a_cell) == gdspy.CellArray:
+                    a_cellarr = gdspy.CellArray(a_cellref.ref_cell, columns=a_cell.columns, rows=a_cell.rows,\
+                        spacing=a_cell.spacing,origin=a_cell.origin)
+                    invcell.add(a_cellarr)
+                else:
+                    a_cellref.origin = a_cell.origin
+                    invcell.add(a_cellref)
+            invcellref = gdspy.CellReference(invcell)
+    invcellref.origin = cellref.origin
+
+    
+    return invcellref
+
 def generate_inverted_overlay(wafer, mask):
-    invwafer = gdspy.Cell()
+    mask_components = {x.ref_cell.name for x in mask.elements if type(x) in patches.allowed_element_types}
+
+    # invcomponent = make_inverted_cell(component, mask_components)
+    invwafer = gdspy.Cell('Global_Overlay_Inverted')
     gcomponents = wafer.elements
     for component in gcomponents:
-        if type(component) not in allowed_element_types: continue
-        if component.ref_cell.name in ignored_cells: continue
-        shots_made = makeshot(component)
-        #print (component.ref_cell.name, len(shots_made))
-        allshots.extend(shots_made)
+        # print (component)
+        ctype = type(component)
+        if ctype not in patches.allowed_element_types: continue
+        invcomponent = make_inverted_cell(component, mask_components)
+ 
+        if ctype == gdspy.CellArray:
+            # continue
+            invcomponent = gdspy.CellArray(invcomponent.ref_cell, columns=component.columns, rows=component.rows,\
+            spacing=component.spacing)
+        invcomponent.origin = component.origin
+        invwafer.add(invcomponent)
 
-    mcomponents = {}
-    for mask in mask_list:
-        mcomponents[mask.name] = [x for x in mask.elements if type(x) in allowed_element_types]
-
-    for shot in allshots:
-        if cellsInverted:
-            name = inv_mask_cellname(shot)
-        else:
-            name = same_mask_cellname(shot)
-        for mask in mcomponents:
-            try:
-                match = list(filter(lambda x: x.ref_cell.name == name,
-                    mcomponents[mask]))[0]
-                if not match: continue
-                shot.update_mask_location(match, mask)
-            except IndexError:
-                print ("Could not find a matching cell on mask for cell {:s}".format(name))
-                continue
 
     return invwafer
 
+def check_cell_for_overlaps(cell):
+    maxdepth = 100
+    all_polygons = cell.get_polygons(depth=0)
+    all_polygons = [gdspy.Polygon(x) for x in all_polygons]
+    N = len(all_polygons)
+    print (N)
+    counter = 0
+    for i in range(N):
+        for j in range(i + 1, N):
+            overlap = gdspy.fast_boolean(all_polygons[i], all_polygons[j], 'and')
+            if overlap is not None:
+                return True
+            # print (counter)
+            counter += 1
 
+    return False
 
+def collapse_cell(cell, layer):
+    new_cellname = cell.name + '_singlelayer'
+    new_cell = cell.copy(name=new_cellname,deep_copy=True)
+    new_cell = new_cell.flatten(single_layer=layer)
+    return new_cell
 
 def main():
     # Wafer organization all dimensions in microns
@@ -1669,7 +1744,7 @@ def main():
          layer_order)
     patchtable = patches.PatchTable(allshots, 'ResonatorArray.xlsx')
     patchtable.generate_spreadsheet()
-    print ("Completed.")
+    print ("Completed.\n\n")
 
     ###########################################################################
     #                                                                         #
@@ -1678,7 +1753,29 @@ def main():
     ###########################################################################
 
     print ("Running a set of tests on the global overlay and masks...")
+
     invwafer = generate_inverted_overlay(wafer, mask)
+
+    # Add Canon Lens to the mask cell
+
+    # Add the wafer circles to the global overlay
+
+    # Make a mask cell with all layers collapsed into 1.
+    flat_mask = collapse_cell(mask, layer=def_layers['400nm_NbWiring'])
+
+    # Check mask cell for overlaps between the cells
+    maskhasOverlaps = check_cell_for_overlaps(mask)
+    if maskhasOverlaps:
+        print ("FIX ME: Some cells on the mask were found to have overlaps.")
+    else:
+        print ("No overlaps found on the mask file")
+
+    # Add the Canon Lens Mask which has a diameter of 31.112mm
+    canon_lens = get_mask_lens()
+    mask.add(canon_lens)
+
+
+    main_lib.write_gds('sscale_darkres.gds',unit=1e-6,precision=1e-9)
 
 
 

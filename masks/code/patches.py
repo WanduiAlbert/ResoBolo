@@ -226,7 +226,7 @@ class PatchTable():
 class Shot():
     def_layers = {"Thin Gold":1, "PRO1":2, "ALUMINUM":3, "LSNSUB":4, "LSN1":5,\
             "120nm_NbWiring":6, "STEPPER":7, "400nm_NbWiring":8, "ILD":9,\
-            "XeF2":10, "GP":12}
+            "XeF2":10, "GP":12, 'Wafer Outline':22}
     inv_layers = {value:key for key, value in def_layers.items()}
     layer_list = sorted(list(def_layers.values()))
     index = list(range(len(layer_list)))
@@ -390,7 +390,7 @@ def gen_patches_table(globaloverlay, mask_list, ignored_cells, layer_dict=None,\
                 if not match: continue
                 shot.update_mask_location(match, mask)
             except IndexError:
-                print ("Could not find a matching cell on mask for cell {:s}".format(name))
+                # print ("Could not find a matching cell on mask for cell {:s}".format(name))
                 continue
 
     allshots.sort()
@@ -399,6 +399,7 @@ def gen_patches_table(globaloverlay, mask_list, ignored_cells, layer_dict=None,\
 empty_dict = dict()
 def makeshot(curr_element, parent_origin=[0,0], parentIsArray=False, arrayArgs=empty_dict):
     #pdb.set_trace()
+    #if curr_element.ref_cell.name in ignored_cells: return
     curr_cell = curr_element.ref_cell
     curr_origin = curr_element.origin
     abs_origin = cellNode.get_new_origin(parent_origin,\
