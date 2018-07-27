@@ -432,6 +432,8 @@ def makeshot(curr_element, parent_origin=[0,0], parentIsArray=False, arrayArgs=e
 
     if not haschildren:
         try:
+            # if curr_element.ref_cell.name == 'gnd_lf' or curr_element.ref_cell.name == 'nitride_lf':
+            #     pdb.set_trace()
             shot = Shot(curr_cell, cell_shift, cell_size, isArray=True, **args)
             return [shot]
         except RuntimeError:

@@ -22,13 +22,13 @@ def_layers = {"Alignment Layer":1, "PRO1":2, "ALUMINUM":3, "LSNSUB":4, "Aluminum
    
 
 if __name__ == "__main__":
-    fn = 'diplexer_ready_for_production.gds'
+    fn = 'diplexer_FINAL_AT_edits.gds'
     gdsii = gdspy.GdsLibrary()
     gdsii.read_gds(fn)
     cell_dict = gdsii.cell_dict
-    bowtie_r = ssd.invert_cell(cell_dict['R_BowtieSlot'])[0]
-    gdsii.add(bowtie_r)
-    gdsii.write_gds('diplexer_ready_for_production.gds',unit=1e-6,precision=1e-9)
+    # bowtie_r = ssd.invert_cell(cell_dict['R_BowtieSlot'])[0]
+    # gdsii.add(bowtie_r)
+    # gdsii.write_gds('diplexer_ready_for_production.gds',unit=1e-6,precision=1e-9)
 
     globaloverlay = cell_dict['Module_features_just_tile']
     mask_list = [cell_dict['reticle_1'], cell_dict['reticle_2']]
