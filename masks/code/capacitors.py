@@ -142,3 +142,40 @@ if __name__=="__main__":
     pp.pprint (Qcs)
     #pp.pprint (ccs)
     #pp.pprint (Cs)
+
+    # Next we do the same for the larger spacing capacitors
+
+    tracew = 4
+    gapw = 4
+    finger_length = 77
+    finger_gap = 3
+    nfingers = [60.5, 64.5, 68.5, 74.5, 80.5]
+    main_nfingers = [168.5,  184.5,  200.5,  220.5,  242.5]
+    N = len(nfingers)
+    uCs = []
+    uccs = []
+    uQcs = []
+    for i in range(N):
+        c = IDC(1.0)
+        c.contact_width=25
+        c.set_dimensions(tracew, gapw, finger_length, finger_gap, nfingers[i]-0.5)
+        # print (c.width, c.height)
+        uccs.append(c.capacitance()*pF)
+        # Now for the main capacitor
+        cmain = IDC(1.0)
+        cmain.contact_width=25
+        cmain.set_dimensions(tracew, gapw, 997, finger_gap,\
+            main_nfingers[i]-0.5)
+        # print (cmain.width, cmain.height)
+        uCs.append(cmain.capacitance()*pF)
+
+    uCs = np.array(uCs)*u.pF
+    pp.pprint (uCs)
+    uccs = np.array(uccs)*u.pF
+    uwrs = (1/(L*uCs)**0.5).to(1/u.s)
+    ufrs = (uwrs/2/pi).to(u.MHz)
+    pp.pprint (ufrs)
+    uQcs = (8*uCs/(uwrs*uccs**2*Z0)).to(1)
+    pp.pprint (uQcs)
+    #pp.pprint (ccs)
+    #pp.pprint (Cs)
