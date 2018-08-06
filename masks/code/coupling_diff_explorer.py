@@ -9,6 +9,9 @@
 
 import numpy as np
 from math import pi
+import matplotlib
+matplotlib.use('TkAgg')
+import matplotlib.pyplot as plt
 from capacitors import IDC
 from scipy.constants import epsilon_0
 import pprint
@@ -27,7 +30,15 @@ L = 12*nH
 Z0 = 50 # Ohms
 d = d_si + d_G10
 er_eff = er_si * er_G10 * d / (er_si * d_G10 + er_G10 * d_si)
-# print (er_eff)
+#print (er_eff)
+
+def get_default_colors():
+    prop_cycle = plt.rcParams['axes.prop_cycle']
+    return prop_cycle.by_key()['color']
+
+
+
+
 
 w = g = 2
 fl = 1000
@@ -57,7 +68,6 @@ l_cc = 162
 cc_cap = IDC(1.0)
 cc_cap.set_dimensions(w,g,75,fg,l_cc/(w+g))
 Cc = cc_cap.capacitance()/pF
-print (Cc)
 # Cc = 0.28036 # Let's try this
 
 l_tank = 2002 #um. Full length of the resonator tank
@@ -65,6 +75,8 @@ A_contact = 25*l_tank*um**2
 A_couplingcap = (l_cc/(w+g)*75*w)*um**2
 A_short_edge = (0.5*l/(w+g)*fl*w)*um**2 + A_contact + A_couplingcap
 A_long_edge = (0.5*l_tank/(w+g)*fl*w)*um**2 + A_contact
+
+pp.pprint(A_short_edge/A_long_edge)
 Cp1 = (epsilon_0 * er_si * A_short_edge/d_si)
 Cp2 = (epsilon_0 * er_si * A_long_edge/d_si)
 Zb = 1/(1j*wr_expected*Cp2) + 1/((1j*wr_expected*Cp1) + 1/(Z0/2 + 1/(1j*wr_expected*Cc*pF)))
@@ -77,7 +89,7 @@ P_diss = Zb.real/np.abs(Zb)**2
 Qc_expected = wr_expected * E_stored/P_diss
 Qc_measured = np.array([72925., 85417., 106397., 126574., 155298.])
 for fr,qc, qcm in zip(fr_expected, Qc_expected, Qc_measured):
-    print ("{0:3.2f} MHz : expected {1:3.2f}, measured {2:3.2f} ".format(fr, qc, qcm))
+    print ("{0:3.2f} MHz : expected/measured {1:3.2f}".format(fr, qc/qcm))
 # ---------------------------------------------------------------- #
 # A wrong way to calculate Qc
 
@@ -92,9 +104,14 @@ for fr,qc, qcm in zip(fr_expected, Qc_expected, Qc_measured):
 
 
 
-# Now we add a spacer between the chip and the chip holder
-Cp1_sp = (epsilon_0 * er_eff * A_short_edge/d)
-Cp2_sp = (epsilon_0 * er_eff * A_long_edge/d)
+# Now we add a spacer between the chip and the chip holder. Here we will try to
+# include a correction for the fringing fields
+R_short_edge = (A_short_edge/pi)**0.5
+R_long_edge = (A_long_edge/pi)**0.5
+Cp1_sp = (epsilon_0 * er_eff * A_short_edge/d) +\
+    epsilon_0*er_eff*R_short_edge*(np.log(16*pi*R_short_edge/d)-1)
+Cp2_sp = (epsilon_0 * er_eff * A_long_edge/d) +\
+    epsilon_0*er_eff*R_long_edge*(np.log(16*pi*R_long_edge/d)-1)
 Zb_sp = 1/(1j*wr_expected*Cp2_sp) + 1/((1j*wr_expected*Cp1_sp) + 1/(Z0/2 + 1/(1j*wr_expected*Cc*pF)))
 P_diss_sp = Zb_sp.real/np.abs(Zb_sp)**2
 Qc_sp = wr_expected * E_stored / P_diss_sp
@@ -111,8 +128,8 @@ for fr,qc, qcm in zip(fr_expected, Qc_sp, Qc_meas_sp):
 # Retry with an overestimate of the total parasitic capacitance. At the opposite limit, 
 # we only see a point charge infront of an infinite grounded metal plane. Use this as 
 # the limit
-Cp1_ol = 1/(8*epsilon_0*er_eff*pi*d)*np.ones(5)
-Cp2_ol = 1/(8*epsilon_0*er_eff*pi*d)
+Cp1_ol = 8*epsilon_0*er_eff*pi*d*np.ones(5)
+Cp2_ol = 8*epsilon_0*er_eff*pi*d
 Zb_ol = 1/(1j*wr_expected*Cp2_ol) + 1/((1j*wr_expected*Cp1_ol) + 1/(Z0/2 + 1/(1j*wr_expected*Cc*pF)))
 P_diss_ol = Zb_ol.real/np.abs(Zb_ol)**2
 Qc_ol = wr_expected * E_stored / P_diss_ol
@@ -123,5 +140,37 @@ Recalculating to account for the addition of the G10 spacer. Point charge approx
 for fr,qc, qcm in zip(fr_expected, Qc_ol, Qc_meas_sp):
     print ("{0:3.2f} MHz : expected/measured {1:3.2f}".format(fr, qc/qcm))
 
-pp.pprint (Cp1_ol/Cp1_sp)
-pp.pprint (Cp2_ol/Cp2_sp)
+#pp.pprint (Cp1_ol/Cp1_sp)
+#pp.pprint (Cp2_ol/Cp2_sp)
+
+
+# Let's try and plot Qc as a function of Cp = (Cp1 + Cp2)/2 = (1 + x)Cp2/2. The
+# exact formula is Qc = C (2 Cp + Cc)^2 (1 + x)^2/(4 Cc^2 Cp^2 Z0 wr) + 4 C Z0
+# wr (1 + x)^2
+
+# Pick a logarithmic range of Cps
+minrange = int(np.log10(Cp2_sp))-1
+maxrange = int(np.log10(Cp2_ol))
+Cp = np.logspace(minrange, maxrange, 100)
+x = Cp1_sp/Cp2_sp
+wr = wr_expected
+fig, ax = plt.subplots(figsize=(10,10))
+# Get the list of default colors
+colors = get_default_colors()
+for i in range(len(x)):
+    qc = (Cs[i]*pF*(2*Cp + Cc*pF)**2*(1 + x[i])**2)/(4*(Cc*pF)**2*Cp**2*Z0*wr[i])
+    qc += 4*Cs[i]*pF*Z0*wr[i]*(1+x[i])**2
+    cp2 = 2*Cp/(1 + x[i])
+    ax.hlines(Qc_meas_sp[i], cp2[0]/pF, cp2[-1]/pF, linestyles='dashed',\
+        colors=colors[i])
+    ax.plot(cp2/pF, qc, label='x = {0:1.3f}'.format(x[i]))
+    #print (qc[0], Qc_meas_sp[i])
+    ax.set_yscale('log')
+    ax.set_xscale('log')
+
+ax.set_xlabel('Cp2 [pF]')
+ax.set_ylabel('Qc')
+ax.grid(which='both')
+ax.legend(title='x = Cp1/Cp2', loc='best')
+ax.set_ylim(1e4, 1e6)
+plt.show()
