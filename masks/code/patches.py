@@ -343,7 +343,7 @@ def get_center(cell):
     (xmin, ymin), (xmax, ymax) = cell.get_bounding_box()
     x0 = (xmax + xmin)//2
     y0 = (ymax + ymin)//2
-    return x0, y0
+    return [x0, y0]
 
 def same_mask_cellname(shot):
     return shot.cellname
@@ -397,21 +397,34 @@ def gen_patches_table(globaloverlay, mask_list, ignored_cells, layer_dict=None,\
     return allshots
 
 empty_dict = dict()
+
+def get_cell_asymmetry(cell):
+    (xmin, ymin), (xmax, ymax) = cell.get_bounding_box()
+    dx = xmax - np.abs(xmin)
+    dy = ymax - np.abs(ymin)
+    return dx, dy
+
 def makeshot(curr_element, parent_origin=[0,0], parentIsArray=False, arrayArgs=empty_dict):
-    #pdb.set_trace()
+    #if curr_element.ref_cell.name == "terminal_lines_and_pad": pdb.set_trace()
     #if curr_element.ref_cell.name in ignored_cells: return
     curr_cell = curr_element.ref_cell
     curr_origin = curr_element.origin
     abs_origin = cellNode.get_new_origin(parent_origin,\
-        curr_origin)
-    cell_shift = scalearr(abs_origin, scale)
+        scalearr(curr_origin, scale))
+    cell_shift = abs_origin
     cell_size = scalearr(get_size(curr_element), scale)
 
     isArray = False
     if type(curr_element) == gdspy.CellArray:
-        arr_center = scalearr(get_center(curr_element), scale)
-        abs_origin = cellNode.get_new_origin(get_center(curr_element), curr_origin)
-        cell_shift = scalearr(abs_origin, scale)
+        # Need to correct the array center by the diff btn the dimensions of the ref_cell
+        arr_center = get_center(curr_element)
+        asymmetry = get_cell_asymmetry(curr_cell)
+        arr_center[0] -= asymmetry[0]/2
+        arr_center[1] -= asymmetry[1]/2
+        arr_center = scalearr(arr_center, scale)
+        #if curr_element.ref_cell.name == "reso_structure": print (arr_center)
+        abs_origin = cellNode.get_new_origin(parent_origin, arr_center)
+        # cell_shift = abs_origin
         xspacing, yspacing = scalearr(curr_element.spacing, scale)
         args = {'num_cols':curr_element.columns, 'num_rows':curr_element.rows, 'center':arr_center,\
         'xspacing':xspacing, 'yspacing':yspacing}
@@ -419,6 +432,7 @@ def makeshot(curr_element, parent_origin=[0,0], parentIsArray=False, arrayArgs=e
 
     elif type(curr_element) == gdspy.CellReference and parentIsArray:
         args = arrayArgs
+        cell_shift = cellNode.get_new_origin(parent_origin, scalearr(curr_origin, scale))
         isArray = True
 
     elif type(curr_element) == gdspy.CellReference and not parentIsArray:
