@@ -26,6 +26,10 @@ d_G10 = 0.0651*25.4*mm
 d = d_si + d_G10
 er_eff = er_si * er_G10 * d / (er_si * d_G10 + er_G10 * d_si)
 
+l = 1000
+w = g = 2
+
+
 def get_default_colors():
     prop_cycle = plt.rcParams['axes.prop_cycle']
     return prop_cycle.by_key()['color']
@@ -33,7 +37,7 @@ colors = get_default_colors()
 
 def load_admittancedata(fn, i):
     delim = ' ' if i ==0 else ','
-    dataset = np.loadtxt(fn, skiprows=8, delimiter=delim)
+    dataset = np.loadtxt(fn, skiprows=9, delimiter=',')
     dtypes = np.dtype([("frequency", np.float64), ("Y11", np.complex128),\
         ("Y12", np.complex128), ("Y21", np.complex128), ("Y22", np.complex128)])
     y11 = dataset[:, 1] + 1j*dataset[:, 2]
@@ -43,18 +47,18 @@ def load_admittancedata(fn, i):
     tup = list(zip(dataset[:, 0], y11, y12, y21, y22))
     return np.array(tup, dtype=dtypes)
 
+#Y2cap = lambda Y, w: 1/(w*(1/Y).imag)/pF
+Y2cap = lambda Y, w: Y.imag/w/pF
 
 def get_capacitances(Y):
     w = 2*pi*Y["frequency"]*MHz
-    C12 = (-Y['Y12']/w).imag/pF
-    C1g = ((Y['Y11'] + Y['Y12'])/w).imag/pF
-    C2g = ((Y['Y22'] + Y['Y12'])/w).imag/pF
+    C12 = Y2cap(-Y['Y12'], w)
+    C1g = Y2cap(Y['Y11'] + Y['Y12'], w)
+    C2g = Y2cap(Y['Y22'] + Y['Y12'], w)
 
     return C12, C1g, C2g
 
 def model_capacitance(f, npairs):
-    l = 1000
-    w = g = 2
     nfingers = npairs*2
     fgap = 2
     cap = IDC(1.0)
@@ -71,7 +75,7 @@ def set_axproperties(ax, xlabel, ylabel, title, xlim, uselegend=True):
     ax.set_ylabel(ylabel)
     ax.set_title(title)
     ax.grid(which="both")
-    ax.set_xlim(100,1000)
+    ax.set_xlim(*xlim)
 
 def get_capacitancearea(cap):
     w = cap.trace_width
@@ -82,7 +86,6 @@ def get_capacitancearea(cap):
 
 def parallelplatecapacitance(cap, f):
     area = get_capacitancearea(cap)
-    print (area**0.5/d)
     return  np.ones_like(f)*epsilon_0*er_eff*area/d
     R = (area/pi)**0.5
     y = epsilon_0*er_eff*(np.log(16*pi*R/d)-1)
@@ -92,41 +95,50 @@ def pointchargecapacitance(cap, f):
     return np.ones_like(f)*8*pi*epsilon_0*er_eff*d
 
 if __name__=="__main__":
-    datafiles = glob.glob(datadir + '*_fingerpairs.csv')
+    datafiles = glob.glob(datadir + '*_resotank.csv')
     datafiles.sort(key=lambda x: int(x.split('/')[-1].split('_')[0]))
     N = len(datafiles)
     npairs = np.zeros(N, dtype=int)
     Ys = []
     for i in range(N):
-        print (datafiles[i].split('/')[-1])
+        #print (datafiles[i].split('/')[-1])
         Ys.append(load_admittancedata(datafiles[i], i))
-        npairs[i] = int(datafiles[i].split('/')[-1].split('_')[0])
+        npairs[i] = int(datafiles[i].split('/')[-1].split('_')[0])//(2*(w+g))
 
     # Extract the different capacitances as a function of the number of fingers
     fig, ax =   plt.subplots(num=1, figsize=(10,10))
     fig2, ax2 = plt.subplots(num=2, figsize=(10,10))
+    fig3, ax3 = plt.subplots(num=3, figsize=(10,10))
     for i in range(N):
+        if i == 2: continue
         C12, C1g, C2g = get_capacitances(Ys[i])
         f = Ys[i]["frequency"]
         model_C12, model_C2gnd_u, model_C2gnd_o = model_capacitance(f, npairs[i])
         #print (model_C12)
-        ax.plot(f, C12, label="Npairs={0:d}".format(npairs[i]))
+        ax.plot(f, C12, color=colors[i], label="Npairs={0:d}".format(npairs[i]))
         ax.plot(f, model_C12, color=colors[i], ls="--",\
             label="model")
-        ax2.plot(f, C1g, color=colors[i], label="Npairs={0:d}".format(npairs[i]))
-        ax2.plot(f, model_C2gnd_u, color=colors[i], ls="--",\
-            label="underestimate")
-    ax2.plot(f, model_C2gnd_o, color=colors[N], ls="-.",\
-        label="overestimate")
+        ax2.plot(f, C1g, color=colors[i], label="C1g Npairs={0:d}".format(npairs[i]))
+        ax2.plot(f, C2g, color=colors[i], ls="dashed", label="C2g Npairs={0:d}".format(npairs[i]))
+        ax3.plot(f, C1g/C2g, color=colors[i], label="C1g/C2g Npairs={0:d}".format(npairs[i]))
+        #ax2.plot(f, model_C2gnd_u, color=colors[i], ls="--",\
+        #    label="underestimate")
+    #ax2.plot(f, model_C2gnd_o, color=colors[N], ls="-.",\
+    #    label="overestimate")
     set_axproperties(ax, "Frequency [MHz]", "Capacitance [pF]",\
-        "Capacitance btn ports 1 and 2", [100,1000])
+        "Capacitance btn ports 1 and 2", [100,600])
     set_axproperties(ax2, "Frequency [MHz]", "Capacitance to GND [pF]",\
-        "Capacitance to GND", [100,1000])
-    ax2.set_yscale('log')
+        "Capacitance to GND", [100,600])
+    set_axproperties(ax3, "Frequency [MHz]", "Cp1/Cp2",\
+        "Ratio of Capacitance to Ground", [100,600])
+    #ax.set_ylim(0,20)
+    #ax2.set_yscale('log')
     plt.figure(1)
     plt.savefig("Cap_12_simulated_vs_modelled.png")
     #plt.close()
     plt.figure(2)
     plt.savefig("Cap_to_GND.png")
+    plt.figure(3)
+    plt.savefig("CapRatio_to_GND.png")
     plt.show()
-    
+
