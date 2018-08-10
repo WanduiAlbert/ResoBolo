@@ -7,12 +7,13 @@ matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 import os
 import sys
-sys.path.append('/home/wanduialbert/Desktop/research_stuff/resobolo/masks/code')
+# sys.path.append('/home/wanduialbert/Desktop/research_stuff/resobolo/masks/code')
+sys.path.append('/Users/albertwandui/Documents/Grad School Research/resobolo/masks/code')
 from capacitors import IDC
 import glob
 from scipy.constants import epsilon_0
 
-datadir = '/home/wanduialbert/Desktop/research_stuff/resobolo/numerical_sims/'
+datadir = '/Users/albertwandui/Documents/Grad School Research/resobolo/numerical_sims/'
 
 nH = 1e-9
 MHz = 1e6
@@ -136,11 +137,11 @@ if __name__=="__main__":
     #ax2.plot(f, model_C2gnd_o, color=colors[N], ls="-.",\
     #    label="overestimate")
     set_axproperties(ax, "Frequency [MHz]", "Capacitance [pF]",\
-        "Capacitance btn ports 1 and 2", [100,600])
+        "Capacitance btn ports 1 and 2", [100,1000])
     set_axproperties(ax2, "Frequency [MHz]", "Capacitance to GND [pF]",\
-        "Capacitance to GND", [100,600])
+        "Capacitance to GND", [100,1000])
     set_axproperties(ax3, "Frequency [MHz]", "Cp1/Cp2",\
-        "Ratio of Capacitance to Ground", [100,600])
+        "Ratio of Capacitance to Ground", [100,1000])
     #ax.set_ylim(0,20)
     #ax2.set_yscale('log')
     plt.figure(1)
@@ -151,6 +152,7 @@ if __name__=="__main__":
     plt.figure(3)
     plt.savefig("CapRatio_to_GND.png")
     if showPlots: plt.show()
+    plt.close()
 
     freqs = np.array(freqs)
     C12s = np.array(C12s)
@@ -160,8 +162,29 @@ if __name__=="__main__":
     #
     L = 12*nH
     Z0 = 50 # Ohms
-    fr_expected = 1/2/pi/(L*C12s[:, 50]*pF)**0.5/MHz
+    # fr_expected = 1/2/pi/(L*C12s[:, 50]*pF)**0.5/MHz
     fr_meas = np.array([277.638, 294.601, 310.120, 323.85, 335.85])[::-1]
 
-    print (fr_expected)
-    print (fr_meas)
+    # Estimates of Qc as a function of frequency
+    l_cc = 162
+    cc_cap = IDC(1.0)
+    cc_cap.set_dimensions(w,g,75,2,l_cc/(w+g))
+    Cc = cc_cap.capacitance()/pF
+
+    wr = (2*pi*fr_meas*MHz)[:, np.newaxis]
+    Zb = 1/(1j*wr*C2gs*pF) + 1/((1j*wr*C1gs*pF) + 1/(Z0/2 + 1/(1j*wr*Cc*pF)))
+    E_stored = 0.5*C12s*pF
+    P_diss = 0.5*Zb.real/np.abs(Zb)**2
+    Qc_expected = wr * E_stored/P_diss
+    Qc_measured = np.array([72925., 85417., 106397., 126574., 155298.])
+
+    fig, ax = plt.subplots(num=4, figsize=(10,10))
+    for i in range(N):
+        if i==2: continue
+        ax.plot(freqs[i], Qc_expected[i,:], color=colors[i], label="Npairs={0:d}".format(npairs[i]))
+        ax.hlines(Qc_measured[i], freqs[i][0], freqs[i][-1], color=colors[i], linestyles='dashed')
+
+    set_axproperties(ax, "Frequency [MHz]", "Qc",\
+    "Coupling Capacitance vs Frequency", [100,1000])
+    plt.savefig('Qc_simulated.png')
+    plt.show()
