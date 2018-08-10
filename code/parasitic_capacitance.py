@@ -14,6 +14,7 @@ from scipy.constants import epsilon_0
 
 datadir = '/home/wanduialbert/Desktop/research_stuff/resobolo/numerical_sims/'
 
+nH = 1e-9
 MHz = 1e6
 pF = 1e-12
 mm = 1e-3
@@ -29,6 +30,7 @@ er_eff = er_si * er_G10 * d / (er_si * d_G10 + er_G10 * d_si)
 l = 1000
 w = g = 2
 
+showPlots = False
 
 def get_default_colors():
     prop_cycle = plt.rcParams['axes.prop_cycle']
@@ -105,14 +107,22 @@ if __name__=="__main__":
         Ys.append(load_admittancedata(datafiles[i], i))
         npairs[i] = int(datafiles[i].split('/')[-1].split('_')[0])//(2*(w+g))
 
+    freqs = []
+    C12s = []
+    C1gs = []
+    C2gs = []
     # Extract the different capacitances as a function of the number of fingers
     fig, ax =   plt.subplots(num=1, figsize=(10,10))
     fig2, ax2 = plt.subplots(num=2, figsize=(10,10))
     fig3, ax3 = plt.subplots(num=3, figsize=(10,10))
     for i in range(N):
-        if i == 2: continue
         C12, C1g, C2g = get_capacitances(Ys[i])
+        C12s.append(C12)
+        C1gs.append(C1g)
+        C2gs.append(C2g)
         f = Ys[i]["frequency"]
+        freqs.append(f)
+        if i == 2: continue
         model_C12, model_C2gnd_u, model_C2gnd_o = model_capacitance(f, npairs[i])
         #print (model_C12)
         ax.plot(f, C12, color=colors[i], label="Npairs={0:d}".format(npairs[i]))
@@ -140,5 +150,18 @@ if __name__=="__main__":
     plt.savefig("Cap_to_GND.png")
     plt.figure(3)
     plt.savefig("CapRatio_to_GND.png")
-    plt.show()
+    if showPlots: plt.show()
 
+    freqs = np.array(freqs)
+    C12s = np.array(C12s)
+    C1gs = np.array(C1gs)
+    C2gs = np.array(C2gs)
+
+    #
+    L = 12*nH
+    Z0 = 50 # Ohms
+    fr_expected = 1/2/pi/(L*C12s[:, 50]*pF)**0.5/MHz
+    fr_meas = np.array([277.638, 294.601, 310.120, 323.85, 335.85])[::-1]
+
+    print (fr_expected)
+    print (fr_meas)
