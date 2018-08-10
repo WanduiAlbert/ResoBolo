@@ -7,13 +7,14 @@ matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 import os
 import sys
-# sys.path.append('/home/wanduialbert/Desktop/research_stuff/resobolo/masks/code')
-sys.path.append('/Users/albertwandui/Documents/Grad School Research/resobolo/masks/code')
+sys.path.append('/home/wanduialbert/Desktop/research_stuff/resobolo/masks/code')
+#sys.path.append('/Users/albertwandui/Documents/Grad School Research/resobolo/masks/code')
 from capacitors import IDC
 import glob
 from scipy.constants import epsilon_0
 
-datadir = '/Users/albertwandui/Documents/Grad School Research/resobolo/numerical_sims/'
+#datadir = '/Users/albertwandui/Documents/Grad School Research/resobolo/numerical_sims/'
+datadir = '/home/wanduialbert/Desktop/research_stuff/resobolo/numerical_sims/'
 
 nH = 1e-9
 MHz = 1e6
@@ -30,8 +31,10 @@ er_eff = er_si * er_G10 * d / (er_si * d_G10 + er_G10 * d_si)
 
 l = 1000
 w = g = 2
+fmin = 200
+fmax = 600
 
-showPlots = False
+showPlots = True
 
 def get_default_colors():
     prop_cycle = plt.rcParams['axes.prop_cycle']
@@ -98,6 +101,7 @@ def pointchargecapacitance(cap, f):
     return np.ones_like(f)*8*pi*epsilon_0*er_eff*d
 
 if __name__=="__main__":
+    fr_meas = np.array([277.638, 294.601, 310.120, 323.85, 335.85])[::-1]
     datafiles = glob.glob(datadir + '*_resotank.csv')
     datafiles.sort(key=lambda x: int(x.split('/')[-1].split('_')[0]))
     N = len(datafiles)
@@ -126,23 +130,23 @@ if __name__=="__main__":
         if i == 2: continue
         model_C12, model_C2gnd_u, model_C2gnd_o = model_capacitance(f, npairs[i])
         #print (model_C12)
-        ax.plot(f, C12, color=colors[i], label="Npairs={0:d}".format(npairs[i]))
+        ax.plot(f, C12, color=colors[i], label="fr={0:3.1f} MHz".format(fr_meas[i]))
         ax.plot(f, model_C12, color=colors[i], ls="--",\
             label="model")
-        ax2.plot(f, C1g, color=colors[i], label="C1g Npairs={0:d}".format(npairs[i]))
-        ax2.plot(f, C2g, color=colors[i], ls="dashed", label="C2g Npairs={0:d}".format(npairs[i]))
-        ax3.plot(f, C1g/C2g, color=colors[i], label="C1g/C2g Npairs={0:d}".format(npairs[i]))
+        ax2.plot(f, C1g, color=colors[i], label="C1g fr={0:3.1f} MHz".format(fr_meas[i]))
+        ax2.plot(f, C2g, color=colors[i], ls="dashed", label="C2g fr={0:3.1f} MHz".format(fr_meas[i]))
+        ax3.plot(f, C1g/C2g, color=colors[i], label="C1g/C2g fr={0:3.1f} MHz".format(fr_meas[i]))
         #ax2.plot(f, model_C2gnd_u, color=colors[i], ls="--",\
         #    label="underestimate")
     #ax2.plot(f, model_C2gnd_o, color=colors[N], ls="-.",\
     #    label="overestimate")
     set_axproperties(ax, "Frequency [MHz]", "Capacitance [pF]",\
-        "Capacitance btn ports 1 and 2", [100,1000])
+        "Capacitance btn ports 1 and 2", [fmin,fmax])
     set_axproperties(ax2, "Frequency [MHz]", "Capacitance to GND [pF]",\
-        "Capacitance to GND", [100,1000])
+        "Capacitance to GND", [fmin,fmax])
     set_axproperties(ax3, "Frequency [MHz]", "Cp1/Cp2",\
-        "Ratio of Capacitance to Ground", [100,1000])
-    #ax.set_ylim(0,20)
+        "Ratio of Capacitance to Ground", [fmin,fmax])
+    ax.set_ylim(15,35)
     #ax2.set_yscale('log')
     plt.figure(1)
     plt.savefig("Cap_12_simulated_vs_modelled.png")
@@ -152,7 +156,7 @@ if __name__=="__main__":
     plt.figure(3)
     plt.savefig("CapRatio_to_GND.png")
     if showPlots: plt.show()
-    plt.close()
+    plt.close('all')
 
     freqs = np.array(freqs)
     C12s = np.array(C12s)
@@ -162,16 +166,24 @@ if __name__=="__main__":
     #
     L = 12*nH
     Z0 = 50 # Ohms
-    # fr_expected = 1/2/pi/(L*C12s[:, 50]*pF)**0.5/MHz
-    fr_meas = np.array([277.638, 294.601, 310.120, 323.85, 335.85])[::-1]
+    fr_expected = 1/2/pi/(L*C12s*pF)**0.5/MHz
 
     # Estimates of Qc as a function of frequency
+    Ycc = load_admittancedata(datadir + "couplingcap.csv", 0)
+    Cc, _, _ = get_capacitances(Ycc)
+    #print (Cc)
     l_cc = 162
     cc_cap = IDC(1.0)
-    cc_cap.set_dimensions(w,g,75,2,l_cc/(w+g))
-    Cc = cc_cap.capacitance()/pF
+    cc_cap.set_dimensions(w,g,75,1.5,l_cc/(w+g))
+    Cc2 = cc_cap.capacitance()/pF
+    print (Cc2, np.mean(Cc))
+    #plt.figure(5)
+    #plt.plot(Ycc['frequency'], Cc)
+    #plt.plot(Ycc['frequency'], np.ones_like(Cc)*Cc2)
+    #plt.show()
 
     wr = (2*pi*fr_meas*MHz)[:, np.newaxis]
+    #wr = 2*pi*fr_expected*MHz
     Zb = 1/(1j*wr*C2gs*pF) + 1/((1j*wr*C1gs*pF) + 1/(Z0/2 + 1/(1j*wr*Cc*pF)))
     E_stored = 0.5*C12s*pF
     P_diss = 0.5*Zb.real/np.abs(Zb)**2
@@ -181,10 +193,28 @@ if __name__=="__main__":
     fig, ax = plt.subplots(num=4, figsize=(10,10))
     for i in range(N):
         if i==2: continue
-        ax.plot(freqs[i], Qc_expected[i,:], color=colors[i], label="Npairs={0:d}".format(npairs[i]))
+        ax.plot(freqs[i], Qc_expected[i,:], color=colors[i], label="fr={0:3.1f} MHz".format(fr_meas[i]))
         ax.hlines(Qc_measured[i], freqs[i][0], freqs[i][-1], color=colors[i], linestyles='dashed')
-
+        ymin, ymax = ax.get_ylim()
+        ax.vlines(fr_meas[i], 25000, 400000, 'k', linestyle='dashed')
+    
+    ax.set_ylim(25000, 250000)
     set_axproperties(ax, "Frequency [MHz]", "Qc",\
-    "Coupling Capacitance vs Frequency", [100,1000])
+    "Qc vs Frequency", [fmin,fmax])
     plt.savefig('Qc_simulated.png')
     plt.show()
+
+
+    fig, ax = plt.subplots(num=6, figsize=(10,10))
+    for i in range(N):
+        if i==2: continue
+        ax.plot(C2gs[i], Qc_expected[i,:], color=colors[i], label="fr={0:3.1f} MHz".format(fr_meas[i]))
+        ax.hlines(Qc_measured[i], C2gs[i][0], C2gs[i][-1], color=colors[i], linestyles='dashed')
+        ymin, ymax = ax.get_ylim()
+    
+    ax.set_ylim(25000, 250000)
+    set_axproperties(ax, "Cp2 [pF]", "Qc",\
+    "Qc vs Cp2", [fmin,fmax])
+    ax.axis('tight')
+    plt.savefig('Qc_vs_Cp2.png')
+
