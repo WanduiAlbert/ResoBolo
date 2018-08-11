@@ -87,13 +87,16 @@ T_b= ((((1 + x)* P_opt)/K_leg + T_0**gamma_leg)**(1./gamma_leg)).to('K')
 # T_b = 60 * u.mK
 
 # From the Specific heat and thermal conductivity of low-stress amorphous
-# Si–N membranes paper by B.L. Zink*, F. Hellman
-A_sn = 21 * u.g/u.mol
-rho_sn = 2.9 * u.g/u.cm**3
-T_D = 985 * u.K # Debye temperature of amorphous Si-N
-V_island = 480 * u.um * 150 * u.um * 0.25 * u.um #Assuming 500nm island thickness
-N = (rho_sn * V_island/A_sn) * N_A
-C_b = ((12*np.pi**4/5) * N * k_B * (T_b/T_D)**3).to(u.aJ/u.Kelvin)
+# Si–N membranes paper by B.L. Zink*, F. Hellman. Si-N membrane-based microcalorimetry:
+# Heat capacity and thermal conductivity of thin films
+# A_sn = 21 * u.g/u.mol
+# rho_sn = 2.9 * u.g/u.cm**3
+# T_D = 985 * u.K # Debye temperature of amorphous Si-N
+# V_island = 480 * u.um * 150 * u.um * 0.25 * u.um #Assuming 500nm island thickness
+# N = (rho_sn * V_island/A_sn) * N_A
+# C_b = ((12*np.pi**4/5) * N * k_B * (T_b/T_D)**3).to(u.pJ/u.Kelvin)
+# print (C_b)
+C_b = 0.9 * u.pJ/u.Kelvin
 
 # Physical properties of the superconductor + resonator capacitor
 t = 0.05 * u.um

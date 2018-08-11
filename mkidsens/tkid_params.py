@@ -56,12 +56,16 @@ rho = 1.15 * u.uOhm * u.cm
 # Calculated parameters
 
 # From the Specific heat and thermal conductivity of low-stress amorphous
-# Si–N membranes paper by B.L. Zink*, F. Hellman
-A_sn = 21 * u.g/u.mol
-rho_sn = 2.9 * u.g/u.cm**3
-T_D = 985 * u.K # Debye temperature of amorphous Si-N
-V_island = 480 * u.um * 150 * u.um * 500 * u.nm #Assuming 500nm island thickness
-N = (rho_sn * V_island/A_sn) * N_A
+# Si–N membranes paper by B.L. Zink*, F. Hellman. Si-N membrane-based microcalorimetry:
+# Heat capacity and thermal conductivity of thin films
+# A_sn = 21 * u.g/u.mol
+# rho_sn = 2.9 * u.g/u.cm**3
+# T_D = 985 * u.K # Debye temperature of amorphous Si-N
+# V_island = 480 * u.um * 150 * u.um * 0.25 * u.um #Assuming 500nm island thickness
+# N = (rho_sn * V_island/A_sn) * N_A
+# C_b = ((12*np.pi**4/5) * N * k_B * (T_b/T_D)**3).to(u.pJ/u.Kelvin)
+# print (C_b)
+# C_b = 0.9 * u.pJ/u.Kelvin
 
 Delta = (1.764 * k_B * T_c).to('J')
 
@@ -97,10 +101,11 @@ class OperatingPoint:
         print ("Resonator parameters set.")
 
         self.x = self.P_read/self.P_opt
-        self.T_b= ((((1 + self.x)* self.P_opt)/K_leg + self.T_0**gamma_leg)**(1./gamma_leg)).to('K')
+        self.P_total = self.P_read + self.P_opt
+        self.T_b= ((self.P_total/K_leg + self.T_0**gamma_leg)**(1./gamma_leg)).to('K')
         niceprint("The temperature of the island", self.T_b)
 
-        self.C_b = ((12*np.pi**4/5) * N * k_B * (self.T_b/T_D)**3).to(u.aJ/u.Kelvin) #Heat capacity
+        self.C_b = 0.9*u.pJ/u.Kelvin #Heat capacity
 
 
         self.L = L_g + L_k # total inductance

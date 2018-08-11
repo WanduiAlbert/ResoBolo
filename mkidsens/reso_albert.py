@@ -25,7 +25,7 @@ dBm = u.dB(u.mW)
 
 # Resonator Parameters
 gamma_s = 1
-Q_int = 187519
+Q_int = 3e5
 # f_g = 205.128 * u.MHz
 f_g = 328.8 * u.MHz
 T_amp = 3 * u.Kelvin
@@ -82,14 +82,16 @@ niceprint("The temperature of the island", T_b)
 # T_b = 60 * u.mK
 
 # From the Specific heat and thermal conductivity of low-stress amorphous
-# Si–N membranes paper by B.L. Zink*, F. Hellman
-A_sn = 21 * u.g/u.mol
-rho_sn = 2.9 * u.g/u.cm**3
-T_D = 985 * u.K # Debye temperature of amorphous Si-N
-V_island = 480 * u.um * 150 * u.um * 0.25 * u.um #Assuming 500nm island thickness
-N = (rho_sn * V_island/A_sn) * N_A
-C_b = ((12*np.pi**4/5) * N * k_B * (T_b/T_D)**3).to(u.pJ/u.Kelvin)
-
+# Si–N membranes paper by B.L. Zink*, F. Hellman. Si-N membrane-based microcalorimetry:
+# Heat capacity and thermal conductivity of thin films
+# A_sn = 21 * u.g/u.mol
+# rho_sn = 2.9 * u.g/u.cm**3
+# T_D = 985 * u.K # Debye temperature of amorphous Si-N
+# V_island = 480 * u.um * 150 * u.um * 0.25 * u.um #Assuming 500nm island thickness
+# N = (rho_sn * V_island/A_sn) * N_A
+# C_b = ((12*np.pi**4/5) * N * k_B * (T_b/T_D)**3).to(u.pJ/u.Kelvin)
+# print (C_b)
+C_b = 0.09 * u.pJ/u.Kelvin
 # Physical properties of the superconductor + resonator capacitor
 t = 0.05 * u.um
 w_trace = 1 * u.um #width of inductor trace
@@ -147,6 +149,10 @@ Q_sigma = (np.pi/4)*np.exp(Delta/(k_B * T_b))/np.sinh(eta)/K_0(eta)
 Q_c = (2 * C_i/(omega_r * C_c**2 * Z0)).to(1)
 Q_i = 1./(1/Q_qp + 1./Q_int)
 Q_r  = 1./(1./Q_c + 1./Q_i)
+# Overwrite to simulate more realistic devices
+Q_i = 48494
+Q_c = 155298
+Q_r = 1./(1./Q_c + 1./Q_i)
 P_crit = (0.8 * (2*np.pi*f_r)* E_crit * Q_c/2/Q_r**3).to(u.pW)
 
 niceprint("")
@@ -222,7 +228,9 @@ NEP_ph = S_ph ** 0.5
 # Amplifier NEP
 S_amp = (k_B * T_amp/P_g).to(1/u.Hz)
 
-NEP_amp = (2 * S_amp**0.5/r/chi_c/Q_i).to(u.aW/u.Hz**0.5)
+# NEP_amp = (2 * S_amp**0.5/r/chi_c/Q_i).to(u.aW/u.Hz**0.5)
+NEP_amp = (2 * S_amp**0.5 * Q_c/Q_r**2/r).to(u.aW/u.Hz**0.5)
+
 
 # Shot NEP
 S_shot = 2 * n_qp * V_sc * (1/tau_max + 1/tau_qp)

@@ -85,7 +85,7 @@ E_stored = 0.5*Cs*pF
 # P_diss = V^2 * (2 Cc^2 Cp2^2 Z0 wr^2)/(4(Cp1 + Cp2 + Cc)^2 + Cc^2(Cp1+Cp2)^2 Z0^2 wr^2)
 # In the limit Cp1 -> 0, Cp2 -> Cc, then P_diss ~ Cc^2 Z0 wr^2 / 8
 # Qc = wr * (1/2 * C * V^2)/P_diss
-P_diss = Zb.real/np.abs(Zb)**2
+P_diss = 0.5*Zb.real/np.abs(Zb)**2
 Qc_expected = wr_expected * E_stored/P_diss
 Qc_measured = np.array([72925., 85417., 106397., 126574., 155298.])
 for fr,qc, qcm in zip(fr_expected, Qc_expected, Qc_measured):
