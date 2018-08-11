@@ -6,30 +6,26 @@ from openpyxl.styles import Alignment, Font, Border, Side, PatternFill
 from string import ascii_uppercase
 
 allowed_element_types = set([gdspy.Cell, gdspy.CellReference, gdspy.CellArray])
+default = np.zeros(2)
+scale = 1000
 
 class cellNode():
-
-    def get_new_origin(old, new):
-        x = old[0] + new[0]
-        y = old[1] + new[1]
-        return [x, y]
 
     """
     Keeps track of a single cell and its origin relative to the root
     of the cell hierarchy tree
     """
-    def __init__(self, cell, origin=[0,0]):
+    def __init__(self, cell, origin=default):
         self.cell = cell
         self.origin = origin
 
     def update_origin(self, new_origin):
-        self.origin = cellNode.get_new_origin(self.origin, new_origin)
+        self.origin += new_origin
 
 # scales all the values in an array by the scale
 def scalearr(arr, scale):
-  return tuple(map(lambda x: x/scale, arr))
+  return np.asarray(arr)/scale
 
-scale = 1000
 
 # Need this functionality to work with excel spreadsheets
 chars = list(ascii_uppercase)
@@ -255,21 +251,21 @@ class Shot():
         if len(layers) > 1 :
           raise RuntimeError ("Cannot construct a shot from a cell with multiple layers")
         self.layer = layers[0]
-        self.cell_size = cell_size
+        self.cell_size = np.asarray(cell_size)
         self.mask_name = mask_name
-        self.cell_shift = cell_shift
+        self.cell_shift = np.asarray(cell_shift)
         self.isArray = isArray
         #self.blade_coords = {'xl':, 'xr':, 'yt':, 'yb':}
         if isArray:
             self.ncols = kwargs['num_cols']
             self.nrows = kwargs['num_rows']
-            self.center = kwargs['center']
+            self.center = np.asarray(kwargs['center'])
             self.xspacing = kwargs['xspacing']
             self.yspacing = kwargs['yspacing']
         # defaults
         self.maskcell=""
-        self.maskcellsize=(0,0)
-        self.mask_shift=(0,0)
+        self.maskcellsize=default
+        self.mask_shift=default
 
     def update_mask_location(self, maskcellref, maskname):
         self.mask_name = maskname
@@ -329,21 +325,19 @@ class Shot():
         return self.xspacing, self.yspacing
 
 def translate(shot, shift):
-    dx, dy = shot.cell_shift
-    sdx, sdy = shift
-    shot.cell_shift = (dx - sdx, dy - sdy)
+    shot.cell_shift -= np.asarray(shift)
 
 def get_size(cell):
     (xmin, ymin), (xmax, ymax) = cell.get_bounding_box()
     dx = (xmax - xmin)
     dy = (ymax - ymin)
-    return dx, dy
+    return np.array([dx, dy])
 
 def get_center(cell):
     (xmin, ymin), (xmax, ymax) = cell.get_bounding_box()
     x0 = (xmax + xmin)//2
     y0 = (ymax + ymin)//2
-    return [x0, y0]
+    return np.array([x0, y0])
 
 def same_mask_cellname(shot):
     return shot.cellname
@@ -402,29 +396,26 @@ def get_cell_asymmetry(cell):
     (xmin, ymin), (xmax, ymax) = cell.get_bounding_box()
     dx = xmax - np.abs(xmin)
     dy = ymax - np.abs(ymin)
-    return dx, dy
+    return [dx, dy]
 
-def makeshot(curr_element, parent_origin=[0,0], parentIsArray=False, arrayArgs=empty_dict):
-    #if curr_element.ref_cell.name == "terminal_lines_and_pad": pdb.set_trace()
+def makeshot(curr_element, parent_origin=default, parentIsArray=False, arrayArgs=empty_dict):
+    #if curr_element.ref_cell.name == "gndsub_hor_feedline_to_pad": pdb.set_trace()
     #if curr_element.ref_cell.name in ignored_cells: return
     curr_cell = curr_element.ref_cell
+    cell_center = get_center(curr_cell)
     curr_origin = curr_element.origin
-    abs_origin = cellNode.get_new_origin(parent_origin,\
-        scalearr(curr_origin, scale))
+    abs_origin = parent_origin + scalearr(curr_origin, scale)
     cell_shift = abs_origin
-    cell_size = scalearr(get_size(curr_element), scale)
+    cell_size = scalearr(get_size(curr_cell), scale)
 
     isArray = False
     if type(curr_element) == gdspy.CellArray:
         # Need to correct the array center by the diff btn the dimensions of the ref_cell
         arr_center = get_center(curr_element)
-        asymmetry = get_cell_asymmetry(curr_cell)
-        arr_center[0] -= asymmetry[0]/2
-        arr_center[1] -= asymmetry[1]/2
-        arr_center = scalearr(arr_center, scale)
-        #if curr_element.ref_cell.name == "reso_structure": print (arr_center)
-        abs_origin = cellNode.get_new_origin(parent_origin, arr_center)
-        # cell_shift = abs_origin
+        arr_center = scalearr(arr_center - cell_center , scale) + parent_origin
+        abs_origin = default#scalearr(cell_center, scale) # Really crucial. All subcells of the cell shot
+        cell_shift = abs_origin
+        # in the array have their cell shifts relative to this cell.
         xspacing, yspacing = scalearr(curr_element.spacing, scale)
         args = {'num_cols':curr_element.columns, 'num_rows':curr_element.rows, 'center':arr_center,\
         'xspacing':xspacing, 'yspacing':yspacing}
@@ -432,12 +423,11 @@ def makeshot(curr_element, parent_origin=[0,0], parentIsArray=False, arrayArgs=e
 
     elif type(curr_element) == gdspy.CellReference and parentIsArray:
         args = arrayArgs
-        cell_shift = cellNode.get_new_origin(parent_origin, scalearr(curr_origin, scale))
         isArray = True
 
     elif type(curr_element) == gdspy.CellReference and not parentIsArray:
         args = {'num_cols':1, 'num_rows':1, 'center':cell_shift, 'xspacing':0, 'yspacing':0}
-        cell_shift = (0, 0)
+        cell_shift = default
 
     elif type(curr_element) != gdspy.CellReference:
         return []

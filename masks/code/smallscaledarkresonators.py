@@ -974,21 +974,16 @@ def get_resonator_structures(common_resonator, reso_gnd_sub,\
     g_dy -= feedres_dist
     gndsub = gdspy.CellReference(reso_gnd_sub)
     (xmin, ymin), (xmax, ymax) = gndsub.get_bounding_box()
-    asymmetry = (ymax - np.abs(ymin))//2
-    print (ymax - np.abs(ymin))
     feed_ref = gdspy.CellReference(feed)
     # feed_ref.translate(-feed_xoffset, 0)
     centerx(gndsub, feed_ref)
     f_dx, f_dy = get_size(feed_ref)
-    asymmetry += f_dy/2
-    gndsub.translate(0, -asymmetry)
     ildsub = gdspy.CellReference(reso_ild_sub)
-    ildsub.translate(-i_xoffset, -asymmetry)
+    ildsub.translate(-i_xoffset, 0)
 
     am = gdspy.CellReference(get_alignment_marks())
     centery(ildsub, am)
     moveleft(gndsub, am, spacing=495)
-    # am.translate(0, asymmetry)
 
     cap2feed, cap2gnd = get_coupling_conns(g_dy, u_dy)
     cap2feed_dx, cap2feed_dy = get_size(cap2feed)
@@ -1003,18 +998,15 @@ def get_resonator_structures(common_resonator, reso_gnd_sub,\
     cap2gnd_ref = gdspy.CellReference(cap2gnd)
     cap2gnd_ref.translate(-feed_xoffset, cap2gnd_yoffset)
 
-    cap2feed_ref.translate(0, -asymmetry)
-    cap2gnd_ref.translate(0, -asymmetry)
     via = get_via(cap2gnd_dx*0.5)
     via_ref = gdspy.CellReference(via)
     movebelow(cap2gnd_ref, via_ref, spacing = -0.75*cap2gnd_dx)
     centerx(cap2gnd_ref, via_ref)
 
 
-    print (asymmetry)
     moveabove(gndsub, feed_ref, spacing=f_dy/2)
     cres_ref = gdspy.CellReference(common_resonator)
-    cres_ref.translate(c_xoffset, -asymmetry)
+    cres_ref.translate(c_xoffset, 0)
 
     #Translate all features 
     reso_top.add(cres_ref)
@@ -1234,7 +1226,6 @@ def generate_globaloverlay(nrows, ncols):
             get_resonator_GPsub(cres_bbox, get_size(cap_ref))
     g_dx, g_dy = get_size(reso_gnd_sub)
     (xmin, ymin), (xmax, ymax) = reso_gnd_sub.get_bounding_box()
-    asymmetry = (ymax - ymin)//2 + feed_cell_width//2
     g_dy -= feedres_dist
 
     reso_ild_sub, i_xoffset = get_resonator_ILDsub(common_cap_ref,\
@@ -1272,7 +1263,7 @@ def generate_globaloverlay(nrows, ncols):
     for ires in range(N_res):
         i, j = d2ij(ires, nrows)
         xpos = x_origin + i*xspacing - u_xoffset
-        ypos = y_origin + j*yspacing - asymmetry
+        ypos = y_origin + j*yspacing
         cap_ref = gdspy.CellReference(caps[ires], [xpos, ypos], rotation=90)
         wafer.add(cap_ref)
 
@@ -1325,11 +1316,10 @@ def generate_globaloverlay(nrows, ncols):
     h_dx, h_dy = get_size(hor_edge)
     verts = gdspy.CellArray(vert_edge, 2, 8, [wafer_width, h_dx])
     recenter(verts)
-    verts.translate(0, h_dx/2)
+    verts.translate(h_dy//2, h_dx/2)
     horizs = gdspy.CellArray(hor_edge, 8, 2, [h_dx, wafer_len])
     recenter(horizs)
-    horizs.translate(h_dx/2, 0)
-
+    horizs.translate(h_dx/2, h_dy//2)
     wafer.add(verts)
     wafer.add(horizs)
     # main_lib.write_gds('sscale_darkres.gds',unit=1e-6,precision=1e-9)
