@@ -68,7 +68,7 @@ l_cc = 162
 cc_cap = IDC(1.0)
 cc_cap.set_dimensions(w,g,75,fg,l_cc/(w+g))
 Cc = cc_cap.capacitance()/pF
-# Cc = 0.28036 # Let's try this
+Cc = 0.1859 # From sonnet simulations
 
 l_tank = 2002 #um. Full length of the resonator tank
 A_contact = 25*l_tank*um**2
@@ -113,7 +113,7 @@ Cp1_sp = (epsilon_0 * er_eff * A_short_edge/d) +\
 Cp2_sp = (epsilon_0 * er_eff * A_long_edge/d) +\
     epsilon_0*er_eff*R_long_edge*(np.log(16*pi*R_long_edge/d)-1)
 Zb_sp = 1/(1j*wr_expected*Cp2_sp) + 1/((1j*wr_expected*Cp1_sp) + 1/(Z0/2 + 1/(1j*wr_expected*Cc*pF)))
-P_diss_sp = Zb_sp.real/np.abs(Zb_sp)**2
+P_diss_sp = 0.5*Zb_sp.real/np.abs(Zb_sp)**2
 Qc_sp = wr_expected * E_stored / P_diss_sp
 Qc_meas_sp = np.array([59087., 83590., 115168., 202963., 424276.])
 print ("""
@@ -131,7 +131,7 @@ for fr,qc, qcm in zip(fr_expected, Qc_sp, Qc_meas_sp):
 Cp1_ol = 8*epsilon_0*er_eff*pi*d*np.ones(5)
 Cp2_ol = 8*epsilon_0*er_eff*pi*d
 Zb_ol = 1/(1j*wr_expected*Cp2_ol) + 1/((1j*wr_expected*Cp1_ol) + 1/(Z0/2 + 1/(1j*wr_expected*Cc*pF)))
-P_diss_ol = Zb_ol.real/np.abs(Zb_ol)**2
+P_diss_ol = 0.5*Zb_ol.real/np.abs(Zb_ol)**2
 Qc_ol = wr_expected * E_stored / P_diss_ol
 
 print ("""
