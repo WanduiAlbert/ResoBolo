@@ -364,7 +364,7 @@ def gen_patches_table(globaloverlay, mask_list, ignored_cells, layer_dict=None,\
     for component in gcomponents:
         if type(component) not in allowed_element_types: continue
         if component.ref_cell.name in ignored_cells: continue
-        shots_made = makeshot(component)
+        shots_made = makeshot(component, mask_list=mask_list)
         #print (component.ref_cell.name, len(shots_made))
         allshots.extend(shots_made)
 
@@ -398,7 +398,7 @@ def get_cell_asymmetry(cell):
     dy = ymax - np.abs(ymin)
     return [dx, dy]
 
-def makeshot(curr_element, parent_origin=default, parentIsArray=False, arrayArgs=empty_dict):
+def makeshot(curr_element, parent_origin=default, parentIsArray=False, arrayArgs=empty_dict, mask_list=[]):
     #if curr_element.ref_cell.name == "gndsub_hor_feedline_to_pad": pdb.set_trace()
     #if curr_element.ref_cell.name in ignored_cells: return
     curr_cell = curr_element.ref_cell
@@ -433,8 +433,17 @@ def makeshot(curr_element, parent_origin=default, parentIsArray=False, arrayArgs
         return []
 
     haschildren = bool(curr_cell.get_dependencies())
-
-    if not haschildren:
+    
+    # Sometimes cells have children but are on the mask.  We want to
+    # use the largest mask cell possible, so we stop digging early
+    # if we find a cell on the mask
+    cellonmask = False
+    for m in mask_list:
+        if curr_cell in m.get_dependencies():
+            cellonmask = True
+    
+    if cellonmask or (not haschildren):
+		
         try:
             # if curr_element.ref_cell.name == 'gnd_lf' or curr_element.ref_cell.name == 'nitride_lf':
             #     pdb.set_trace()
@@ -454,7 +463,7 @@ def makeshot(curr_element, parent_origin=default, parentIsArray=False, arrayArgs
         if type(child) not in allowed_element_types: continue
         # If the current shot is part of a larger array, I want to keep track of
         # that information
-        child_shotlist.extend(makeshot(child, abs_origin, isArray, args))
+        child_shotlist.extend(makeshot(child, abs_origin, isArray, args, mask_list=mask_list))
     return child_shotlist
 
 
