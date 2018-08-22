@@ -1,0 +1,36 @@
+Run 1:  Tue Aug 21 23:20:16 2018.  caltech1.1.46475.
+        Em version 14.52 (64-bit Windows) on wanduialbert-XP local.
+
+  Project:  C:\users\wanduialbert\Desktop\research_stuff\resobolo\masks\resobolo_files\sondata\Cap_273MHz\sub\subsections.son.
+
+    Frequency:  100 MHZ
+      Subsectioning at 2000 MHz with Eeff of 7.9.
+      Subsectioning time:  7 minutes 31 seconds.
+      De-embedding information for left box wall port(s):
+        Left SOC Electric Wall: 1848 microns length, 1687 subsections, 636 MB.
+        Left SOC Magnetic Wall: 3696 microns length, 1620 subsections, 635 MB.
+      De-embedding information for right box wall port(s):
+        Right SOC Electric Wall: 550 microns length, 695 subsections, 215 MB.
+        Right SOC Magnetic Wall: 1100 microns length, 623 subsections, 214 MB.
+      Circuit requires 69927 subsections and 21001 MB of memory.
+
+      Subsections by level and type:
+      Level 0:
+        Staircase:  64239
+      Level 1:
+        Staircase:  5664
+        Via:        24
+
+      Required memory by type:
+        System matrix:            18653 MB
+        Elemental subsections:
+          Primary structure:      835 MB
+          Left standard:          1046 MB
+          Right standard:         302 MB
+        Fourier transform:        123 MB
+        Waveguide mode:           36 MB
+        Adaptive band synthesis:  5 MB
+        Miscellaneous:            1 MB
+        TOTAL REQUIRED MEMORY:    21001 MB
+
+Subsection count shown in upper left corner of window.

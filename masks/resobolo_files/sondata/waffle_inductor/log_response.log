@@ -1,0 +1,33 @@
+Run 1:  Wed Aug 15 22:09:43 2018.  caltech1.1.46475.
+        Em version 14.52 (64-bit Windows) on wanduialbert-XP local.
+
+  Project:  C:\users\wanduialbert\Desktop\research_stuff\resobolo\masks\resobolo_files\waffle_inductor.son.
+
+    Frequency:  100 MHZ
+      Frequency completed Wed Aug 15 22:09:57 2018.
+      De-embedded S-Parameters. 50.0 Ohm Port Terminations.
+      Magnitude/Angle. Touchstone Format. (S11 S21 S12 S22).
+        100.000000 0.063047 86.268 0.997999 -3.741 0.997999 -3.741 0.063047 86.270
+        !< P1 F=100.0 Eeff=(undefined: mp) Z0=(undefined: mp) R=0.0 C=0.0 
+        !< P2 F=100.0 Eeff=(undefined: mp) Z0=(undefined: mp) R=0.0 C=0.0 
+        !< See "De-embedding Codes" in Help for more details on the "mp" code.
+
+    Frequency:  2000 MHZ
+      Frequency completed Wed Aug 15 22:10:09 2018.
+      De-embedded S-Parameters. 50.0 Ohm Port Terminations.
+      Magnitude/Angle. Touchstone Format. (S11 S21 S12 S22).
+        2000.00000 0.799575 34.331 0.600122 -55.65 0.600122 -55.65 0.799577 34.355
+        !< P1 F=2000.0 Eeff=(undefined: mp) Z0=(undefined: mp) R=0.0 C=0.0 
+        !< P2 F=2000.0 Eeff=(undefined: mp) Z0=(undefined: mp) R=0.0 C=0.0 
+        !< See "De-embedding Codes" in Help for more details on the "mp" code.
+
+    Frequency:  425 MHZ
+      Frequency completed Wed Aug 15 22:10:21 2018.
+      De-embedded S-Parameters. 50.0 Ohm Port Terminations.
+      Magnitude/Angle. Touchstone Format. (S11 S21 S12 S22).
+        425.000000 0.259831 74.405 0.965621 -15.60 0.965621 -15.60 0.259832 74.410
+        !< P1 F=425.0 Eeff=(undefined: mp) Z0=(undefined: mp) R=0.0 C=0.0 
+        !< P2 F=425.0 Eeff=(undefined: mp) Z0=(undefined: mp) R=0.0 C=0.0 
+        !< See "De-embedding Codes" in Help for more details on the "mp" code.
+
+Analysis completed Wed Aug 15 22:10:21 2018.

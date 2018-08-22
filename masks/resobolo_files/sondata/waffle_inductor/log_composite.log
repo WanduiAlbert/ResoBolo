@@ -1,0 +1,76 @@
+Run 1:  Wed Aug 15 22:09:43 2018.  caltech1.1.46475.
+        Em version 14.52 (64-bit Windows) on wanduialbert-XP local.
+
+  Project:  C:\users\wanduialbert\Desktop\research_stuff\resobolo\masks\resobolo_files\waffle_inductor.son.
+
+    Frequency:  100 MHZ
+      Subsectioning at 2000 MHz with Eeff of 6.45.
+      Subsectioning time:  1 second.
+      De-embedding information for left box wall port(s):
+        Left SOC Electric Wall: 479 microns length, 106 subsections, 24 MB.
+        Left SOC Magnetic Wall: 958 microns length, 102 subsections, 24 MB.
+      Em license feature:  emhighperformance.
+      Circuit requires 4900 subsections and 257 MB of memory.
+
+      Subsections by level and type:
+      Level 0:
+        Staircase:  4900
+
+      Required memory by type:
+        System matrix:            183 MB
+        Elemental subsections:
+          Primary structure:      1 MB
+          Left standard:          0 MB
+        Fourier transform:        62 MB
+        Waveguide mode:           8 MB
+        Adaptive band synthesis:  1 MB
+        Miscellaneous:            1 MB
+        TOTAL REQUIRED MEMORY:    257 MB
+
+      Matrix solver:  internal 64-bit SSE with loss.
+      Simulation mode:  local machine.
+      Threads:  using 8 thread(s), 8 core(s) available.
+      Waveguide mode time:  0.058 seconds.
+      Fourier transform time:  2 seconds.
+      Coupling time:  2 seconds.
+      Loss time:  0.153 seconds.
+      Matrix fill time:  5 seconds.
+      Matrix solve time:  4 seconds.
+      De-embedding time for left box wall:
+        SOC Electric Wall Std: 1 second.
+        SOC Magnetic Wall Std: 1 second.
+        Total:                 2 seconds.
+      Frequency completed Wed Aug 15 22:09:57 2018.
+      De-embedded S-Parameters. 50.0 Ohm Port Terminations.
+      Magnitude/Angle. Touchstone Format. (S11 S21 S12 S22).
+        100.000000 0.063047 86.268 0.997999 -3.741 0.997999 -3.741 0.063047 86.270
+        !< P1 F=100.0 Eeff=(undefined: mp) Z0=(undefined: mp) R=0.0 C=0.0 
+        !< P2 F=100.0 Eeff=(undefined: mp) Z0=(undefined: mp) R=0.0 C=0.0 
+        !< See "De-embedding Codes" in Help for more details on the "mp" code.
+      Total time per frequency:  12 seconds.
+
+    Frequency:  2000 MHZ
+      Frequency completed Wed Aug 15 22:10:09 2018.
+      De-embedded S-Parameters. 50.0 Ohm Port Terminations.
+      Magnitude/Angle. Touchstone Format. (S11 S21 S12 S22).
+        2000.00000 0.799575 34.331 0.600122 -55.65 0.600122 -55.65 0.799577 34.355
+        !< P1 F=2000.0 Eeff=(undefined: mp) Z0=(undefined: mp) R=0.0 C=0.0 
+        !< P2 F=2000.0 Eeff=(undefined: mp) Z0=(undefined: mp) R=0.0 C=0.0 
+        !< See "De-embedding Codes" in Help for more details on the "mp" code.
+      ABS time:  0.083 seconds.
+
+    Frequency:  425 MHZ
+      Frequency completed Wed Aug 15 22:10:21 2018.
+      De-embedded S-Parameters. 50.0 Ohm Port Terminations.
+      Magnitude/Angle. Touchstone Format. (S11 S21 S12 S22).
+        425.000000 0.259831 74.405 0.965621 -15.60 0.965621 -15.60 0.259832 74.410
+        !< P1 F=425.0 Eeff=(undefined: mp) Z0=(undefined: mp) R=0.0 C=0.0 
+        !< P2 F=425.0 Eeff=(undefined: mp) Z0=(undefined: mp) R=0.0 C=0.0 
+        !< See "De-embedding Codes" in Help for more details on the "mp" code.
+      ABS time:  0.094 seconds.
+
+    Post-Analysis:
+      Total time for 3 frequencies:  38 seconds.
+      Errors detected: 0    Warnings detected: 0.
+
+Analysis completed Wed Aug 15 22:10:21 2018.

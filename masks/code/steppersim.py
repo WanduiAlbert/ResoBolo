@@ -8,7 +8,7 @@ fn_spreadsheet = 'ResonatorArray.xlsx'
 fn_mask = 'sscale_darkres.gds'
 fn_out = 'sscale_darkres_sim-output.gds'
 
-mask_cell = 'ResoArray_Mask_May2018'
+mask_cell = 'ResoArray_Mask_May2018_singlelayer'
 
 print("Loading mask...")
 lib = gdspy.GdsLibrary()
@@ -80,7 +80,7 @@ while True:
         pblades = gdspy.Rectangle((b_xl,b_yu),(b_xr,b_yd))
         
         c = gdspy.Cell("blades_" + name)
-        #c.add(gdspy.CellReference(mask_cell))
+        c.add(gdspy.CellReference(mask_cell))
         c.add(pblades)
         
         pcell = gdspy.fast_boolean(pmask, pblades, 'and', layer=layer_nums[layer])

@@ -97,6 +97,12 @@ def populate_column(sheet, col, startrow, dataset):
 
 class PatchTable():
 
+    # Some class constants that define the relative positions of the TVPA and
+    # AGA Marks with respect to the center of the alignment marks cell
+    tvpa_shift = np.array([0.125, 0])
+    aga_x_shift = np.array([-0.125, 0])
+    aga_y_shift = np.array([-0.225, 0])
+
     def __init__(self, shotlist, wb_filename="ResonatorArray.xlsx"):
         self.shots = shotlist
         self.filename = wb_filename
@@ -127,15 +133,51 @@ class PatchTable():
 
         self.wafer_shifts = self.mask_shifts - self.cell_shifts
         self.ws = self.wb.active #get the active worksheet in which to save the data
+        self.align_layer = self.layers[0]
+
+    def populate_alignment_info(self):
+        self.ws['C4'] = 'AGA Marks'
+        self.ws['H4'] = 'TVPA'
+        self.ws['B5'] = 'direction'
+        self.ws['C5'] = 'layer'
+        self.ws['D5'] = 'x'
+        self.ws['E5'] = 'y'
+        self.ws['G5'] = 'layer'
+        self.ws['H5'] = 'x'
+        self.ws['I5'] = 'y'
+        self.ws['B6'] = 'y'
+        self.ws['B7'] = 'x'
+        self.ws['C6'] = self.align_layer
+        self.ws['C7'] = self.align_layer
+        self.ws['G6'] = self.align_layer
+
+        # Get the relative position of the AGA and TVPA marks from the cell
+        # shift of the alignment layer cell
+        align_shift = self.cell_shifts[0]
+        tvpa_pos = align_shift + PatchTable.tvpa_shift
+        aga_x_pos = align_shift + PatchTable.aga_x_shift
+        aga_y_pos = align_shift + PatchTable.aga_y_shift
+
+        self.ws['D6'] = aga_y_pos[0]
+        self.ws['E6'] = aga_y_pos[1]
+        self.ws['D7'] = aga_x_pos[0]
+        self.ws['E7'] = aga_x_pos[1]
+        self.ws['H6'] = tvpa_pos[0]
+        self.ws['I6'] = tvpa_pos[1]
+
 
 
     def generate_spreadsheet(self):
+        # Write down the TVPA and AGA information at the top of the spreadsheet
+        self.populate_alignment_info()
+
+
         # Format the spreadsheet before you write the data. Formatting multiple
         # cells seems to overwrite the data
         self.startrow = 15
         self.endrow = 15 + self.num_shots
 
-        cell_range = "A11:Y%d"%(self.endrow)
+        cell_range = "A4:Y%d"%(self.endrow)
         style_range(self.ws, cell_range, border=border, fill=fill,\
                 font=font, alignment=al)
 
