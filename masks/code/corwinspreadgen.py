@@ -35,6 +35,6 @@ if __name__ == "__main__":
     to_ignore = set()
     allshots = patches.gen_patches_table(globaloverlay, mask_list, to_ignore,\
             layer_dict=def_layers, layer_order=None, cellsInverted=False)
-    patchtable = patches.PatchTable(allshots, 'corwinwafer.xlsx')
+    patchtable = patches.PatchTable(allshots, 'diplexer_FINAL_AT_edits.xlsx')
     patchtable.generate_spreadsheet()
 
