@@ -328,7 +328,7 @@ class Shot():
 
     def __eq__(self, other):
         if Shot.ordering[self.layer] == Shot.ordering[other.layer]:
-            return self.cellname == other.cellname
+            return self.cellname.lower() == other.cellname.lower()
         return False
 
     def __lt__(self, other):
