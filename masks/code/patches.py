@@ -99,9 +99,16 @@ class PatchTable():
 
     # Some class constants that define the relative positions of the TVPA and
     # AGA Marks with respect to the center of the alignment marks cell
-    tvpa_shift = np.array([0.125, 0])
-    aga_x_shift = np.array([-0.125, 0])
-    aga_y_shift = np.array([-0.225, 0])
+    # These are defined for alignment_marks_patch_new_r
+    #tvpa_shift = np.array([0.125, 0])
+    #aga_x_shift = np.array([-0.125, 0])
+    #aga_y_shift = np.array([-0.225, 0])
+
+    # For alignment_marks_patch_r
+    tvpa_shift = np.array([0.16875, 0])
+    aga_x_shift = np.array([-0.08125, 0])
+    aga_y_shift = np.array([-0.18125, 0])
+
 
     def __init__(self, shotlist, wb_filename="ResonatorArray.xlsx"):
         self.shots = shotlist
@@ -226,7 +233,7 @@ class PatchTable():
             ws['F' + str(row)] = self.array_centers[:, 1][i]
             ws['G' + str(row)] = self.array_stepsizes[:, 0][i]
             ws['H' + str(row)] = self.array_stepsizes[:, 1][i]
-            
+
             Ncols = len(self.array_positions[:, 0][i])
             Nrows = len(self.array_positions[:, 1][i])
             #print (self.calculated_xys[:, 0][i])
@@ -262,7 +269,7 @@ class PatchTable():
 
     def generate_spreadsheet(self):
         # Write down the TVPA and AGA information at the top of the spreadsheet
-        #self.populate_alignment_info()
+        self.populate_alignment_info()
 
         # Format the spreadsheet before you write the data. Formatting multiple
         # cells seems to overwrite the data
@@ -615,7 +622,7 @@ def get_array_shifts(element, parent_args):
     return new_args
 
 def makeshot(curr_element, parent_origin=default, parentIsArray=False, arrayArgs=empty_dict, mask_list=[]):
-    #if curr_element.ref_cell.name == "gndsub_hor_feedline_to_pad": pdb.set_trace()
+    #if curr_element.ref_cell.name == "BP_filter": pdb.set_trace()
     #if curr_element.ref_cell.name in ignored_cells: return
     curr_cell = curr_element.ref_cell
     cell_center = get_center(curr_cell)
@@ -649,7 +656,10 @@ def makeshot(curr_element, parent_origin=default, parentIsArray=False, arrayArgs
         cell_shift = default
 
     elif type(curr_element) == gdspy.CellArray and parentIsArray:
+        abs_origin = default
+        cell_shift = abs_origin
         args = get_array_shifts(curr_element, arrayArgs)
+        isArray = True
 
     elif type(curr_element) != gdspy.CellReference:
         return []

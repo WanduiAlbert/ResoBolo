@@ -22,7 +22,7 @@ def_layers = {"Alignment Layer":1, "PRO1":2, "ALUMINUM":3, "LSNSUB":4, "Aluminum
    
 
 if __name__ == "__main__":
-    fn = 'diplexer_FINAL_AT_edits.gds'
+    fn = 'corwin_wafer_20180829.gds'
     gdsii = gdspy.GdsLibrary()
     gdsii.read_gds(fn)
     cell_dict = gdsii.cell_dict
@@ -35,6 +35,6 @@ if __name__ == "__main__":
     to_ignore = set()
     allshots = patches.gen_patches_table(globaloverlay, mask_list, to_ignore,\
             layer_dict=def_layers, layer_order=None, cellsInverted=False)
-    patchtable = patches.PatchTable(allshots, 'diplexer_FINAL_AT_edits.xlsx')
+    patchtable = patches.PatchTable(allshots, 'corwin_spreadsheet_20180829.xlsx')
     patchtable.generate_spreadsheet()
 
