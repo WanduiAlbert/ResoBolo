@@ -117,6 +117,8 @@ class PatchTable():
                 self.shots)))
         self.cell_shifts = np.array(list(map(lambda x: x.get_cell_shift(),\
                 self.shots)))
+        self.cell_bboxs = np.array(list(map(lambda x: x.get_cell_bbox(),\
+                self.shots)))
         self.mask_names = np.array(list(map(lambda x: x.get_maskname(),\
                 self.shots)))
         self.array_sizes = np.array(list(map(lambda x: x.get_array_size(),\
@@ -125,18 +127,30 @@ class PatchTable():
                 x.get_array_center(), self.shots)))
         self.array_stepsizes = np.array(list(map(lambda x:\
                 x.get_array_stepsize(), self.shots)))
+        self.array_shifted = np.array(list(map(lambda x:\
+                x.get_array_shifts(), self.shots)))
+        self.array_positions = np.array(list(map(lambda x:\
+                x.get_array_positions(), self.shots)))
+        self.calculated_xys = np.array(list(map(lambda x:\
+                x.get_calculated_xy(), self.shots)))
+        self.desired_xys = np.array(list(map(lambda x:\
+                x.get_desired_xy(), self.shots)))
+        self.shifts_xys = np.array(list(map(lambda x:\
+                x.get_shift_xy(), self.shots)))
         self.num_shots = len(self.layers)
-        self.xl = self.mask_shifts[:, 0] - self.cell_sizes[:,0]/2
-        self.xr = self.mask_shifts[:, 0] + self.cell_sizes[:,0]/2
-        self.yu = self.mask_shifts[:, 1] + self.cell_sizes[:,1]/2
-        self.yd = self.mask_shifts[:, 1] - self.cell_sizes[:,1]/2
-
-        self.wafer_shifts = self.mask_shifts - self.cell_shifts
-        self.ws = self.wb.active #get the active worksheet in which to save the data
+        self.xl = self.mask_shifts[:, 0] + self.cell_bboxs[:,0,0]
+        self.xr = self.mask_shifts[:, 0] + self.cell_bboxs[:,1,0]
+        self.yu = self.mask_shifts[:, 1] + self.cell_bboxs[:,1,1]
+        self.yd = self.mask_shifts[:, 1] + self.cell_bboxs[:,0,1]
         self.align_layer = self.layers[0]
 
+        self.wafer_shifts = self.mask_shifts - self.cell_shifts
+        self.ws = self.wb.active
+        self.ws.title = 'Patches' #get the active worksheet in which to save the data
+        self.shift_ws = self.wb.create_sheet('Shift_Calculator')
+
     def populate_alignment_info(self):
-        self.ws['C4'] = 'AGA Marks'
+        self.ws['B4'] = 'AGA Marks'
         self.ws['H4'] = 'TVPA'
         self.ws['B5'] = 'direction'
         self.ws['C5'] = 'layer'
@@ -165,19 +179,97 @@ class PatchTable():
         self.ws['H6'] = tvpa_pos[0]
         self.ws['I6'] = tvpa_pos[1]
 
+    def populate_shiftcalc(self):
+        ws = self.shift_ws
+
+        cell_range = "A1:AA200"
+        style_range(ws, cell_range, border=border, fill=fill,\
+                font=font, alignment=al)
+        ws['A2'] = 'Job'
+        ws['B2'] = 'patch'
+        ws['C1'] = 'Array'
+        ws['E1'] = 'Centered (mm)'
+        ws['G1'] = 'Pitch (mm)'
+        ws['J1'] = 'Column'
+        ws['J2'] = 'position'
+        ws['O1'] = 'Row'
+        ws['O2'] = 'position'
+        ws['K1'] = 'Calculate'
+        ws['P1'] = 'Calculate'
+        ws['L1'] = 'Desired'
+        ws['Q1'] = 'Desired'
+        ws['M1'] = 'Shift in'
+        ws['R1'] = 'Shift in'
+        ws['C2'] = 'C'
+        ws['D2'] = 'R'
+        ws['E2'] = 'x'
+        ws['G2'] = 'x'
+        ws['K2'] = 'x'
+        ws['L2'] = 'x'
+        ws['M2'] = 'x'
+        ws['F2'] = 'y'
+        ws['H2'] = 'y'
+        ws['P2'] = 'y'
+        ws['Q2'] = 'y'
+        ws['R2'] = 'y'
+        N = len(self.array_shifted)
+        start_row = 3
+        row = start_row
+        for i in range(N):
+            if not self.array_shifted[i]:
+                continue
+            ws['A' + str(row)] = self.names[i]
+            ws['B' + str(row)] = self.layers[i]
+            ws['C' + str(row)] = self.array_sizes[:,0][i]
+            ws['D' + str(row)] = self.array_sizes[:,1][i]
+            ws['E' + str(row)] = self.array_centers[:, 0][i]
+            ws['F' + str(row)] = self.array_centers[:, 1][i]
+            ws['G' + str(row)] = self.array_stepsizes[:, 0][i]
+            ws['H' + str(row)] = self.array_stepsizes[:, 1][i]
+            
+            Ncols = len(self.array_positions[:, 0][i])
+            Nrows = len(self.array_positions[:, 1][i])
+            #print (self.calculated_xys[:, 0][i])
+            #print (self.calculated_xys[:, 1][i])
+            crow = row
+            for j in range(Ncols):
+                ws['J' + str(crow)] = self.array_positions[:, 0][i][j]
+                ws['K' + str(crow)] = self.calculated_xys[:, 0][i][j]
+                ws['L' + str(crow)] = self.desired_xys[:, 0][i][j]
+                ws['M' + str(crow)] = self.shifts_xys[:, 0][i][j]
+                crow += 1
+            rrow = row
+            for j in range(Nrows):
+                ws['O' + str(rrow)] = self.array_positions[:, 1][i][j]
+                ws['P' + str(rrow)] = self.calculated_xys[:, 1][i][j]
+                ws['Q' + str(rrow)] = self.desired_xys[:, 1][i][j]
+                ws['R' + str(rrow)] = self.shifts_xys[:, 1][i][j]
+                rrow += 1
+            row += max([Ncols, Nrows]) + 2
+            #row += 1
+        ws.merge_cells('C1:D1')
+        ws.merge_cells('E1:F1')
+        ws.merge_cells('G1:H1')
+        ws.merge_cells('E1:F1')
+
+        # Adjust the spreadsheet to ensure that the width of the cells is enough
+        for column_cells in ws.columns:
+            length = max(len(str(cell.value or ""))+2 for cell in column_cells)
+            if length < 6: length = 6
+            ws.column_dimensions[column_cells[0].column].width = length
+
 
 
     def generate_spreadsheet(self):
         # Write down the TVPA and AGA information at the top of the spreadsheet
-        self.populate_alignment_info()
-
+        #self.populate_alignment_info()
 
         # Format the spreadsheet before you write the data. Formatting multiple
         # cells seems to overwrite the data
         self.startrow = 15
         self.endrow = 15 + self.num_shots
 
-        cell_range = "A4:Y%d"%(self.endrow)
+        cell_range = "A4:AA%d"%(self.endrow)
         style_range(self.ws, cell_range, border=border, fill=fill,\
                 font=font, alignment=al)
 
@@ -205,6 +297,7 @@ class PatchTable():
         populate_column(self.ws, char2num['W'], 15, self.array_centers[:, 1])
         populate_column(self.ws, char2num['X'], 15, self.array_stepsizes[:, 0])
         populate_column(self.ws, char2num['Y'], 15, self.array_stepsizes[:, 1])
+        populate_column(self.ws, char2num['Z'], 15, self.array_shifted)
 
         # Adjust the spreadsheet to ensure that the width of the cells is enough
         for column_cells in self.ws.columns:
@@ -246,6 +339,10 @@ class PatchTable():
         self.ws['X13'] = 'step size'
         self.ws['X14'] = 'x'
         self.ws['Y14'] = 'y'
+        self.ws['Z12'] = 'To Skip'
+        self.ws['Z13'] = '(1-indexed, from LL)'
+        self.ws['Z14'] = 'C'
+        self.ws['AA14'] = 'R'
 
         self.ws.merge_cells('D13:E13')
         self.ws.merge_cells('F13:G13')
@@ -256,8 +353,10 @@ class PatchTable():
         self.ws.merge_cells('T13:U13')
         self.ws.merge_cells('V13:W13')
         self.ws.merge_cells('X13:Y13')
+        self.ws.merge_cells('Z12:AA12')
+        self.ws.merge_cells('Z13:AA13')
 
-
+        self.populate_shiftcalc()
 
         self.wb.save(self.filename)
 
@@ -282,7 +381,7 @@ class Shot():
         Shot.ordering = {x:y for x, y in zip(layer_order, Shot.index)}
 
 
-    def __init__(self, cell, cell_shift, cell_size, mask_name="", isArray=False, **kwargs):
+    def __init__(self, cell, cell_shift, cell_size, cell_bbox, mask_name="", isArray=False, **kwargs):
         try:
             assert(type(cell) == gdspy.Cell or type(cell) == gdspy.CellReference)
         except AssertionError:
@@ -293,6 +392,7 @@ class Shot():
         if len(layers) > 1 :
           raise RuntimeError ("Cannot construct a shot from a cell with multiple layers")
         self.layer = layers[0]
+        self.cell_bbox = np.asarray(cell_bbox)
         self.cell_size = np.asarray(cell_size)
         self.mask_name = mask_name
         self.cell_shift = np.asarray(cell_shift)
@@ -304,6 +404,21 @@ class Shot():
             self.center = np.asarray(kwargs['center'])
             self.xspacing = kwargs['xspacing']
             self.yspacing = kwargs['yspacing']
+            self.is_shifted = False
+            try:
+                if kwargs['is_shifted']:
+                    self.is_shifted = True
+                    self.column_pos = kwargs['column_pos']
+                    self.row_pos = kwargs['row_pos']
+                    self.calculated_x = kwargs['calculated_x']
+                    self.calculated_y = kwargs['calculated_y']
+                    self.desired_x = kwargs['desired_x']
+                    self.desired_y = kwargs['desired_y']
+                    self.shift_x = kwargs['shift_x']
+                    self.shift_y = kwargs['shift_y']
+            except KeyError:
+                #do nothing
+                print ('Nope. Nothing here')
         # defaults
         self.maskcell=""
         self.maskcellsize=default
@@ -354,6 +469,9 @@ class Shot():
     def get_cell_shift(self):
         return self.cell_shift
 
+    def get_cell_bbox(self):
+        return self.cell_bbox
+
     def get_array_size(self):
         if not self.isArray: return None, None
         return self.ncols, self.nrows
@@ -365,6 +483,28 @@ class Shot():
     def get_array_stepsize(self):
         if not self.isArray: return None, None
         return self.xspacing, self.yspacing
+
+    def get_array_shifts(self):
+        if not self.is_shifted:
+            return ""
+        else:
+            return "shift"
+
+    def get_array_positions(self):
+        if not self.is_shifted: return None, None
+        return self.column_pos, self.row_pos
+
+    def get_calculated_xy(self):
+        if not self.is_shifted: return None, None
+        return self.calculated_x, self.calculated_y
+
+    def get_desired_xy(self):
+        if not self.is_shifted: return None, None
+        return self.desired_x, self.desired_y
+
+    def get_shift_xy(self):
+        if not self.is_shifted: return None, None
+        return self.shift_x, self.shift_y
 
 def translate(shot, shift):
     shot.cell_shift -= np.asarray(shift)
@@ -440,6 +580,40 @@ def get_cell_asymmetry(cell):
     dy = ymax - np.abs(ymin)
     return [dx, dy]
 
+def get_array_shifts(element, parent_args):
+    # Unpack the parent array info for easier computation
+    Nc,Nr = parent_args['num_cols'], parent_args['num_rows']
+    X0, Y0 = parent_args['center']
+    DX, DY = parent_args['xspacing'], parent_args['yspacing']
+
+    # Get info of the child array
+    nc, nr = element.columns, element.rows
+    x0, y0 = scalearr(get_center(element) - get_center(element.ref_cell), scale)
+    dx, dy = scalearr(element.spacing, scale)
+
+    # Compute the new array properties
+    Mc, Mr = Nc*nc, Nr*nr
+    Mx = np.arange(Mc) + 1
+    My = np.arange(Mr) + 1
+    nx = (Mx - 1)%nc + 1
+    Nx = (Mx - nx)/nc + 1
+    ny = (My - 1)%nr + 1
+    Ny = (My - ny)/nr + 1
+
+    calcx = X0 - dx/2*(Mc - 2*Mx + 1)
+    calcy = Y0 + dy/2*(Mr - 2*My + 1)
+    shiftx = -(Nc - 2*Nx + 1)*(DX - nc*dx)/2 + x0
+    shifty =  (Nr - 2*Ny + 1)*(DY - nr*dy)/2 - y0
+    desiredx = calcx + shiftx
+    desiredy = calcy + shifty
+
+    new_args = {'center':parent_args['center'], 'num_cols':Mc, 'num_rows':Mr,\
+            'xspacing':dx, 'yspacing':dy, 'is_shifted':True,\
+        'column_pos':Mx, 'calculated_x':calcx, 'desired_x':desiredx,\
+        'shift_x': shiftx, 'row_pos':My, 'calculated_y':calcy,\
+        'desired_y':desiredy, 'shift_y': shifty}
+    return new_args
+
 def makeshot(curr_element, parent_origin=default, parentIsArray=False, arrayArgs=empty_dict, mask_list=[]):
     #if curr_element.ref_cell.name == "gndsub_hor_feedline_to_pad": pdb.set_trace()
     #if curr_element.ref_cell.name in ignored_cells: return
@@ -449,9 +623,10 @@ def makeshot(curr_element, parent_origin=default, parentIsArray=False, arrayArgs
     abs_origin = parent_origin + scalearr(curr_origin, scale)
     cell_shift = abs_origin
     cell_size = scalearr(get_size(curr_cell), scale)
+    cell_bbox = scalearr(curr_cell.get_bounding_box(), scale)
 
     isArray = False
-    if type(curr_element) == gdspy.CellArray:
+    if type(curr_element) == gdspy.CellArray and not parentIsArray:
         # Need to correct the array center by the diff btn the dimensions of the ref_cell
         arr_center = get_center(curr_element)
         arr_center = scalearr(arr_center - cell_center , scale) + parent_origin
@@ -459,8 +634,9 @@ def makeshot(curr_element, parent_origin=default, parentIsArray=False, arrayArgs
         cell_shift = abs_origin
         # in the array have their cell shifts relative to this cell.
         xspacing, yspacing = scalearr(curr_element.spacing, scale)
-        args = {'num_cols':curr_element.columns, 'num_rows':curr_element.rows, 'center':arr_center,\
-        'xspacing':xspacing, 'yspacing':yspacing}
+        args = {'num_cols':curr_element.columns, 'num_rows':curr_element.rows,\
+            'center':arr_center, 'xspacing':xspacing, 'yspacing':yspacing,
+            'is_shifted':False}
         isArray = True
 
     elif type(curr_element) == gdspy.CellReference and parentIsArray:
@@ -468,8 +644,12 @@ def makeshot(curr_element, parent_origin=default, parentIsArray=False, arrayArgs
         isArray = True
 
     elif type(curr_element) == gdspy.CellReference and not parentIsArray:
-        args = {'num_cols':1, 'num_rows':1, 'center':cell_shift, 'xspacing':0, 'yspacing':0}
+        args = {'num_cols':1, 'num_rows':1, 'center':cell_shift, 'xspacing':0,\
+            'yspacing':0, 'is_shifted':False}
         cell_shift = default
+
+    elif type(curr_element) == gdspy.CellArray and parentIsArray:
+        args = get_array_shifts(curr_element, arrayArgs)
 
     elif type(curr_element) != gdspy.CellReference:
         return []
@@ -489,7 +669,7 @@ def makeshot(curr_element, parent_origin=default, parentIsArray=False, arrayArgs
         try:
             # if curr_element.ref_cell.name == 'gnd_lf' or curr_element.ref_cell.name == 'nitride_lf':
             #     pdb.set_trace()
-            shot = Shot(curr_cell, cell_shift, cell_size, isArray=True, **args)
+            shot = Shot(curr_cell, cell_shift, cell_size, cell_bbox, isArray=True, **args)
             return [shot]
         except RuntimeError:
             print ("Failed for", curr_element)

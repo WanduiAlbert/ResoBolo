@@ -22,7 +22,7 @@ overlap = gdspy.fast_boolean(global_orig, global_sim, 'xor', layer=1)
 
 
 
-mismatch = gdspy.GdsLibrary('mismatch', unit=1e-6, precision=1e-9)
+mismatch = gdspy.GdsLibrary('mismatch')
 miss = gdspy.Cell('miss')
 miss.add(overlap)
 
@@ -39,4 +39,5 @@ dc.add(global_orig)
 global_sim.layers=[2]*len(global_sim.layers)
 dc.add(global_sim)
 dc.add(overlap)
-mismatch.write_gds('sscale_darkres_mismatch.gds', [org, simd, miss, dc])
+mismatch.write_gds('sscale_darkres_mismatch.gds', [org, simd, miss, dc],\
+    unit=1e-6, precision=1e-9)
