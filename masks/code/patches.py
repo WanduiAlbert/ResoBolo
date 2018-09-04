@@ -29,6 +29,8 @@ def scalearr(arr, scale):
 
 # Need this functionality to work with excel spreadsheets
 chars = list(ascii_uppercase)
+chars2 = [x + y for x in chars for y in chars]
+chars += chars2
 char2num = {char:(ind+1) for ind, char in enumerate(chars)}
 num2char = {(ind+1):char for ind, char in enumerate(chars)}
 
@@ -276,7 +278,7 @@ class PatchTable():
         self.startrow = 15
         self.endrow = 15 + self.num_shots
 
-        cell_range = "A4:AA%d"%(self.endrow)
+        cell_range = "A4:AB%d"%(self.endrow)
         style_range(self.ws, cell_range, border=border, fill=fill,\
                 font=font, alignment=al)
 
@@ -304,7 +306,7 @@ class PatchTable():
         populate_column(self.ws, char2num['W'], 15, self.array_centers[:, 1])
         populate_column(self.ws, char2num['X'], 15, self.array_stepsizes[:, 0])
         populate_column(self.ws, char2num['Y'], 15, self.array_stepsizes[:, 1])
-        populate_column(self.ws, char2num['Z'], 15, self.array_shifted)
+        populate_column(self.ws, char2num['AB'], 15, self.array_shifted)
 
         # Adjust the spreadsheet to ensure that the width of the cells is enough
         for column_cells in self.ws.columns:
@@ -455,6 +457,8 @@ class Shot():
 
     def __lt__(self, other):
         if Shot.ordering[self.layer] == Shot.ordering[other.layer]:
+            if self.cellname.startswith('alignment'): return True
+            if other.cellname.startswith('alignment'): return False
             return self.cellname < other.cellname
         return Shot.ordering[self.layer] < Shot.ordering[other.layer]
 
@@ -609,21 +613,58 @@ def get_array_shifts(element, parent_args):
 
     calcx = X0 - dx/2*(Mc - 2*Mx + 1)
     calcy = Y0 + dy/2*(Mr - 2*My + 1)
-    shiftx = -(Nc - 2*Nx + 1)*(DX - nc*dx)/2 + x0
-    shifty =  (Nr - 2*Ny + 1)*(DY - nr*dy)/2 - y0
+    shiftx = -(Nc - 2*Nx + 1)*(DX - nc*dx)/2
+    shifty = -(Nr - 2*Ny + 1)*(DY - nr*dy)/2
     desiredx = calcx + shiftx
     desiredy = calcy + shifty
 
+    shiftArray = True
+    # I need to be careful of the cases where either dx or dy is zero
+    if nc == 1: dx = 0
+    if nr == 1: dy = 0
+
+    if dx == 0:
+        calcx = np.zeros_like(Mx)
+        shiftx = np.zeros_like(Mx)
+        desiredx = np.zeros_like(Mx)
+        dx = DX
+
+    if dy == 0:
+        calcy = np.zeros_like(My)
+        shifty = np.zeros_like(My)
+        desiredy = np.zeros_like(My)
+        dy = DY
+
+    if np.all(shiftx) == 0:
+        calcx = np.zeros_like(Mx)
+        shiftx = np.zeros_like(Mx)
+        desiredx = np.zeros_like(Mx)
+        DX = dx
+
+    if np.all(shifty) == 0:
+        calcy = np.zeros_like(My)
+        shifty = np.zeros_like(My)
+        desiredy = np.zeros_like(My)
+        DY = dy
+
+    # Sometimes nested arrays end up falling on a regular grid with exactly no
+    # row/column shifts. In this case, we will intuit the existence of this new array and
+    # use it.
+    if dx == DX and dy == DY:
+        shiftArray = False
+
     new_args = {'center':parent_args['center'], 'num_cols':Mc, 'num_rows':Mr,\
-            'xspacing':dx, 'yspacing':dy, 'is_shifted':True,\
+            'xspacing':dx, 'yspacing':dy, 'is_shifted':shiftArray,\
         'column_pos':Mx, 'calculated_x':calcx, 'desired_x':desiredx,\
         'shift_x': shiftx, 'row_pos':My, 'calculated_y':calcy,\
         'desired_y':desiredy, 'shift_y': shifty}
     return new_args
 
 def makeshot(curr_element, parent_origin=default, parentIsArray=False, arrayArgs=empty_dict, mask_list=[]):
-    #if curr_element.ref_cell.name == "BP_filter": pdb.set_trace()
+    #if curr_element.ref_cell.name == "DetBiasLeft": pdb.set_trace()
     #if curr_element.ref_cell.name in ignored_cells: return
+    if type(curr_element) not in allowed_element_types:
+        return []
     curr_cell = curr_element.ref_cell
     cell_center = get_center(curr_cell)
     curr_origin = curr_element.origin
@@ -657,15 +698,17 @@ def makeshot(curr_element, parent_origin=default, parentIsArray=False, arrayArgs
 
     elif type(curr_element) == gdspy.CellArray and parentIsArray:
         abs_origin = default
-        cell_shift = abs_origin
+        arr_center = scalearr(get_center(curr_element), scale)
+        #if curr_element.ref_cell.name == "L_MS_feed_bolometer":
+        #    print (arr_center)
+        cell_shift = arr_center
+        arr_center = scalearr(arr_center - cell_center , scale) + parent_origin
         args = get_array_shifts(curr_element, arrayArgs)
         isArray = True
 
-    elif type(curr_element) != gdspy.CellReference:
-        return []
 
     haschildren = bool(curr_cell.get_dependencies())
-    
+
     # Sometimes cells have children but are on the mask.  We want to
     # use the largest mask cell possible, so we stop digging early
     # if we find a cell on the mask
@@ -673,9 +716,9 @@ def makeshot(curr_element, parent_origin=default, parentIsArray=False, arrayArgs
     for m in mask_list:
         if curr_cell in m.get_dependencies():
             cellonmask = True
-    
+
     if cellonmask or (not haschildren):
-		
+
         try:
             # if curr_element.ref_cell.name == 'gnd_lf' or curr_element.ref_cell.name == 'nitride_lf':
             #     pdb.set_trace()

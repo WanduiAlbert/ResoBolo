@@ -1,11 +1,11 @@
 import gdspy
+import pdb
 
-
-orig = "sscale_darkres.gds"
-sim = "sscale_darkres_sim-output.gds"
+orig = "diplexer_FINAL_reformating.gds"
+sim = "diplexer_FINAL_reformating_sim-output.gds"
 
 orig_cell = 'Global_Overlay_Inverted'
-sim_cell = 'wafer'
+sim_cell = 'Global_Overlay_Sim'
 
 original = gdspy.GdsLibrary('orig')
 simulated = gdspy.GdsLibrary('sim')
@@ -15,29 +15,42 @@ simulated.read_gds(sim)
 
 global_orig = original.extract(orig_cell).flatten().get_polygons()
 global_sim = simulated.extract(sim_cell).flatten().get_polygons()
+print ("Orig has {:d} polygons".format(len(global_orig)))
 
-global_orig = gdspy.fast_boolean(global_orig, None, 'or')
-global_sim = gdspy.fast_boolean(global_sim, None, 'or')
+print ("Sim has {:d} polygons".format(len(global_sim)))
+#global_orig = gdspy.fast_boolean(global_orig, None, 'or')
+#global_sim = gdspy.fast_boolean(global_sim, None, 'or')
+print ("Calculating the overlap ...")
 overlap = gdspy.fast_boolean(global_orig, global_sim, 'xor', layer=1)
-
-
+print ("Overlap has {:d} polygons".format(len(overlap.polygons)))
+print ("Overlap calculation done. Writing to file")
 
 mismatch = gdspy.GdsLibrary('mismatch')
 miss = gdspy.Cell('miss')
 miss.add(overlap)
 
 org = gdspy.Cell('original')
-org.add(global_orig)
-org.add(overlap)
+for poly in global_orig:
+    org.add(gdspy.Polygon(poly, layer=2))
+for poly in overlap.polygons:
+    org.add(gdspy.Polygon(poly, layer=1))
 
 simd = gdspy.Cell('simulated')
-simd.add(global_sim)
-simd.add(overlap)
+for poly in global_sim:
+    simd.add(gdspy.Polygon(poly, layer=3))
+for poly in overlap.polygons:
+    simd.add(gdspy.Polygon(poly, layer=1))
 
 dc = gdspy.Cell('overlapped')
-dc.add(global_orig)
-global_sim.layers=[2]*len(global_sim.layers)
-dc.add(global_sim)
-dc.add(overlap)
-mismatch.write_gds('sscale_darkres_mismatch.gds', [org, simd, miss, dc],\
+for poly in global_orig:
+    dc.add(gdspy.Polygon(poly, layer=2))
+for poly in global_sim:
+    dc.add(gdspy.Polygon(poly, layer=3))
+for poly in overlap.polygons:
+    dc.add(gdspy.Polygon(poly, layer=1))
+mismatch.add(miss)
+mismatch.add(org)
+mismatch.add(dc)
+#pdb.set_trace()
+mismatch.write_gds('diplexer_FINAL_reformating_verifysim.gds', [org, simd, miss, dc],\
     unit=1e-6, precision=1e-9)
