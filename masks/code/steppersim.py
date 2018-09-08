@@ -169,7 +169,7 @@ def run_sim(fn_spreadsheet, mask_cells):
 
         # Adjust the center.  The stepper centers arrays, gdspy defines the corner.
         x0 = - ws_x - (ar_nx - 1) * ar_xp / 2.0
-        y0 = - ws_y - (ar_ny - 1) * ar_yp / 2.0
+        y0 = - ws_y + (ar_ny - 1) * ar_yp / 2.0
 
         for x in range(ar_nx):
             dx, dy = 0, 0
@@ -183,7 +183,7 @@ def run_sim(fn_spreadsheet, mask_cells):
                 if (y+1) in skip_r:
                     continue
                 c.add(gdspy.CellReference(name, (x0 + x*ar_xp + dx,\
-                    y0 + y*ar_yp + dy)))
+                    y0 - y*ar_yp + dy)))
 
         layer_cells[layer].add(gdspy.CellReference("patch_" + name, (ar_cx, ar_cy)))
 

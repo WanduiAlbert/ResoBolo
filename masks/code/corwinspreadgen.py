@@ -6,7 +6,7 @@ import smallscaledarkresonators as ssd
 import numpy as np
 
 # Set the library to write all the cells in
-main_lib = gdspy.GdsLibrary('main')
+main_lib = gdspy.GdsLibrary('main', unit=1e-6, precision=1e-9)
 gdspy.current_library = main_lib
 
 def_layers = {"Al_TES":1, "Outline":2, "PRO1":3, "Ti_TES":4, "GP":5, "PRO2":6,\
@@ -94,12 +94,12 @@ if __name__ == "__main__":
 
     globaloverlay = cell_dict['Module_features_just_tile']
     mask_list = [cell_dict['reticle_1'], cell_dict['reticle_2']]
-    to_ignore = set('frame')
+    to_ignore = set(['frame'])
     allshots = patches.gen_patches_table(globaloverlay, mask_list, to_ignore,\
             layer_dict=def_layers, layer_order=None, cellsInverted=False)
     patchtable = patches.PatchTable(allshots, 'diplexer_FINAL_reformating.xlsx')
     patchtable.generate_spreadsheet()
 
-    invwafer = generate_inverted_overlay(globaloverlay, mask_list)
+    #invwafer = generate_inverted_overlay(globaloverlay, mask_list)
 
-    main_lib.write_gds(fn,unit=1e-6,precision=1e-9)
+    main_lib.write_gds(fn)#)

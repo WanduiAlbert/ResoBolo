@@ -349,7 +349,7 @@ class PatchTable():
         self.ws['X14'] = 'x'
         self.ws['Y14'] = 'y'
         self.ws['Z12'] = 'To Skip'
-        self.ws['Z13'] = '(1-indexed, from LL)'
+        self.ws['Z13'] = '(1-indexed, from UL)'
         self.ws['Z14'] = 'C'
         self.ws['AA14'] = 'R'
 
@@ -553,11 +553,12 @@ def gen_patches_table(globaloverlay, mask_list, ignored_cells, layer_dict=None,\
         Shot.update_layerorder(layer_order)
     gcomponents = globaloverlay.elements
     allshots = []
-    # pdb.set_trace()
+    #pdb.set_trace()
     for component in gcomponents:
         if type(component) not in allowed_element_types: continue
         if component.ref_cell.name in ignored_cells: continue
-        shots_made = makeshot(component, mask_list=mask_list)
+        shots_made = makeshot(component, mask_list=mask_list,\
+            ignored_cells=ignored_cells)
         #print (component.ref_cell.name, len(shots_made))
         allshots.extend(shots_made)
 
@@ -613,10 +614,10 @@ def get_array_shifts(element, parent_args):
 
     calcx = X0 - dx/2*(Mc - 2*Mx + 1)
     calcy = Y0 + dy/2*(Mr - 2*My + 1)
-    shiftx = -(Nc - 2*Nx + 1)*(DX - nc*dx)/2
-    shifty = -(Nr - 2*Ny + 1)*(DY - nr*dy)/2
-    desiredx = calcx + shiftx
-    desiredy = calcy + shifty
+    shiftx = np.around(-(Nc - 2*Nx + 1)*(DX - nc*dx)/2, 3)
+    shifty = np.around(+(Nr - 2*Ny + 1)*(DY - nr*dy)/2, 3)
+    desiredx = np.around(calcx + shiftx, 3)
+    desiredy = np.around(calcy + shifty, 3)
 
     shiftArray = True
     # I need to be careful of the cases where either dx or dy is zero
@@ -660,9 +661,10 @@ def get_array_shifts(element, parent_args):
         'desired_y':desiredy, 'shift_y': shifty}
     return new_args
 
-def makeshot(curr_element, parent_origin=default, parentIsArray=False, arrayArgs=empty_dict, mask_list=[]):
+def makeshot(curr_element, parent_origin=default, parentIsArray=False,
+        arrayArgs=empty_dict, mask_list=[], ignored_cells=set()):
     #if curr_element.ref_cell.name == "DetBiasLeft": pdb.set_trace()
-    #if curr_element.ref_cell.name in ignored_cells: return
+    if curr_element.ref_cell.name in ignored_cells: return []
     if type(curr_element) not in allowed_element_types:
         return []
     curr_cell = curr_element.ref_cell
@@ -738,7 +740,8 @@ def makeshot(curr_element, parent_origin=default, parentIsArray=False, arrayArgs
         if type(child) not in allowed_element_types: continue
         # If the current shot is part of a larger array, I want to keep track of
         # that information
-        child_shotlist.extend(makeshot(child, abs_origin, isArray, args, mask_list=mask_list))
+        child_shotlist.extend(makeshot(child, abs_origin, isArray, args,\
+            mask_list=mask_list, ignored_cells=ignored_cells))
     return child_shotlist
 
 
