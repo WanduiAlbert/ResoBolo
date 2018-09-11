@@ -10,8 +10,8 @@ main_lib = gdspy.GdsLibrary('main', unit=1e-6, precision=1e-9)
 gdspy.current_library = main_lib
 
 def_layers = {"Al_TES":1, "Outline":2, "PRO1":3, "Ti_TES":4, "GP":5, "PRO2":6,\
-    "ILD_Via":7, "RES":8, "MS":9, "RES_pro":10, "heat_cap":11, "pic_frame":12,\
-    "nitride":13, "XeF2_STS":14, "New Layer":15, "Lens":20, "Die cutout":22,\
+    "VIA":7, "RES":8, "MS":9, "RES_pro":10, "heat_cap":11, "pic_frame":12,\
+    "LSN":13, "XeF2_STS":14, "New Layer":15, "Lens":20, "Die cutout":22,\
     "Anodization":30}
 
 #def_layers = {"Alignment Layer":1, "PRO1":2, "ALUMINUM":3, "LSNSUB":4, "Aluminum":5,
@@ -95,8 +95,9 @@ if __name__ == "__main__":
     globaloverlay = cell_dict['Module_features_just_tile']
     mask_list = [cell_dict['reticle_1'], cell_dict['reticle_2']]
     to_ignore = set(['frame'])
+    layer_order = [1,3,4,6,5,8,10,7,9,13,11,12,14,30,2,15,20,22]
     allshots = patches.gen_patches_table(globaloverlay, mask_list, to_ignore,\
-            layer_dict=def_layers, layer_order=None, cellsInverted=False)
+            layer_dict=def_layers, layer_order=layer_order, cellsInverted=False)
     patchtable = patches.PatchTable(allshots, 'diplexer_FINAL_reformating.xlsx')
     patchtable.generate_spreadsheet()
 

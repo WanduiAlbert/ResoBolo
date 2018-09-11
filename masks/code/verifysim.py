@@ -25,7 +25,7 @@ overlap = gdspy.fast_boolean(global_orig, global_sim, 'xor', layer=1)
 print ("Overlap has {:d} polygons".format(len(overlap.polygons)))
 print ("Overlap calculation done. Writing to file")
 
-mismatch = gdspy.GdsLibrary('mismatch')
+mismatch = gdspy.GdsLibrary('mismatch', unit=1e-6, precision=1e-9)
 miss = gdspy.Cell('miss')
 miss.add(overlap)
 
@@ -52,5 +52,4 @@ mismatch.add(miss)
 mismatch.add(org)
 mismatch.add(dc)
 #pdb.set_trace()
-mismatch.write_gds('diplexer_FINAL_reformating_verifysim.gds', [org, simd, miss, dc],\
-    unit=1e-6, precision=1e-9)
+mismatch.write_gds('diplexer_FINAL_reformating_verifysim.gds', [org, simd, miss, dc])

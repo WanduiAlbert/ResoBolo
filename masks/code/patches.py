@@ -612,10 +612,16 @@ def get_array_shifts(element, parent_args):
     ny = (My - 1)%nr + 1
     Ny = (My - ny)/nr + 1
 
-    calcx = X0 - dx/2*(Mc - 2*Mx + 1)
-    calcy = Y0 + dy/2*(Mr - 2*My + 1)
-    shiftx = np.around(-(Nc - 2*Nx + 1)*(DX - nc*dx)/2, 3)
-    shifty = np.around(+(Nr - 2*Ny + 1)*(DY - nr*dy)/2, 3)
+    xspacing = DX//nc
+    yspacing = DY//nr
+    calcx = X0 - xspacing/2*(Mc - 2*Mx + 1)
+    calcy = Y0 + yspacing/2*(Mr - 2*My + 1)
+    shiftx =  (nc - 2*nx + 1)*(dx - xspacing)/2 + (DX % nc)*(Nc - 2*Nx + 1)/2
+    shifty = -(nr - 2*ny + 1)*(dy - yspacing)/2 - (DY % nr)*(Nr - 2*Ny + 1)/2
+    #shiftx = np.around(-(Nc - 2*Nx + 1)*(DX - nc*dx)/2, 3)
+    #shifty = np.around(+(Nr - 2*Ny + 1)*(DY - nr*dy)/2, 3)
+    shiftx = np.around(shiftx, 3)
+    shifty = np.around(shifty, 3)
     desiredx = np.around(calcx + shiftx, 3)
     desiredy = np.around(calcy + shifty, 3)
 
@@ -629,33 +635,41 @@ def get_array_shifts(element, parent_args):
         shiftx = np.zeros_like(Mx)
         desiredx = np.zeros_like(Mx)
         dx = DX
+        xspacing = dx
 
     if dy == 0:
         calcy = np.zeros_like(My)
         shifty = np.zeros_like(My)
         desiredy = np.zeros_like(My)
         dy = DY
+        yspacing = dy
 
     if np.all(shiftx) == 0:
         calcx = np.zeros_like(Mx)
         shiftx = np.zeros_like(Mx)
         desiredx = np.zeros_like(Mx)
         DX = dx
+        xspacing = dx
+
 
     if np.all(shifty) == 0:
         calcy = np.zeros_like(My)
         shifty = np.zeros_like(My)
         desiredy = np.zeros_like(My)
         DY = dy
+        yspacing = dy
 
     # Sometimes nested arrays end up falling on a regular grid with exactly no
     # row/column shifts. In this case, we will intuit the existence of this new array and
     # use it.
     if dx == DX and dy == DY:
         shiftArray = False
+        xspacing = dx
+        yspacing = dy
+
 
     new_args = {'center':parent_args['center'], 'num_cols':Mc, 'num_rows':Mr,\
-            'xspacing':dx, 'yspacing':dy, 'is_shifted':shiftArray,\
+            'xspacing':xspacing, 'yspacing':yspacing, 'is_shifted':shiftArray,\
         'column_pos':Mx, 'calculated_x':calcx, 'desired_x':desiredx,\
         'shift_x': shiftx, 'row_pos':My, 'calculated_y':calcy,\
         'desired_y':desiredy, 'shift_y': shifty}
