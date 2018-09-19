@@ -616,8 +616,8 @@ def get_array_shifts(element, parent_args):
     yspacing = DY//nr
     calcx = X0 - xspacing/2*(Mc - 2*Mx + 1)
     calcy = Y0 + yspacing/2*(Mr - 2*My + 1)
-    shiftx =  (nc - 2*nx + 1)*(dx - xspacing)/2 + (DX % nc)*(Nc - 2*Nx + 1)/2
-    shifty = -(nr - 2*ny + 1)*(dy - yspacing)/2 - (DY % nr)*(Nr - 2*Ny + 1)/2
+    shiftx = -(nc - 2*nx + 1)*(dx - xspacing)/2 - (DX % nc)*(Nc - 2*Nx + 1)/2
+    shifty = +(nr - 2*ny + 1)*(dy - yspacing)/2 + (DY % nr)*(Nr - 2*Ny + 1)/2
     #shiftx = np.around(-(Nc - 2*Nx + 1)*(DX - nc*dx)/2, 3)
     #shifty = np.around(+(Nr - 2*Ny + 1)*(DY - nr*dy)/2, 3)
     shiftx = np.around(shiftx, 3)
@@ -644,7 +644,7 @@ def get_array_shifts(element, parent_args):
         dy = DY
         yspacing = dy
 
-    if np.all(shiftx) == 0:
+    if np.all(shiftx) == 0 or np.all(calcx) == 0:
         calcx = np.zeros_like(Mx)
         shiftx = np.zeros_like(Mx)
         desiredx = np.zeros_like(Mx)
@@ -652,7 +652,7 @@ def get_array_shifts(element, parent_args):
         xspacing = dx
 
 
-    if np.all(shifty) == 0:
+    if np.all(shifty) == 0 or np.all(calcy) == 0:
         calcy = np.zeros_like(My)
         shifty = np.zeros_like(My)
         desiredy = np.zeros_like(My)
@@ -677,7 +677,7 @@ def get_array_shifts(element, parent_args):
 
 def makeshot(curr_element, parent_origin=default, parentIsArray=False,
         arrayArgs=empty_dict, mask_list=[], ignored_cells=set()):
-    #if curr_element.ref_cell.name == "DetBiasLeft": pdb.set_trace()
+    #if curr_element.ref_cell.name == "DetBiasRight": pdb.set_trace()
     if curr_element.ref_cell.name in ignored_cells: return []
     if type(curr_element) not in allowed_element_types:
         return []

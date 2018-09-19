@@ -3,3 +3,4 @@
 code/.ipynb_checkpoints/
 mkidsens/__pycache__
 masks/code/__pycache__
+masks/code/*verifysim.gds
