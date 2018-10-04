@@ -37,9 +37,10 @@ if __name__=="__main__":
     gap_width = 4.
     finger_length = 1000.
     finger_gap = 4.
+    contact_width = 24
     nfinger = 10 # For now
     cap.set_dimensions(trace_width, gap_width,
-            finger_length, finger_gap, nfinger)
+            finger_length, finger_gap, nfinger, contact_width)
 
     # Want to determine the number of fingers for this capacitor structure.
     Nfingers, capfrac = cap.getnumfingers(Cmain*pF)
@@ -47,7 +48,7 @@ if __name__=="__main__":
     print ("Expected number of fractional fingers is ", capfrac)
 
     cap.set_dimensions(trace_width, gap_width,
-            finger_length, finger_gap, Nfingers)
+            finger_length, finger_gap, Nfingers, contact_width)
     C_actual = cap.capacitance()/pF
     print ("The expected capacitance of the structure is %1.3f pF"%C_actual)
     print ("Width/height: (%1.3f, %1.3f) um"%(cap.width, cap.height))
@@ -55,10 +56,29 @@ if __name__=="__main__":
     cap.layer = 0
     cap.cellname = 'Cap'
     capcell = cap.draw()
-
     cap_cell = gdspy.Cell('Cap_%1.0fMHz'%fr[0])
     cref = gdspy.CellReference(capcell, rotation=90)
     cap_cell.add(cref)
+
+    # Now we should add the coupling capacitors
+    coupcap = IDC(1.0)
+    coupcap.set_dimensions(trace_width, gap_width,
+            100, finger_gap, 10, contact_width)
+    coup_nfingers, _ = coupcap.getnumfingers(CC*pF)
+    print ("Number of coupcap fingers ", coup_nfingers)
+    coupcap.set_dimensions(trace_width, gap_width,
+            100, finger_gap, coup_nfingers, contact_width)
+    coupcap.layer = 0
+    coupcap.cellname = 'CoupCap'
+    coupcapcell = coupcap.draw()
+    coupcap_ref = gdspy.CellReference(coupcapcell, rotation=90)
+    y_translation = cap.width/2 + coupcap.width/2 - contact_width
+    coupcap_ref.translate(0, y_translation)
+    cap_cell.add(coupcap_ref)
+    coupcap_ref2 = gdspy.CellReference(coupcapcell, rotation=90)
+    coupcap_ref2.translate(0, -y_translation)
+    cap_cell.add(coupcap_ref2)
+
     cap_cell.flatten()
 
     # Now I want to design the blading cells for each of the resonators
