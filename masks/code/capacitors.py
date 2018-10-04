@@ -1,6 +1,7 @@
 import numpy as np
 from scipy import special, constants
 from math import pi
+import gdspy
 import pprint
 import astropy.units as u
 pp = pprint.PrettyPrinter(indent=5)
@@ -23,13 +24,13 @@ class IDC():
         self.C = self.capacitance()
 
     def set_dimensions(self, trace_width, gap_width, finger_length, finger_gap,\
-            nfinger):
+            nfinger, contact_width=24):
         self.trace_width = trace_width
         self.gap_width = gap_width
         self.finger_length = finger_length
         self.finger_gap = finger_gap
         self.nfinger = nfinger
-        self.contact_width = self.trace_width
+        self.contact_width = contact_width
         self.width = self.contact_width + self.finger_gap + \
             self.finger_length + self.contact_width
         self.height = self.nfinger*(self.gap_width+self.trace_width) + \
@@ -105,6 +106,86 @@ class IDC():
         capfrac = n - nfingers
 
         return nfingers, capfrac
+
+    def draw(self, less_one=False):
+        dx = (self.finger_length + self.gap_width )/2
+        dy = self.nfinger*(self.gap_width + self.trace_width) + self.trace_width
+        self.make_fingers(less_one)
+        self.make_contacts()
+        self.C = self.capacitance()
+
+        self.left_contact.layer = self.layer
+        self.left_contact.translate(-dx, -dy/2)
+        self.right_contact.translate(-dx, -dy/2)
+        self.right_contact.layer = self.layer
+        self.cell = gdspy.Cell(self.cellname)
+        for f in self.fingers:
+            f.layer = self.layer
+            f.translate(-dx, -dy/2)
+            self.cell.add(f)
+        self.cell.add(self.left_contact)
+        self.cell.add(self.right_contact)
+
+        return self.cell
+
+    def make_fingers(self, less_one):
+        self.fingers = []
+        xcur = 0.
+        ycur = 0.
+
+        left_fingers = []
+        right_fingers = []
+
+        nrf = (self.nfinger + 1) / 2
+        nrfx = nrf * self.capfrac
+        #print "nrfx: ",nrfx
+        nrff = int(nrfx)    # Number of right fingers to leave fully intact
+        nrfr = nrfx - nrff    # How much to truncate the last right finger
+
+        minx = xcur + self.finger_gap
+        maxx = xcur + self.finger_length
+        partialx = nrfr * minx + (1-nrfr) * maxx
+
+        range_val = self.nfinger + 1
+        if less_one:
+            range_val = self.nfinger
+
+        for i in range(range_val):
+            if i % 2 == 0:
+                lower_leftx = xcur
+                upper_rightx = xcur + self.finger_length
+            else:
+                if i/2 == nrff:
+                    lower_leftx = partialx
+                    upper_rightx = xcur + self.finger_length + self.finger_gap
+                else:
+                    lower_leftx = xcur+self.finger_gap
+                    upper_rightx = lower_leftx + self.finger_length
+
+            assert lower_leftx >= 0.
+            assert upper_rightx <= self.finger_length + self.finger_gap
+
+            lower_lefty = ycur
+            upper_righty = lower_lefty + self.trace_width
+
+            ycur += self.trace_width + self.gap_width
+            box = gdspy.Rectangle([lower_leftx,lower_lefty],[upper_rightx,upper_righty])
+            if i % 2 == 0:
+                self.fingers.append(box)
+            elif (i/2) <= nrff:
+                self.fingers.append(box)
+
+    def make_contacts(self):
+        lower_leftx = -self.contact_width
+        lower_lefty = 0.
+        upper_rightx = lower_leftx + self.contact_width
+        upper_righty = lower_lefty + self.nfinger*(self.gap_width + self.trace_width) + self.trace_width
+        self.left_contact = gdspy.Rectangle([lower_leftx,lower_lefty],[upper_rightx,upper_righty])
+        lower_leftx = self.finger_gap + self.finger_length
+        upper_rightx = lower_leftx + self.contact_width
+        self.right_contact = gdspy.Rectangle([lower_leftx,lower_lefty],[upper_rightx,upper_righty])
+
+
 
 
 if __name__=="__main__":
