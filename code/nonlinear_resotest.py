@@ -87,6 +87,35 @@ def model(f,f0,A,phi,D,dQr,dQe_re,dQe_im,a):
     s21 = A*cable_phase*(1. - (dQe)/(dQr + 2.j*x))
     return s21
 
+def max_responsivity(a):
+    ps = np.roots([16, 0, 8, -4*a, 1, a])
+    yt = ps[np.isreal(ps)]
+    y0 = yt - a/(1 + 4*yt**2)
+    return y0.real[0]
+
+def main():
+    f0 = 300
+    dQr = 1./16000
+    dQe_re = 1./20000
+    dQe_im =  -0.2*dQe_re
+    dQe = dQe_re + 1j * dQe_im
+    Qe = 1./dQe
+    Qi = 1/(dQr - dQe_re)
+    a = np.linspace(-2,2,100)
+    y0s = np.array(list(map(max_responsivity, a)))
+    fmax = f0*MHz*(1 + y0s * dQr)
+    fg = f0*MHz*(1 - a * dQr)
+    pl.figure(figsize=(10,10))
+    pl.plot(a, fmax/MHz - f0, 'k-')
+    pl.plot(a, fg/MHz - f0, 'k--')
+    pl.ylabel('Relative Frequency (MHz)')
+    pl.xlabel('Non-Linear Parameter')
+    pl.grid()
+    #pl.legend(loc='lower right')
+    pl.savefig('a_vs_max_frequency.png')
+    pl.close()
+
+
 def test_fit():
     nt = 1000
     f0 = 300
@@ -110,11 +139,18 @@ def test_fit():
         print (fmax)
         pt = model(np.array([fmax]), *p0)
         pt_lin = model_linear(np.array([f0*MHz]), *p0)
-
+        ps = np.roots([16, 0, 8, -4*a, 1, a])
+        yt = ps[np.isreal(ps)]
+        y0 = yt - a/(1 + 4*yt**2)
+        ft = f0*MHz*(1 + y0 * dQr).real[0]
+        pt_nonlin = model(np.array([ft]), *p0)
+        print (fmax/MHz, ft/MHz)
         pl.figure(figsize=(10,10))
         pl.plot(freq/MHz - f0, np.abs(z), 'k-', label='Non Linear Model a = %1.3f'%a)
         pl.plot(freq/MHz - f0, np.abs(z_lin), 'k--', label='Linear Model')
         pl.vlines(fmax/MHz - f0, 0, 1, colors='r', linestyles='dotted',
+                label='Non Linear Model: Guessed Max Responsivity')
+        pl.vlines(ft/MHz - f0, 0, 1, colors='g', linestyles='solid',
                 label='Non Linear Model: Max Responsivity')
         pl.vlines(f0 - f0, 0, 1, colors='b', linestyles='dotted',
                 label='Linear Model: Max Responsivity')
@@ -131,8 +167,9 @@ def test_fit():
         pl.figure(figsize=(10,10))
         pl.plot(z.real, z.imag, 'k-', label='Non Linear Model a = %1.3f'%a)
         pl.plot(z_lin.real, z_lin.imag, 'k--', label='Linear Model')
-        pl.plot(pt.real, pt.imag, 'rd', label='Non Linear Model: Max Responsivity')
-        pl.plot(pt_lin.real, pt_lin.imag, 'bs',
+        pl.plot(pt.real, pt.imag, 'rd', label='Non Linear Model: Guessed Max Responsivity')
+        pl.plot(pt_nonlin.real, pt_nonlin.imag, 'go', label='Non Linear Model: Max Responsivity')
+        pl.plot(pt_lin.real, pt_lin.imag, 'bP',
                 label='Linear Model: Max Responsivity')
         pl.xlabel('I')
         pl.ylabel('Q')
@@ -149,6 +186,8 @@ def test_fit():
         pl.plot(freq/MHz - f0, z.real, 'k-', label='Non Linear Model a = %1.3f'%a)
         pl.plot(freq/MHz - f0, z_lin.real, 'k--', label='Linear Model')
         pl.vlines(fmax/MHz - f0, 0, 1, colors='r', linestyles='dotted',
+                label='Non Linear Model: Guessed Max Responsivity')
+        pl.vlines(ft/MHz - f0, 0, 1, colors='g', linestyles='solid',
                 label='Non Linear Model: Max Responsivity')
         pl.vlines(f0 - f0, 0, 1, colors='b', linestyles='dotted',
                 label='Linear Model: Max Responsivity')
@@ -166,6 +205,8 @@ def test_fit():
         pl.plot(freq/MHz - f0, z.imag, 'k-', label='Non Linear Model a = %1.3f'%a)
         pl.plot(freq/MHz - f0, z_lin.imag, 'k--', label='Linear Model')
         pl.vlines(fmax/MHz - f0, -0.6, 0.6, colors='r', linestyles='dotted',
+                label='Non Linear Model: Guessed Max Responsivity')
+        pl.vlines(ft/MHz - f0, -0.6, 0.6, colors='g', linestyles='solid',
                 label='Non Linear Model: Max Responsivity')
         pl.vlines(f0 - f0, -0.6, 0.6, colors='b', linestyles='dotted',
                 label='Linear Model: Max Responsivity')
@@ -180,4 +221,5 @@ def test_fit():
         pl.close()
 
 if __name__=='__main__':
-    test_fit()
+    main()
+    #test_fit()
