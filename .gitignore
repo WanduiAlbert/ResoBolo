@@ -2,7 +2,9 @@
 /.ipynb_checkpoints/
 code/.ipynb_checkpoints/
 mkidsens/__pycache__
+code/__pycache__
 masks/code/__pycache__
 masks/code/*verifysim.gds
 masks/code/*~
 code/*~
+*~
