@@ -14,7 +14,7 @@ datatype = u.quantity.Quantity
 
 def niceprint(*args):
   __builtins__.print(*("{0:0.4f}".format(a) if isinstance(a, datatype) or\
-      isinstance(a, float) else a for a in args))
+	  isinstance(a, float) else a for a in args))
 
 K_0 = lambda x: kn(0, x)
 I_0 = lambda x: iv(0, x)
@@ -24,7 +24,7 @@ dBm = u.dB(u.mW)
 
 # Resonator Parameters
 gamma_s = 1
-Q_int = 3e5
+Q_int = 3e7
 # f_g = 205.128 * u.MHz
 f_g = 469.9 * u.MHz
 T_amp = 5.22 * u.Kelvin
@@ -66,19 +66,20 @@ C_c = C_c1/2.
 
 class TKIDBolometer:
 
-	def init(self, fr, f_g, Tc,  Cc, T_0,
+	def __init__(self, fr, f_g, Tc,  Cc, T_0,
 			P_opt, P_read, K_leg, gamma_leg, L_g=6.1, **kwargs):
 		self.C_b = 0.14 * u.pJ/u.Kelvin # From TKID paper
-		self.fr = fr * u.MHz
+		self.f_r = fr * u.MHz
 		self.f_g = f_g * u.MHz
-		self.Tc = Tc
+		self.Tc = Tc * u.Kelvin
 		self.L_g = L_g * u.nH
-		self.Cc1 = Cc
-		self.C_c = self.C_c/2
-		self.T_0 = T_0
+		self.Cc1 = Cc * u.pF
+		self.C_c = self.Cc1/2
+		self.T_0 = T_0 * u.Kelvin #Bath temperature
 		self.P_opt = P_opt * u.pW
 		self.P_read = (P_read * dBm).to(u.pW)
-		self.gamma_leg = gamma_leg
+		self.P_total = self.P_opt + 0.5*self.P_read #kind of approximate
+		self.gamma_leg = gamma_leg #n+1
 		self.K_leg = K_leg * u.picoWatt/u.Kelvin**self.gamma_leg
 		try:
 			self.t = kwargs['t'] *u.um
@@ -92,11 +93,10 @@ class TKIDBolometer:
 			self.s_trace = 1 * u.um
 			self.N_sq = 16200
 		print ("Resonator parameters set.")
-		self.Delta = (1.764 * k_B * T_c).to('J')
+		self.Delta = (1.764 * k_B * self.Tc).to('J')
 
-	def operating_point(self):
-		self.x = self.P_read/self.P_opt
-		self.T_b= ((((1 + self.x)* self.P_opt)/self.K_leg +
+	def set_operating_point(self):
+		self.T_b= (((self.P_total)/self.K_leg +
 			self.T_0**self.gamma_leg)**(1./self.gamma_leg)).to('K')
 		niceprint("The temperature of the island", self.T_b)
 		self.l = self.N_sq * self.w_trace
@@ -105,7 +105,7 @@ class TKIDBolometer:
 
 		self.Rs = (rho/self.t).to('Ohm') # surface resistance in ohms/sq
 		niceprint ("The surface resistance", self.Rs)
-		self.L_k_psq = (self.h * self.Rs/(2 * np.pi**2 * self.Delta)).to(u.pH)
+		self.L_k_psq = (h * self.Rs/(2 * np.pi**2 * self.Delta)).to(u.pH)
 		self.L_k =  (self.L_k_psq * self.N_sq).to('nH') # Kinetic inductance contribution
 		niceprint("Kinetic Inductance per Square", self.L_k_psq)
 		niceprint ("The kinetic inductance", self.L_k)
@@ -138,16 +138,21 @@ class TKIDBolometer:
 		self.n_qp = (np.sqrt((self.n_th + n_qp_star)**2 + (2*self.Gamma_gen*n_qp_star*tau_max/self.V_sc)) - n_qp_star).to('1/um^3')
 		self.tau_th = (tau_max/(1 + self.n_th/n_qp_star)).to('us')
 		self.tau_qp = (tau_max/(1 + self.n_qp/n_qp_star)).to('us')
+		self.f_qp = (1./2/np.pi/self.tau_qp).to(u.kHz) # qp roll off frequency
+		self.x_MB = - (self.alpha * self.S_2 * self.n_qp / (4 * N_0 *
+				self.Delta)).to(1)
 		self.Q_qp = ((2 * N_0 * self.Delta)/(self.alpha * gamma_s * self.S_1 * self.n_qp)).to(1)
 		self.Q_sigma = (np.pi/4)*np.exp(self.Delta/(k_B * self.T_b))/np.sinh(self.eta)/K_0(self.eta)
-		self.Q_c = (2 * self.C_i/(self.omega_r * self.C_c**2 * Z0)).to(1)
+		self.Q_c = 21000 #(2 * self.C_i/(self.omega_r * self.C_c**2 * Z0)).to(1)
 		self.Q_i = 1./(1/self.Q_qp + 1./Q_int)
 		self.Q_r  = 1./(1./self.Q_c + 1./self.Q_i)
+		self.f_qr = (1./2/np.pi/self.tau_qp).to(u.Hz) # qp roll off frequency
 		# Overwrite to simulate more realistic devices
 		#Q_i = 48494
 		#Q_c = 155298
 		#Q_r = 1./(1./Q_c + 1./Q_i)
-		self.P_crit = (0.8 * (2*np.pi*self.f_r)* self.E_crit * self.Q_c/2/self.Q_r**3).to(u.pW)
+		self.P_crit = (0.8 * (2*np.pi*self.f_r)* self.E_crit *
+				self.Q_c/2/self.Q_r**3).to(u.pW)
 
 		niceprint("")
 		niceprint ("n_qp", self.n_qp)
@@ -165,30 +170,29 @@ class TKIDBolometer:
 		niceprint ("surface resistance, Rs", self.Rs)
 
 		self.dx = ((self.f_g - self.f_r)/self.f_r).to(1)
-		self.S_21 = 1 - (self.Q_r/self.Q_c)* 1./(1 + 2 * 1j * self.Q_r * self.dx)
+		self.S_21 = 1 - (self.Q_r/self.Q_c)* 1./(1 + 2j * self.Q_r * self.dx)
 		self.df_r = (self.f_r/(2*self.Q_r)).to('kHz')
 		self.df_g = (self.f_g - self.f_r).to('kHz')
 
 		self.chi_c = (4 * self.Q_r**2)/(self.Q_i * self.Q_c)
 		self.chi_g = 1./(1 + (self.df_g/self.df_r)**2)
 		self.chi_qp = self.Q_i/self.Q_qp
-		P_g = (2/chi_c) * P_read
+		self.P_g = (0.5 * self.chi_c * self.chi_g) * self.P_read
 
 		niceprint("")
-		niceprint ("Resonator Bandwidth", self.df_r)
 		niceprint ("Coupling efficiency", self.chi_c)
 		niceprint ("Detuning efficiency", self.chi_g)
 		niceprint ("Fraction of Q_i from qp losses", self.chi_qp)
 
 		# Now we include the NEP estimates for the resobolo currently
 		self.kappa = (1/2 + self.Delta/k_B/self.T_b).to(1)
-		self.P_leg = self.P_opt * (1 + self.x) # Total power into the resobolo thermal link
+		self.P_leg = self.P_total # Total power into the resobolo thermal link
 		self.gamma_g = (self.K_leg * self.gamma_leg *
 				self.T_b**self.gamma_leg / self.P_leg).to(1)
-		self.G_b = (self.gamma_g * self.P_leg/self.T_b).to('pW/K') # Conductance of the resobolo
+		self.G_b = (self.K_leg*self.gamma_leg*self.T_b**(self.gamma_leg-1)).to('pW/K') # Conductance of the resobolo
 		self.P_b = self.G_b * self.T_b
 		self.tau_b = (self.C_b/self.G_b).to('us')
-		self.f_b = (1/self.tau_b).to(u.Hz) # roll off frequency for bolometer
+		self.f_b = (1./2/np.pi/self.tau_b).to(u.Hz) # roll off frequency for bolometer
 
 		niceprint ("")
 		niceprint ("dln n_qp/ d ln T_b", self.kappa)
@@ -197,75 +201,103 @@ class TKIDBolometer:
 		niceprint ("Quasiparticle lifetime, tau_qp ", self.tau_qp)
 		niceprint ("Equilibrium qp lifetime, tau_th ", self.tau_th)
 		niceprint ("Bolometer Time constant", self.tau_b)
+		niceprint ("Resonator Bandwidth", self.df_r)
+		niceprint ("QP Roll off frequency", self.f_qp)
 		niceprint ("Bolometer Roll off frequency", self.f_b)
 
 		niceprint ("")
 		niceprint ("The optical power is ", self.P_opt)
 		niceprint ("The readout power is ", self.P_read)
-		niceprint ("The generated power is ", self.P_g)
+		niceprint ("The dissipated power is ", self.P_g)
 		niceprint ("Critical readout power ", self.P_crit)
 		niceprint ("The island power, P_b ", self.P_b)
 
-# Calculating the responsivities on resonance
-# r = dx/dPopt
-r = (0.5 * (chi_qp * beta/Q_i) * tau_qp/tau_th * kappa/P_b).to(1/u.pW)
-r_f = (f_r * r).to(u.kHz/u.pW)
+	def get_responsivity(self):
+		self.r = (np.abs(self.x_MB) * self.kappa / (self.T_b * self.G_b)).to(1/u.pW)
+		self.r_f = (self.f_r * self.r).to(u.kHz/u.pW)
+		niceprint ("")
+		niceprint ("resobolo responsivity ignoring bolometer rolloff", self.r_f)
+		return self.r_f
 
-niceprint ("")
-niceprint ("resobolo responsivity ignoring bolometer rolloff", r_f)
+	def get_noise(self):
+		self.get_responsivity()
+		# Phonon self.NEP
+		n = self.gamma_leg - 1
+		chi_ph = (n+1)/(2*n+3) * ((self.T_0/self.T_b).to(1)**(2*n+3)-1)/\
+				((self.T_0/self.T_b).to(1)**(n+1) - 1)
+		niceprint ("The bolometer flink factor ", chi_ph)
+		self.S_ph = (4 * chi_ph * k_B * self.T_b**2 * self.G_b ).to(u.aW**2/u.Hz)
+		self.NEP_ph = self.S_ph ** 0.5
 
-# Phonon NEP
-S_ph = (4 * chi_ph * k_B * self.T_b**2 * G_b ).to(u.aW**2/u.Hz)
+		# Amplifier self.NEP
+		self.S_amp = (k_B * T_amp/self.P_read).to(1/u.Hz)
+		# self.NEP_amp = (2 * S_amp**0.5/r/chi_c/Q_i).to(u.aW/u.Hz**0.5)
+		self.NEP_amp = (2 * self.S_amp**0.5 * self.Q_c/self.Q_r**2/self.r).to(u.aW/u.Hz**0.5)
 
-NEP_ph = S_ph ** 0.5
+		# Shot self.NEP
+		#self.S_shot = 2 * self.n_qp * self.V_sc * (1/tau_max + 1/self.tau_qp)
+		#self.NEP_gr = (self.S_shot**0.5 * (self.tau_th/(self.n_qp * self.V_sc) *
+		#	self.P_b/self.kappa)).to(u.aW/u.Hz**0.5)
+		self.NEP_gr = (2*(self.tau_qp/(self.n_qp * self.V_sc))**0.5 *
+			self.P_b/self.kappa).to(u.aW/u.Hz**0.5)
 
-# Amplifier NEP
-S_amp = (k_B * T_amp/P_g).to(1/u.Hz)
+		# Total self.NEP
+		self.NEP_total = (self.NEP_gr**2 + self.NEP_amp**2 + self.NEP_ph**2)**0.5
 
-# NEP_amp = (2 * S_amp**0.5/r/chi_c/Q_i).to(u.aW/u.Hz**0.5)
-NEP_amp = (2 * S_amp**0.5 * Q_c/Q_r**2/r).to(u.aW/u.Hz**0.5)
+		niceprint ("")
+		niceprint ("Phonon NEP", self.NEP_ph)
+		niceprint ("Amplifier NEP", self.NEP_amp)
+		niceprint ("GR NEP", self.NEP_gr)
+		niceprint ("Total NEP", self.NEP_total)
 
 
-# Shot NEP
-S_shot = 2 * n_qp * V_sc * (1/tau_max + 1/tau_qp)
+		return self.NEP_ph, self.NEP_amp, self.NEP_gr, self.NEP_total
 
-NEP_gr = (S_shot**0.5 * (tau_th/(n_qp * V_sc) * P_b/kappa)).to(u.aW/u.Hz**0.5)
+	def get_noise_spectra(self):
+		self.get_noise()
+		self.nu = np.logspace(-1, 6, 5000) * u.Hz
+		self.ones = np.ones_like(self.nu.value)
+		self.bolo_rolloff =  1/(1 + 1j * 2 * np.pi * self.nu * self.tau_b)
+		self.qp_rolloff =  1/(1 + 1j * 2 * np.pi * self.nu * self.tau_qp)
+		self.bolo_rolloff = np.abs(self.bolo_rolloff)
+		self.qp_rolloff = np.abs(self.qp_rolloff)
 
-# Total NEP
-NEP_total = (NEP_gr**2 + NEP_amp**2 + NEP_ph**2)**0.5
+		self.NEP_ph_spec = self.NEP_ph * self.bolo_rolloff
+		self.NEP_amp_spec = self.NEP_amp * self.ones
+		self.NEP_gr_spec = self.NEP_gr * self.qp_rolloff * self.bolo_rolloff
+		self.NEP_total_spec = (self.NEP_gr**2 + self.NEP_amp**2 +
+				self.NEP_ph**2)**0.5
 
-niceprint ("")
-niceprint ("Phonon NEP", NEP_ph)
-niceprint ("Amplifier NEP", NEP_amp)
-niceprint ("Shot NEP", NEP_gr)
-niceprint ("Total NEP", NEP_total)
+		fig, ax = plt.subplots(figsize=(10,10))
+		ax.loglog(self.nu, self.NEP_ph_spec, 'b', label='Phonon')
+		ax.loglog(self.nu, self.NEP_amp_spec, 'r--', label='Amplifier')
+		ax.loglog(self.nu, self.NEP_gr_spec, 'g', label='Gen-Recomb')
+		ax.loglog(self.nu, self.NEP_total_spec, 'k', label='Total')
 
-nu = np.logspace(-1, 6, 5000) * u.Hz
+		ax.set_xlabel(r'Frequency [Hz]')
+		ax.set_ylabel(r'NEP [aW/rtHz]')
+		ax.set_ylim([1, 1000])
+		ax.set_xlim([0.1, 1e6])
+		ax.grid(which='major', axis='both')
+		ax.legend(loc='best')
 
-# I'll ignore the bolometer roll off factor for now
-#H = np.ones_like(nu.value)
-ones = np.ones_like(nu.value)
-bolo_rolloff =  1/(1 + 1j * 2 * np.pi * nu * tau_b)
-qp_rolloff =  1/(1 + 1j * 2 * np.pi * nu * tau_qp)
-bolo_rolloff = np.abs(bolo_rolloff)
-qp_rolloff = np.abs(qp_rolloff)
+		plt.savefig(r'NEP_spectra.png')
 
-NEP_ph = NEP_ph * bolo_rolloff
-NEP_amp = NEP_amp * ones
-NEP_gr = NEP_gr * qp_rolloff * bolo_rolloff
-NEP_total = (NEP_gr**2 + NEP_amp**2 + NEP_ph**2)**0.5
 
-fig, ax = plt.subplots(figsize=(10,10))
-ax.loglog(nu, NEP_ph, 'b', label='Phonon')
-ax.loglog(nu, NEP_amp, 'r--', label='Amplifier')
-ax.loglog(nu, NEP_gr, 'g', label='Gen-Recomb')
-ax.loglog(nu, NEP_total, 'k', label='Total')
+if __name__=="__main__":
+	fg = 469.9
+	fr = fg
+	P_opt = 5.00 #pW
 
-ax.set_xlabel(r'Frequency [Hz]')
-ax.set_ylabel(r'NEP [aW/rtHz]')
-ax.set_ylim([1, 1000])
-ax.set_xlim([0.1, 1e6])
-ax.grid(which='major', axis='both')
-ax.legend(loc='best')
+	gamma_leg = 2.975
+	K_leg = 120.660
+	T_c = 1.385
+	T_0 = 0.08
 
-plt.savefig(r'NEP.png')
+	L_g = 6.1
+	C_c1 = 0.2878
+	P_read = -90 #dBm
+	bolo = TKIDBolometer(fr, fg, T_c, C_c1, T_0,
+			P_opt, P_read, K_leg, gamma_leg)
+	bolo.set_operating_point()
+	bolo.get_noise()
