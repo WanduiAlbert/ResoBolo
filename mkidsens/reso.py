@@ -22,7 +22,7 @@ class OperatingPoint():
 	''' DC operating point of a resonator bolometer '''
 	def __init__(self):
 		# Material properties
-		Tc = 1.32 * u.kelvin
+		Tc = 1.38 * u.kelvin
 		N0 = 1.7e10 / (u.electron_volt * u.micrometer**3)
 		taumax = 0.0005 * u.second
 		nstar = 100 / (u.micrometer**3)
@@ -82,7 +82,7 @@ class OperatingPoint():
 
 		To = 0.38 * u.kelvin		# Desired operating temperature of bolometer
 		Tb = 0.25 * u.kelvin		# Bolometer bath temperature
-		thermal_beta = 1.6					# Thermal conductivity exponent of legs
+		thermal_beta = 1.975					# Thermal conductivity exponent of legs
 
 		kc = Pt / (To**(thermal_beta+1.) - Tb**(thermal_beta+1.))
 
@@ -138,7 +138,7 @@ class OperatingPoint():
 		Qc = (C / (pi * fro * Cc**2 * Z0)).to('')	# Coupling Q
 		print("Qc: ",Qc)
 
-		exit()
+		#exit()
 		Qi = 1. / (1./Qiqp + 1./Qiloss)
 		Qc = Qi
 		Cc = np.sqrt(C / (pi *fro * Qc * Z0)).to('picofarad')
