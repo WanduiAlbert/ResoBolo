@@ -257,16 +257,18 @@ class TKIDBolometer:
 		self.get_noise()
 		self.nu = np.logspace(-1, 6, 5000) * u.Hz
 		self.ones = np.ones_like(self.nu.value)
-		self.bolo_rolloff =  1/(1 + 1j * 2 * np.pi * self.nu * self.tau_b)
-		self.qp_rolloff =  1/(1 + 1j * 2 * np.pi * self.nu * self.tau_qp)
+		self.bolo_rolloff =  1/(1 + 1j * 2 * np.pi * (self.nu * self.tau_b).to(1))
+		self.qp_rolloff =  1/(1 + 1j * 2 * np.pi * (self.nu * self.tau_qp).to(1))
+		self.reso_rolloff =  1/(1 + 1j * (self.nu / self.df_r).to(1))
 		self.bolo_rolloff = np.abs(self.bolo_rolloff)
 		self.qp_rolloff = np.abs(self.qp_rolloff)
+		self.reso_rolloff = np.abs(self.reso_rolloff)
 
 		self.NEP_ph_spec = self.NEP_ph * self.bolo_rolloff
 		self.NEP_amp_spec = self.NEP_amp * self.ones
-		self.NEP_gr_spec = self.NEP_gr * self.qp_rolloff * self.bolo_rolloff
-		self.NEP_total_spec = (self.NEP_gr**2 + self.NEP_amp**2 +
-				self.NEP_ph**2)**0.5
+		self.NEP_gr_spec = self.NEP_gr * self.qp_rolloff * self.reso_rolloff
+		self.NEP_total_spec = (self.NEP_gr_spec**2 + self.NEP_amp_spec**2 +
+				self.NEP_ph_spec**2)**0.5
 
 		fig, ax = plt.subplots(figsize=(10,10))
 		ax.loglog(self.nu, self.NEP_ph_spec, 'b', label='Phonon')
@@ -292,7 +294,7 @@ if __name__=="__main__":
 	gamma_leg = 2.975
 	K_leg = 120.660
 	T_c = 1.385
-	T_0 = 0.08
+	T_0 = 0.25
 
 	L_g = 6.1
 	C_c1 = 0.2878
@@ -301,3 +303,4 @@ if __name__=="__main__":
 			P_opt, P_read, K_leg, gamma_leg)
 	bolo.set_operating_point()
 	bolo.get_noise()
+	bolo.get_noise_spectra()

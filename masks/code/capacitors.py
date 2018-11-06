@@ -216,12 +216,12 @@ if __name__=="__main__":
     Cs = np.array(Cs)*u.pF
     pp.pprint (Cs)
     ccs = np.array(ccs)*u.pF
+    pp.pprint (ccs)
     wrs = (1/(L*Cs)**0.5).to(1/u.s)
     frs = (wrs/2/pi).to(u.MHz)
     pp.pprint (frs)
     Qcs = (8*Cs/(wrs*ccs**2*Z0)).to(1)
     pp.pprint (Qcs)
-    #pp.pprint (ccs)
     #pp.pprint (Cs)
 
     # Next we do the same for the larger spacing capacitors
@@ -253,10 +253,10 @@ if __name__=="__main__":
     uCs = np.array(uCs)*u.pF
     pp.pprint (uCs)
     uccs = np.array(uccs)*u.pF
+    pp.pprint (uccs)
     uwrs = (1/(L*uCs)**0.5).to(1/u.s)
     ufrs = (uwrs/2/pi).to(u.MHz)
     pp.pprint (ufrs)
     uQcs = (8*uCs/(uwrs*uccs**2*Z0)).to(1)
     pp.pprint (uQcs)
-    #pp.pprint (ccs)
     #pp.pprint (Cs)

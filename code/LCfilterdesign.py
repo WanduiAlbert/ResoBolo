@@ -19,7 +19,6 @@ MHz = 1e6
 
 if __name__=="__main__":
     R1 = 50 #Ohms. The heater load resistance. Unclear if this is the Z0 to
-               # which I should design instead of 50 Ohms.
     R2 = 0.1 # The resistance of the heaters.
     wc = 500*MHz
     n = 3 # Order of the Butterworth filter
