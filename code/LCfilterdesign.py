@@ -18,7 +18,7 @@ pF = 1e-12
 MHz = 1e6
 
 if __name__=="__main__":
-    Z0 = 50 #Ohms. The heater load resistance. Unclear if this is the Z0 to
+    Z0 = 50#Ohms. The heater load resistance. Unclear if this is the Z0 to
                # which I should design instead of 50 Ohms.
     wc = 100*MHz
     n = 3 # Order of the Butterworth filter
@@ -31,7 +31,7 @@ if __name__=="__main__":
 
     # Want to see the response expected for a filter such as this
     omega = np.linspace(0.1, 2*pi*800, 1000)*MHz
-    ZL = 50#0.106 # The resistance of the heaters.
+    ZL = 50# The resistance of the heaters.
     Z_filt = 1j*omega*L*(1 + 1/(1 - omega**2*L*C))
     H2 = ZL/(Z_filt + ZL) # Transfer function of the filter
     H = ZL/(-1j*omega**3*L**2*C - omega**2*L*C*ZL + 2j*omega*L + ZL)

@@ -1,10 +1,12 @@
 import gdspy
 import pdb
 
-orig = "diplexer_FINAL_reformating.gds"
-sim = "diplexer_FINAL_reformating_sim-output.gds"
+#orig = "diplexer_FINAL_reformating.gds"
+#sim = "diplexer_FINAL_reformating_sim-output.gds"
+orig = "../mask_files/sscale_darkres_4in.gds"
+sim = "../mask_files/sscale_darkres_4in_sim-output.gds"
 
-orig_cell = 'Global_Overlay_Inverted'
+orig_cell = 'Global_Overlay_4in_Inverted'
 sim_cell = 'Global_Overlay_Sim'
 
 original = gdspy.GdsLibrary('orig')
@@ -52,4 +54,4 @@ mismatch.add(miss)
 mismatch.add(org)
 mismatch.add(dc)
 #pdb.set_trace()
-mismatch.write_gds('diplexer_FINAL_reformating_verifysim.gds', [org, simd, miss, dc])
+mismatch.write_gds("../mask_files/sscale_darkres_4in_verifysim.gds", [org, simd, miss, dc])

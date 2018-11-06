@@ -69,19 +69,20 @@ class OperatingPoint():
 		Tsky = 31.* u.kelvin		# Total optical load referenced to front of dewar (rj)
 		rjtop = (k * eta * nu * bw).to('picowatt/kelvin')
 		Po = (Tsky * rjtop).to('picowatt')
+		Po = 5.00 *u.picowatt
 		print("Po: ",Po)
 
 		#Psat = 1.5*Po
 		#Pr = Psat - Po				# Readout power
-		Pr = 3.0*u.picowatt
+		Pr = 1.0*u.picowatt
 		Psat = Pr + Po
 		Pe = 0.5 * Pr				# Fraction of readout power dissipated in bolometer
 
 		Pt = Po + Pe				# Total power dissipated on bolometer
 		print("Psat: ",Pt)
 
-		To = 0.38 * u.kelvin		# Desired operating temperature of bolometer
-		Tb = 0.25 * u.kelvin		# Bolometer bath temperature
+		To = 0.3556 * u.kelvin		# Desired operating temperature of bolometer
+		Tb = 0.08 * u.kelvin		# Bolometer bath temperature
 		thermal_beta = 1.975					# Thermal conductivity exponent of legs
 
 		kc = Pt / (To**(thermal_beta+1.) - Tb**(thermal_beta+1.))
@@ -91,12 +92,12 @@ class OperatingPoint():
 		print("Gc: ",G)
 
 		Z0 = 50 * u.ohm				# Readout line impedance
-		fro = 0.3 * u.gigahertz		# KID resonator frequency
+		fro = 469.9 * u.megahertz		# KID resonator frequency
 		C = 1./((2*pi*fro)**2 * L)	# KID capacitance
 		C = C.to('picofarad')
 		print("C: ",C)
-		Tn = 3.0 * u.kelvin			# Noise temperature of readout amplifier
-		Qiloss = 3e5					# Intrinsic resonator Q
+		Tn = 5.22 * u.kelvin			# Noise temperature of readout amplifier
+		Qiloss = 3e7					# Intrinsic resonator Q
 
 		# Thermal quasiparticle density
 		nqp = (2 * N0 * np.sqrt(2. * pi * k * To * delta0) * np.exp(-delta0 / (k * To))).to(1./u.micrometer**3)
@@ -136,11 +137,12 @@ class OperatingPoint():
 
 		Cc = 0.16 * u.picofarad
 		Qc = (C / (pi * fro * Cc**2 * Z0)).to('')	# Coupling Q
+		Qc = 21000
 		print("Qc: ",Qc)
 
 		#exit()
 		Qi = 1. / (1./Qiqp + 1./Qiloss)
-		Qc = Qi
+		#Qc = Qi
 		Cc = np.sqrt(C / (pi *fro * Qc * Z0)).to('picofarad')
 		# Effective Q of resonator
 		Qr = 1. / (1./Qi + 1./Qc)

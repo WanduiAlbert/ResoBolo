@@ -5,6 +5,7 @@ import numpy as np
 import openpyxl
 import argparse
 import sys
+import os
 
 mask_width = 22000
 mask_length = 26000
@@ -252,7 +253,7 @@ if __name__=='__main__':
     fn_spreadsheet = args.spreadsheet
     fn_mask = args.mask_file
     reticle_list = args.reticle_list
-    fn_out = args.out_file if args.out_file else fn_mask.split('.')[0] + '_sim-output.gds'
+    fn_out = args.out_file if args.out_file else os.path.splitext(fn_mask)[0] + '_sim-output.gds'
     print("Loading mask...")
     mask_cells = load_mask(fn_mask, reticle_list)
     run_sim(fn_spreadsheet, mask_cells)
