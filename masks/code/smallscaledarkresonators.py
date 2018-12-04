@@ -402,8 +402,8 @@ def invert_cell(cell, rotation=0):
         inverter(cell)
 
     icells = []    
-    for cell in cell.get_dependencies():
-        icells.append(invert_cell(cell, rotation))
+    for subcell in cell.get_dependencies():
+        icells.append(invert_cell(subcell, rotation))
     return icells
 
 
