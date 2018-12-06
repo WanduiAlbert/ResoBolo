@@ -11,6 +11,8 @@ measurements.
 """
 
 import numpy as np
+import matplotlib
+matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 from scipy import signal, interpolate, optimize
 from math import pi
@@ -38,11 +40,20 @@ def boloresponse(f, f3dB):
 
 def logsweep(Tacq, *args):
 	f1, f2, T, phi0, sample_rate = args
-	k = np.log(f2/f1)
+	k = (f2 - f1)/T
 	nperiod = int(T*sample_rate)
 	ntotal = int(Tacq*sample_rate)
 	t = get_periodic_ts(nperiod, ntotal, sample_rate)
 	phase = 2*pi*f1*T/k*(np.exp(t*k/T) - 1) + phi0
+	return np.arange(ntotal)/sample_rate, np.sin(phase)
+
+def linsweep(Tacq, *args):
+	f1, f2, T, phi0, sample_rate = args
+	k = np.log(f2/f1)
+	nperiod = int(T*sample_rate)
+	ntotal = int(Tacq*sample_rate)
+	t = get_periodic_ts(nperiod, ntotal, sample_rate)
+	phase = 2*pi*(f1*t + 0.5 * k * t**2) + phi0
 	return np.arange(ntotal)/sample_rate, np.sin(phase)
 
 def getsweepasd(Tacq, func, *args):
@@ -71,12 +82,12 @@ def get_resonator_ts(Tacq, f3dB, func, *args):
 def thermal_model(f,A,f3db):
 	return np.log10(A / np.sqrt(1.0+(f/f3db)**2))
 
-f1 = 1
-f2 = 100
+f1 = 0.1
+f2 = 500
 T =  10
 Tacq = 120
 f3dB = 28
-phi0 = np.random.randn()
+phi0 = np.random.rand() * 2*pi
 sample_rate = 100e6/100./8192 # get the fastchirp sampling rate
 print ("sample rate: %1.3f Hz"%sample_rate)
 print ("start freq: %1.3f Hz"%f1)
@@ -100,12 +111,13 @@ t, y = get_resonator_ts(Tacq, f3dB, logsweep, f1, f2, T, phi0, sample_rate)
 #plt.show()
 
 nperseg = 1024
-fs, asd = signal.welch(y, fs=sample_rate, detrend='linear', scaling="density",
+fs, psd = signal.welch(y, fs=sample_rate, detrend='linear', scaling="density",
 		nperseg=nperseg)
-t_ref, y_ref = logsweep(Tacq, f1, f2, T, phi0, sample_rate)
-fs_ref, asd_ref = signal.welch(y_ref, fs=sample_rate, detrend='linear',
+t_ref, y_ref = logsweep(Tacq, f1, f2, T, 0.0, sample_rate)
+fs_ref, psd_ref = signal.welch(y_ref, fs=sample_rate, detrend='linear',
 		scaling="density", nperseg=nperseg)
-asd /= asd_ref
+
+asd = np.sqrt(psd/psd_ref)
 
 ly = np.log10(asd)
 p0 = (asd[0],10.0)
@@ -119,7 +131,7 @@ plt.figure(123)
 plt.semilogx(fs, asd,label="Measured")
 plt.semilogx(fs, asd_fit,label='Fit f3db=%.1fHz'%popt[1])
 plt.grid()
-plt.ylim([0, 1.2])
+#plt.ylim([0, 1.2])
 plt.xlabel('Frequency [Hz]')
 plt.ylabel('Transfer Function')
 plt.legend(loc='upper left')

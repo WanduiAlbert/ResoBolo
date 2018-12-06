@@ -86,14 +86,6 @@ lines.solid_joinstyle : miter       # miter|round|bevel
 lines.solid_capstyle : projecting   # butt|round|projecting
 lines.antialiased : True         # render lines in antialised (no jaggies)
 
-# The three standard dash patterns.  These are scaled by the linewidth.
-#lines.dashed_pattern : 2.8, 1.2
-#lines.dashdot_pattern : 4.8, 1.2, 0.8, 1.2
-#lines.dotted_pattern : 1.1, 1.1
-#lines.scale_dashes : True
-
-#markers.fillstyle: full # full|left|right|bottom|top|none
-
 ### PATCHES
 # Patches are graphical objects that fill 2D space, like polygons or
 # circles.  See
@@ -103,55 +95,6 @@ patch.linewidth        : 1.0     # edge width in points
 patch.facecolor        : blue
 patch.edgecolor        : black
 patch.antialiased      : True    # render patches in antialised (no jaggies)
-#patch.antialiased      : True    # render patches in antialiased (no jaggies)
-
-### HATCHES
-#hatch.color     : k
-#hatch.linewidth : 1.0
-
-### Boxplot
-#boxplot.notch       : False
-#boxplot.vertical    : True
-#boxplot.whiskers    : 1.5
-#boxplot.bootstrap   : None
-#boxplot.patchartist : False
-#boxplot.showmeans   : False
-#boxplot.showcaps    : True
-#boxplot.showbox     : True
-#boxplot.showfliers  : True
-#boxplot.meanline    : False
-
-#boxplot.flierprops.color           : 'k'
-#boxplot.flierprops.marker          : 'o'
-#boxplot.flierprops.markerfacecolor : 'none'
-#boxplot.flierprops.markeredgecolor : 'k'
-#boxplot.flierprops.markersize      : 6
-#boxplot.flierprops.linestyle       : 'none'
-#boxplot.flierprops.linewidth       : 1.0
-
-#boxplot.boxprops.color     : 'k'
-#boxplot.boxprops.linewidth : 1.0
-#boxplot.boxprops.linestyle : '-'
-
-#boxplot.whiskerprops.color     : 'k'
-#boxplot.whiskerprops.linewidth : 1.0
-#boxplot.whiskerprops.linestyle : '-'
-
-#boxplot.capprops.color     : 'k'
-#boxplot.capprops.linewidth : 1.0
-#boxplot.capprops.linestyle : '-'
-
-#boxplot.medianprops.color     : 'C1'
-#boxplot.medianprops.linewidth : 1.0
-#boxplot.medianprops.linestyle : '-'
-
-#boxplot.meanprops.color           : 'C2'
-#boxplot.meanprops.marker          : '^'
-#boxplot.meanprops.markerfacecolor : 'C2'
-#boxplot.meanprops.markeredgecolor : 'C2'
-#boxplot.meanprops.markersize      :  6
-#boxplot.meanprops.linestyle       : 'none'
-#boxplot.meanprops.linewidth       : 1.0
 
 ### FONT
 #
@@ -193,8 +136,8 @@ patch.antialiased      : True    # render patches in antialised (no jaggies)
 #font.serif          : Computer Modern Roman
 #font.sans-serif     : Computer Modern Sans Serif
 
-font.family         : monospace #arial
-font.serif          : Courier
+font.family         : serif #arial
+font.serif          : Times New Roman
 font.sans-serif     : Computer Modern Sans Serif
 font.style          : normal
 font.variant        : normal
@@ -220,7 +163,7 @@ font.size           : 30.0
 text.color          : black
 
 ### LaTeX customizations. See http://www.scipy.org/Wiki/Cookbook/Matplotlib/UsingTex
-text.usetex         : True  # use latex for all text handling. The following fonts
+text.usetex         : False  # use latex for all text handling. The following fonts
                               # are supported through the usual rc parameter settings:
                               # new century schoolbook, bookman, times, palatino,
                               # zapf chancery, charter, serif, sans-serif, helvetica,
@@ -231,8 +174,7 @@ text.usetex         : True  # use latex for all text handling. The following fon
                               # matplotlib mailing list
 text.latex.unicode : False # use "ucs" and "inputenc" LaTeX packages for handling
                             # unicode strings.
-text.latex.preamble :  \usepackage{amsmath}, \usepackage{amssymb}
-                            # IMPROPER USE OF THIS FEATURE WILL LEAD TO LATEX FAILURES
+text.latex.preamble :  # IMPROPER USE OF THIS FEATURE WILL LEAD TO LATEX FAILURES
                             # AND IS THEREFORE UNSUPPORTED. PLEASE DO NOT ASK FOR HELP
                             # IF THIS FEATURE DOES NOT DO WHAT YOU EXPECT IT TO.
                             # preamble is a comma separated list of LaTeX statements
@@ -384,7 +326,7 @@ legend.scatterpoints : 3 # number of scatter points
 
 ### FIGURE
 # See http://matplotlib.org/api/figure_api.html#matplotlib.figure.Figure
-figure.figsize   : 10, 10    # figure size in inches
+figure.figsize   : 15, 10    # figure size in inches
 figure.dpi       : 80      # figure dots per inch
 figure.facecolor : 0.75    # figure facecolor; 0.75 is scalar gray
 figure.edgecolor : white   # figure edgecolor
