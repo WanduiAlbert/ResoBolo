@@ -102,14 +102,14 @@ class PatchTable():
     # Some class constants that define the relative positions of the TVPA and
     # AGA Marks with respect to the center of the alignment marks cell
     # These are defined for alignment_marks_patch_new_r
-    #tvpa_shift = np.array([0.125, 0])
-    #aga_x_shift = np.array([-0.125, 0])
-    #aga_y_shift = np.array([-0.225, 0])
+    tvpa_shift = np.array([0.125, 0])
+    aga_x_shift = np.array([-0.125, 0])
+    aga_y_shift = np.array([-0.225, 0])
 
     # For alignment_marks_patch_r
-    tvpa_shift = np.array([0.16875, 0])
-    aga_x_shift = np.array([-0.08125, 0])
-    aga_y_shift = np.array([-0.18125, 0])
+    #tvpa_shift = np.array([0.16875, 0])
+    #aga_x_shift = np.array([-0.08125, 0])
+    #aga_y_shift = np.array([-0.18125, 0])
 
 
     def __init__(self, shotlist, wb_filename="ResonatorArray.xlsx"):
@@ -432,6 +432,7 @@ class Shot():
         self.maskcell=""
         self.maskcellsize=default
         self.mask_shift=default
+        self.mask_cell_bbox = [[0.0,0.0],[0.0,0.0]]
 
     def update_mask_location(self, maskcellref, maskname):
         self.mask_name = maskname
@@ -440,6 +441,7 @@ class Shot():
 
         self.maskcell = maskcellref.ref_cell
         self.maskcellsize = scalearr(get_size(maskcellref), scale)
+        self.mask_cell_bbox = scalearr(self.maskcell.get_bounding_box(), scale)
         self.mask_shift = scalearr(maskcellref.origin, scale)
 
     def __repr__(self):
@@ -481,7 +483,7 @@ class Shot():
         return self.cell_shift
 
     def get_cell_bbox(self):
-        return self.cell_bbox
+        return self.mask_cell_bbox
 
     def get_array_size(self):
         if not self.isArray: return None, None

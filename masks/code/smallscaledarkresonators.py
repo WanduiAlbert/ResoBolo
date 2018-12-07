@@ -1100,6 +1100,8 @@ def fill_empty_space(cell, width, length):
     filler = make_rectangle(width, length)
     subcells = cell.elements
     for subcell in subcells:
+        refname = subcell.ref_cell.name
+        #print (refname)
         dx, dy = get_size(subcell)
         subrect = make_rectangle(dx, dy)
         subrect.translate(*subcell.origin)
