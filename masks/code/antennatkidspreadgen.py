@@ -174,8 +174,8 @@ if __name__ == "__main__":
     main_lib.read_gds(base_fn)
     cell_dict = main_lib.cell_dict
     gdspy.write_gds(final_fn, unit=1e-6,precision=1e-9)
-    makeInvertedOverlay = False
-    fillmask = False
+    makeInvertedOverlay = True
+    fillmask = True
     if makeInvertedOverlay:
         main_lib.read_gds(final_fn)
         cell_dict = main_lib.cell_dict
@@ -204,7 +204,7 @@ if __name__ == "__main__":
         mask = generate_mask()
 
         gdspy.write_gds(final_fn, unit=1e-6,precision=1e-9)
-        exit()
+        #exit()
     #main_lib.read_gds(base_fn)
 
     """

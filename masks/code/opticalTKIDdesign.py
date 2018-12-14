@@ -203,7 +203,7 @@ if __name__=="__main__":
     c_cellname = "coarse_blade"
     main_blade = gdspy.Cell(c_cellname)
     main_blade.add(crect)
-    fdx, fdy = 100, 2
+    fdx, fdy = 20, 2
     frect = gdspy.Rectangle([-fdx/2, fdy/2], [fdx/2, -fdy/2], layer=1)
     f_cellname = "fine_blade"
     fine_blade = gdspy.Cell(f_cellname)
