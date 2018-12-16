@@ -604,7 +604,6 @@ def get_array_shifts(element, parent_args):
 	Nc,Nr = parent_args['num_cols'], parent_args['num_rows']
 	X0, Y0 = parent_args['center']
 	DX, DY = parent_args['xspacing'], parent_args['yspacing']
-
 	# Get info of the child array
 	nc, nr = element.columns, element.rows
 	x0, y0 = scalearr(get_center(element) - get_center(element.ref_cell), scale)
@@ -615,16 +614,22 @@ def get_array_shifts(element, parent_args):
 	Mx = np.arange(Mc) + 1
 	My = np.arange(Mr) + 1
 	nx = (Mx - 1)%nc + 1
-	Nx = (Mx - nx)/nc + 1
+	Nx = ((Mx - nx)/nc + 1).astype(int)
 	ny = (My - 1)%nr + 1
-	Ny = (My - ny)/nr + 1
+	Ny = ((My - ny)/nr + 1).astype(int)
+	if parent_args['is_shifted']:
+		pshiftx = parent_args['shift_x'][Nx - 1]
+		pshifty = parent_args['shift_y'][Ny - 1]
 
 	xspacing = DX//nc
 	yspacing = DY//nr
 	calcx = X0 - xspacing/2*(Mc - 2*Mx + 1)
 	calcy = Y0 + yspacing/2*(Mr - 2*My + 1)
-	shiftx = x0 - (nc - 2*nx + 1)*(dx - xspacing)/2 #- (DX % nc)*(Nc - 2*Nx + 1)/2
-	shifty = y0 + (nr - 2*ny + 1)*(dy - yspacing)/2 #+ (DY % nr)*(Nr - 2*Ny + 1)/2
+	shiftx = x0 - (nc - 2*nx + 1)*(dx - xspacing)/2 - (DX % nc)*(Nc - 2*Nx + 1)/2
+	shifty = y0 + (nr - 2*ny + 1)*(dy - yspacing)/2 + (DY % nr)*(Nr - 2*Ny + 1)/2
+	if parent_args['is_shifted']:
+		shiftx += pshiftx
+		shifty += pshifty
 	#shiftx = np.around(-(Nc - 2*Nx + 1)*(DX - nc*dx)/2, 3)
 	#shifty = np.around(+(Nr - 2*Ny + 1)*(DY - nr*dy)/2, 3)
 	shiftx = np.around(shiftx, 3)
@@ -637,14 +642,14 @@ def get_array_shifts(element, parent_args):
 	if nc == 1: dx = 0
 	if nr == 1: dy = 0
 
-	if dx == 0:
+	if dx == 0 and not parent_args['is_shifted']:
 		calcx = np.zeros_like(Mx)
 		shiftx = np.zeros_like(Mx)
 		desiredx = np.zeros_like(Mx)
 		dx = DX
 		xspacing = dx
 
-	if dy == 0:
+	if dy == 0 and not parent_args['is_shifted']:
 		calcy = np.zeros_like(My)
 		shifty = np.zeros_like(My)
 		desiredy = np.zeros_like(My)
@@ -669,11 +674,29 @@ def get_array_shifts(element, parent_args):
 	# Sometimes nested arrays end up falling on a regular grid with exactly no
 	# row/column shifts. In this case, we will intuit the existence of this new array and
 	# use it.
-	if dx == DX and dy == DY:
+	if dx == DX and dy == DY and not parent_args['is_shifted']:
 		shiftArray = False
 		xspacing = dx
 		yspacing = dy
 
+	diffx = np.diff(desiredx)
+	diffy = np.diff(desiredy)
+	xongrid = np.all(diffx == diffx[0])
+	yongrid = np.all(diffy == diffy[0])
+	if xongrid:
+		xspacing = np.abs(diffx[0])
+		calcx = np.zeros_like(Mx)
+		shiftx = np.zeros_like(Mx)
+		desiredx = np.zeros_like(Mx)
+
+	if yongrid:
+		yspacing = np.abs(diffy[0])
+		calcy = np.zeros_like(My)
+		shifty = np.zeros_like(My)
+		desiredy = np.zeros_like(My)
+
+	if xongrid and yongrid:
+		shiftArray = False
 
 	new_args = {'center':parent_args['center'], 'num_cols':Mc, 'num_rows':Mr,\
 			'xspacing':xspacing, 'yspacing':yspacing, 'is_shifted':shiftArray,\
@@ -684,7 +707,8 @@ def get_array_shifts(element, parent_args):
 
 def makeshot(curr_element, parent_origin=default, parentIsArray=False,
 		arrayArgs=empty_dict, mask_list=[], ignored_cells=set()):
-	if curr_element.ref_cell.name == "Capacitor_LR": pdb.set_trace()
+	#if curr_element.ref_cell.name == "alignment_marks_patch_new": pdb.set_trace()
+	#if curr_element.ref_cell.name == "Cap_300MHz": pdb.set_trace()
 	if curr_element.ref_cell.name in ignored_cells: return []
 	if type(curr_element) not in allowed_element_types:
 		return []
