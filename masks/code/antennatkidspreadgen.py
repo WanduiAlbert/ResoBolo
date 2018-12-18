@@ -152,6 +152,11 @@ def generate_mask():
 	print ("Generating the mask....\n\n")
 	all_cells = main_lib.cell_dict
 	mask = all_cells['reticle1']
+	maskhasOverlaps = ssd.check_cell_for_overlaps(mask)
+	if maskhasOverlaps:
+		print ("FIX ME: Some cells on the mask were found to have overlaps.")
+	else:
+		print ("No overlaps found on the mask file")
 	filler = ssd.fill_empty_space(mask, ssd.mask_width, ssd.mask_length)
 	# A bit of a hack but works
 	filler.layers = [def_layers['Wafer Outline'] for _ in filler.layers]

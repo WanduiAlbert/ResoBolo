@@ -604,11 +604,12 @@ def get_array_shifts(element, parent_args):
 	Nc,Nr = parent_args['num_cols'], parent_args['num_rows']
 	X0, Y0 = parent_args['center']
 	DX, DY = parent_args['xspacing'], parent_args['yspacing']
+	ptx, pty = parent_args['to_shift']
 	# Get info of the child array
 	nc, nr = element.columns, element.rows
 	x0, y0 = scalearr(get_center(element) - get_center(element.ref_cell), scale)
 	dx, dy = scalearr(element.spacing, scale)
-
+	mycenter = np.array([x0, y0])
 	# Compute the new array properties
 	Mc, Mr = Nc*nc, Nr*nr
 	Mx = np.arange(Mc) + 1
@@ -623,10 +624,13 @@ def get_array_shifts(element, parent_args):
 
 	xspacing = DX//nc
 	yspacing = DY//nr
-	calcx = X0 - xspacing/2*(Mc - 2*Mx + 1)
-	calcy = Y0 + yspacing/2*(Mr - 2*My + 1)
-	shiftx = x0 - (nc - 2*nx + 1)*(dx - xspacing)/2 - (DX % nc)*(Nc - 2*Nx + 1)/2
-	shifty = y0 + (nr - 2*ny + 1)*(dy - yspacing)/2 + (DY % nr)*(Nr - 2*Ny + 1)/2
+	calcx = X0 - xspacing/2*(Mc - 2*Mx + 1) + x0 + ptx
+	calcy = Y0 + yspacing/2*(Mr - 2*My + 1) + y0 + pty
+	shiftx =  - (nc - 2*nx + 1)*(dx - xspacing)/2 - (DX % nc)*(Nc - 2*Nx + 1)/2
+	shifty =  + (nr - 2*ny + 1)*(dy - yspacing)/2 + (DY % nr)*(Nr - 2*Ny + 1)/2
+	# Kind of a hack move here. Because I moved x0, y0 to the calcx, calcy
+	# level, that information from the parent it no longer captured if I only
+	# account for shiftx and shifty.
 	if parent_args['is_shifted']:
 		shiftx += pshiftx
 		shifty += pshifty
@@ -681,8 +685,8 @@ def get_array_shifts(element, parent_args):
 
 	diffx = np.diff(desiredx)
 	diffy = np.diff(desiredy)
-	xongrid = np.all(diffx == diffx[0])
-	yongrid = np.all(diffy == diffy[0])
+	xongrid = np.all(diffx == diffx[0]) and nc !=1
+	yongrid = np.all(diffy == diffy[0]) and nr != 1
 	if xongrid:
 		xspacing = np.abs(diffx[0])
 		calcx = np.zeros_like(Mx)
@@ -698,17 +702,18 @@ def get_array_shifts(element, parent_args):
 	if xongrid and yongrid:
 		shiftArray = False
 
+	shift = default
+	if shiftArray: shift = mycenter + parent_args['to_shift']
 	new_args = {'center':parent_args['center'], 'num_cols':Mc, 'num_rows':Mr,\
 			'xspacing':xspacing, 'yspacing':yspacing, 'is_shifted':shiftArray,\
 		'column_pos':Mx, 'calculated_x':calcx, 'desired_x':desiredx,\
 		'shift_x': shiftx, 'row_pos':My, 'calculated_y':calcy,\
-		'desired_y':desiredy, 'shift_y': shifty}
+		'desired_y':desiredy, 'shift_y': shifty, 'to_shift':shift}
 	return new_args
 
 def makeshot(curr_element, parent_origin=default, parentIsArray=False,
 		arrayArgs=empty_dict, mask_list=[], ignored_cells=set()):
-	#if curr_element.ref_cell.name == "alignment_marks_patch_new": pdb.set_trace()
-	#if curr_element.ref_cell.name == "Cap_300MHz": pdb.set_trace()
+	#if curr_element.ref_cell.name == "bias_lines_R": pdb.set_trace()
 	if curr_element.ref_cell.name in ignored_cells: return []
 	if type(curr_element) not in allowed_element_types:
 		return []
@@ -719,6 +724,7 @@ def makeshot(curr_element, parent_origin=default, parentIsArray=False,
 	cell_shift = abs_origin
 	cell_size = scalearr(get_size(curr_cell), scale)
 	cell_bbox = scalearr(curr_cell.get_bounding_box(), scale)
+	haschildren = bool(curr_cell.get_dependencies())
 
 	isArray = False
 	if type(curr_element) == gdspy.CellArray and not parentIsArray:
@@ -729,32 +735,43 @@ def makeshot(curr_element, parent_origin=default, parentIsArray=False,
 		cell_shift = abs_origin
 		# in the array have their cell shifts relative to this cell.
 		xspacing, yspacing = scalearr(curr_element.spacing, scale)
-		args = {'num_cols':curr_element.columns, 'num_rows':curr_element.rows,\
+		newArrayArgs = {'num_cols':curr_element.columns, 'num_rows':curr_element.rows,\
 			'center':arr_center, 'xspacing':xspacing, 'yspacing':yspacing,
-			'is_shifted':False}
-		isArray = True
-
-	elif type(curr_element) == gdspy.CellReference and parentIsArray:
-		args = arrayArgs
+			'is_shifted':False, 'to_shift':default}
 		isArray = True
 
 	elif type(curr_element) == gdspy.CellReference and not parentIsArray:
-		args = {'num_cols':1, 'num_rows':1, 'center':cell_shift, 'xspacing':0,\
-			'yspacing':0, 'is_shifted':False}
+		newArrayArgs = {'num_cols':1, 'num_rows':1, 'center':cell_shift, 'xspacing':0,\
+				'yspacing':0, 'is_shifted':False, 'to_shift':default}
 		cell_shift = default
 
+	elif type(curr_element) == gdspy.CellReference and parentIsArray:
+		newArrayArgs = arrayArgs
+		isArray = True
+		if newArrayArgs['is_shifted']:
+			#newArrayArgs['shift_x'] += cell_shift[0]
+			#newArrayArgs['shift_y'] += cell_shift[1]
+			#newArrayArgs['desired_x'] += cell_shift[0]
+			#newArrayArgs['desired_y'] += cell_shift[1]
+			if not haschildren:
+				cell_shift += newArrayArgs['to_shift']
+			else:
+				cell_shift = newArrayArgs['to_shift']
+
+
 	elif type(curr_element) == gdspy.CellArray and parentIsArray:
+		#if curr_element.ref_cell.name == "Cap_300MHz": pdb.set_trace()
 		abs_origin = default
 		arr_center = scalearr(get_center(curr_element), scale)
 		#if curr_element.ref_cell.name == "L_MS_feed_bolometer":
 		#	print (arr_center)
-		cell_shift = arr_center
 		arr_center = arr_center - scalearr(cell_center , scale) + parent_origin
-		args = get_array_shifts(curr_element, arrayArgs)
+		cell_shift = arr_center
+		newArrayArgs = get_array_shifts(curr_element, arrayArgs)
+		if arrayArgs['is_shifted']: cell_shift = newArrayArgs['to_shift']
 		isArray = True
 
 
-	haschildren = bool(curr_cell.get_dependencies())
 
 	# Sometimes cells have children but are on the mask.  We want to
 	# use the largest mask cell possible, so we stop digging early
@@ -769,7 +786,7 @@ def makeshot(curr_element, parent_origin=default, parentIsArray=False,
 		try:
 			#if curr_element.ref_cell.name == 'ustrip_to_island_R':
 			#	pdb.set_trace()
-			shot = Shot(curr_cell, cell_shift, cell_size, cell_bbox, isArray=True, **args)
+			shot = Shot(curr_cell, cell_shift, cell_size, cell_bbox, isArray=True, **newArrayArgs)
 			return [shot]
 		except RuntimeError:
 			print ("Failed for", curr_element)
@@ -785,7 +802,7 @@ def makeshot(curr_element, parent_origin=default, parentIsArray=False,
 		if type(child) not in allowed_element_types: continue
 		# If the current shot is part of a larger array, I want to keep track of
 		# that information
-		child_shotlist.extend(makeshot(child, abs_origin, isArray, args,\
+		child_shotlist.extend(makeshot(child, abs_origin, isArray, newArrayArgs,\
 			mask_list=mask_list, ignored_cells=ignored_cells))
 	return child_shotlist
 

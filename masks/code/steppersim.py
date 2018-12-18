@@ -109,7 +109,6 @@ def run_sim(fn_spreadsheet, mask_cells):
 
 
 	while True:
-		#pdb.set_trace()
 
 		layer = ws['A' + str(r)].value
 
