@@ -15,7 +15,6 @@ pH = 1e-12
 MHz = 1e6
 
 
-
 def S21(nu, Zc, v_ph, l):
     """
     S21 (nu, Zc, v_ph, l)
@@ -48,23 +47,27 @@ if __name__=="__main__":
     # d = 300nm
     # dielectric: SiO2 with er=3.9
     # surface kinetic inductance Lk = 0.158pH/sq
-    er = 3.9
-    d = 0.3*um
-    w = 2*um
-    Lk = 0.158*pH
-    Cs = epsilon_0*(1 + er)/2*w/d
-    Ls = mu_0 * d/w + Lk*w
+    #er = 3.9
+    #d = 0.3*um
+    #w = 2*um
+    #Lk = 0.158*pH
+    #Cs = epsilon_0*(1 + er)/2*w/d
+    #Ls = mu_0 * d/w + Lk*w
 
-    Zc = (Ls/Cs)**0.5
-    v_ph = 1/(Ls*Cs)**0.5
+    #Zc = (Ls/Cs)**0.5
+    #v_ph = 1/(Ls*Cs)**0.5
+    er = 11.33
+    Zc = 36.4
+    er_eff = (1 + er)/2
+    v_ph = c/er_eff**0.5
     #er_eff = 3.35
     #v_ph = c/er_eff**0.5
     #Zc = 29
     print ("Characteristic impedance: {0:3.1f} Ohms".format(Zc))
     print ("Wave velocity: {0:3.1f} c".format(v_ph/c))
 
-    nu = np.r_[50:1000:1000j]*MHz
-    l = 22*mm
+    nu = np.r_[250:550:1000j]*MHz
+    l = 829.8*mm
 
     S = S21(nu, Zc, v_ph, l)
 
@@ -74,6 +77,7 @@ if __name__=="__main__":
     ax.grid(which='both')
     ax.set_xlabel('Frequency [MHz]')
     ax.set_ylabel('|S21|')
+    plt.savefig('slow_wave_S21.png')
     plt.show()
 
 
