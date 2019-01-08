@@ -48,13 +48,18 @@ def load_data(fn, nports=2, paramtype='Y'):
 		p31 = dataset[:,13] + 1j*dataset[:,14]
 		p32 = dataset[:,15] + 1j*dataset[:,16]
 		p33 = dataset[:,17] + 1j*dataset[:,18]
-		tup = lipt(zip(datapet[:, 0], p11, p12, p13, p21, p22, p23, p31, p32, p33))
+		tup = lipt(zip(dataset[:, 0], p11, p12, p13, p21, p22, p23, p31, p32, p33))
 		return np.array(tup, dtype=dtypes)
 
 def admittance_model(x, C, L, R):
 	w = 2*pi*x
+<<<<<<< HEAD
 	return np.abs(1j*w*C/(1 - w**2*L*C + 1j*w*R*C))
 	#return np.abs(1./(1./(1j*w*C) + 1j*w*L + R))
+=======
+	return np.abs(1j*w*C/(1-w**2*L*C + 1j*w*R*C))
+	#return np.abs(1./(R + 1./(1j*w*C) + 1j*w*L))
+>>>>>>> 2c1b3f157e9b3e0aef9aa23c8b43bf891f11d1af
 
 def chisq(theta, x, y):
 	return np.sum((y - admittance_model(x, *theta))**2)
@@ -64,10 +69,19 @@ def get_cap_params(fn):
 	Ydata = load_data(fn)
 	f = Ydata['frequency'] * MHz
 	nY21 = -Ydata['Y21']
+<<<<<<< HEAD
+=======
+	Y2gnd = np.imag(Ydata['Y11'] + Ydata['Y21'])
+	plt.plot(f/1e6, Ydata['Y11'].imag)
+	plt.plot(f/1e6, nY21.imag)
+	plt.show()
+	exit()
+>>>>>>> 2c1b3f157e9b3e0aef9aa23c8b43bf891f11d1af
 	wpeak = 2*pi*f[np.argmax(nY21.imag)]
 	C_est = nY21.imag[0]/(2*pi*f[0])
 	L_est = 1/(wpeak**2*C_est)
 	R_est = 1e-5
+<<<<<<< HEAD
 	nY21 = nY21[f/MHz < 450]
 	f = f[f/MHz < 450]
 
@@ -75,6 +89,17 @@ def get_cap_params(fn):
 	#mask = (f > 0)
 	p0 = [C_est, L_est, R_est]
 	#popt, pcov = curve_fit(admittance_model, f, nY21, method='lm')
+=======
+	nY21 = nY21[f < 450e6]
+	f = f[f < 450e6]
+
+	#R_est = (1./nY21[0]).real
+
+	#mask = (f < (wpeak/2/pi - 100*MHz))
+	#mask = (f > 0)
+	p0 = [C_est, L_est, R_est]
+	#popt, pcov = curve_fit(admittance_model, f[mask], nY21[mask], method='lm')
+>>>>>>> 2c1b3f157e9b3e0aef9aa23c8b43bf891f11d1af
 	result = minimize(chisq, p0, args=(f, np.abs(nY21)),
 			method='Nelder-Mead')
 	C_fit, L_fit, R_fit = result["x"]
@@ -111,25 +136,40 @@ def get_cap_params(fn):
 	ax.axis('tight')
 	plt.savefig(savename + "Y21.png")
 
+<<<<<<< HEAD
 	fig, ax = plt.subplots(figsize=(10,10))
 	ax.plot(f/MHz, np.abs(nY21) - y_fit,
 			'b', label="Fit C = %1.3fpF L = %1.3fnH R=%1.3e Ohms"%(C_fit/pF,
+=======
+	fig, ax =plt.subplots(figsize=(10,10))
+	ax.scatter(f/MHz, np.abs(nY21) - y_fit,
+			 label="Fit C = %1.3fpF L = %1.3fnH R=%1.3e Ohms"%(C_fit/pF,
+>>>>>>> 2c1b3f157e9b3e0aef9aa23c8b43bf891f11d1af
 				L_fit/nH, R_fit))
 	ax.legend()
 	ax.set_xlabel('Frequency [MHz]')
-	ax.set_ylabel('-Y21 [1/Ohms]')
+	ax.set_ylabel('Fit Residuals [1/Ohms]')
 	ax.grid()
 	ax.axis('tight')
 	plt.savefig(savename + "Y21_residuals.png")
-
 	plt.close('all')
+
+<<<<<<< HEAD
+	plt.close('all')
+=======
+>>>>>>> 2c1b3f157e9b3e0aef9aa23c8b43bf891f11d1af
 	return C_fit, L_fit, R_fit
 
 if __name__=="__main__":
 	L_al = 10 * nH
 	filenames = glob.glob(datadir + "*_with_boundary.csv")
+<<<<<<< HEAD
 	expected_freqs = np.array([300, 305, 310, 315, 320, 325, 330, 335, 340,
 			345]) * MHz
+=======
+	filenames.sort(key=lambda x:int(x.split('/')[-1].split('.')[0].split('_')[1][:3]))
+	expected_freqs = np.array([300, 305, 310, 315, 320, 325, 330, 335, 340, 345]) * MHz
+>>>>>>> 2c1b3f157e9b3e0aef9aa23c8b43bf891f11d1af
 	caps = []
 	inds = []
 	Rs =  []
