@@ -48,12 +48,13 @@ def load_data(fn, nports=2, paramtype='Y'):
 		p31 = dataset[:,13] + 1j*dataset[:,14]
 		p32 = dataset[:,15] + 1j*dataset[:,16]
 		p33 = dataset[:,17] + 1j*dataset[:,18]
-		tup = lipt(zip(datapet[:, 0], p11, p12, p13, p21, p22, p23, p31, p32, p33))
+		tup = lipt(zip(dataset[:, 0], p11, p12, p13, p21, p22, p23, p31, p32, p33))
 		return np.array(tup, dtype=dtypes)
 
-def admittance_model(x, C, L, C2):
+def admittance_model(x, C, L, R):
 	w = 2*pi*x
-	return np.abs(1j*w*C2 + 1./(1./(1j*w*C) + 1j*w*L + 1e-5))
+	return np.abs(1j*w*C/(1-w**2*L*C + 1j*w*R*C))
+	#return np.abs(1./(R + 1./(1j*w*C) + 1j*w*L))
 
 def chisq(theta, x, y):
 	return np.sum((y - admittance_model(x, *theta))**2)
@@ -63,25 +64,32 @@ def get_cap_params(fn):
 	Ydata = load_data(fn)
 	f = Ydata['frequency'] * MHz
 	nY21 = -Ydata['Y21']
-
+	Y2gnd = np.imag(Ydata['Y11'] + Ydata['Y21'])
+	plt.plot(f/1e6, Ydata['Y11'].imag)
+	plt.plot(f/1e6, nY21.imag)
+	plt.show()
+	exit()
 	wpeak = 2*pi*f[np.argmax(nY21.imag)]
 	C_est = nY21.imag[0]/(2*pi*f[0])
 	L_est = 1/(wpeak**2*C_est)
-	C2_est = 0
-	R_est = (1./nY21[0]).real
+	R_est = 1e-5
+	nY21 = nY21[f < 450e6]
+	f = f[f < 450e6]
 
-	mask = (f < (wpeak/2/pi - 100*MHz))
+	#R_est = (1./nY21[0]).real
+
+	#mask = (f < (wpeak/2/pi - 100*MHz))
 	#mask = (f > 0)
-	p0 = [C_est, L_est, C2_est]
+	p0 = [C_est, L_est, R_est]
 	#popt, pcov = curve_fit(admittance_model, f[mask], nY21[mask], method='lm')
-	result = minimize(chisq, p0, args=(f[mask], np.abs(nY21[mask])),
+	result = minimize(chisq, p0, args=(f, np.abs(nY21)),
 			method='Nelder-Mead')
-	C_fit, L_fit, C2_fit = result["x"]
+	C_fit, L_fit, R_fit = result["x"]
 	#C_fit, L_fit, R_fit = result["x"]
 	#R_fit = np.abs(R_fit)
 	#print (C_fit/pF, L_fit/nH, R_fit)
 
-	y_est = admittance_model(f, C_est, L_est, C2_est)
+	y_est = admittance_model(f, C_est, L_est, R_est)
 	#print (wpeak/2/pi/MHz)
 	#print (C_est/pF, L_est/nH, R_est)
 	#fig, ax =plt.subplots(figsize=(10,10))
@@ -97,12 +105,12 @@ def get_cap_params(fn):
 	#plt.savefig(savename + "Y21.png")
 
 	#exit()
-	y_fit = admittance_model(f, C_fit, L_fit, C2_fit)
+	y_fit = admittance_model(f, C_fit, L_fit, R_fit)
 	fig, ax =plt.subplots(figsize=(10,10))
 	ax.semilogy(f/MHz, np.abs(nY21), 'b', label='Simulation')
 	ax.semilogy(f/MHz, y_fit, 'k--',
-			label="Fit C = %1.3fpF L = %1.3fnH C2=%1.3f Ohms"%(C_fit/pF,
-				L_fit/nH, C2_fit/pF))
+			label="Fit C = %1.3fpF L = %1.3fnH R=%1.3e Ohms"%(C_fit/pF,
+				L_fit/nH, R_fit))
 	ax.legend()
 	ax.set_xlabel('Frequency [MHz]')
 	ax.set_ylabel('|-Y21| [1/Ohms]')
@@ -111,22 +119,24 @@ def get_cap_params(fn):
 	plt.savefig(savename + "Y21.png")
 
 	fig, ax =plt.subplots(figsize=(10,10))
-	ax.plot(f[mask]/MHz, np.abs(nY21)[mask] - y_fit[mask],
-			'b', label="Fit C = %1.3fpF L = %1.3fnH C2=%1.3f Ohms"%(C_fit/pF,
-				L_fit/nH, C2_fit/pF))
+	ax.scatter(f/MHz, np.abs(nY21) - y_fit,
+			 label="Fit C = %1.3fpF L = %1.3fnH R=%1.3e Ohms"%(C_fit/pF,
+				L_fit/nH, R_fit))
 	ax.legend()
 	ax.set_xlabel('Frequency [MHz]')
-	ax.set_ylabel('-Y21 [1/Ohms]')
+	ax.set_ylabel('Fit Residuals [1/Ohms]')
 	ax.grid()
 	ax.axis('tight')
 	plt.savefig(savename + "Y21_residuals.png")
+	plt.close('all')
 
-	return C_fit, L_fit, C2_fit
+	return C_fit, L_fit, R_fit
 
 if __name__=="__main__":
 	L_al = 10 * nH
 	filenames = glob.glob(datadir + "*_with_boundary.csv")
-	expected_freqs = np.array([300, 305, 310, 315]) * MHz
+	filenames.sort(key=lambda x:int(x.split('/')[-1].split('.')[0].split('_')[1][:3]))
+	expected_freqs = np.array([300, 305, 310, 315, 320, 325, 330, 335, 340, 345]) * MHz
 	caps = []
 	inds = []
 	caps2 =  []
