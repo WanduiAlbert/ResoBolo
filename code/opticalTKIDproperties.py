@@ -15,12 +15,15 @@ from math import pi
 from scipy.optimize import curve_fit, minimize
 import os
 import glob
+import pdb
 
 nH = 1e-9
 pF = 1e-12
 MHz = 1e6
+Z0 = 50
 
 datadir = '../numerical_sims/'
+plotdir = 'cap_fig/'
 
 def load_data(fn, nports=2, paramtype='Y'):
 	dataset = np.loadtxt(fn, skiprows=9, delimiter=',')
@@ -53,56 +56,41 @@ def load_data(fn, nports=2, paramtype='Y'):
 
 def admittance_model(x, C, L, R):
 	w = 2*pi*x
-<<<<<<< HEAD
-	return np.abs(1j*w*C/(1 - w**2*L*C + 1j*w*R*C))
-	#return np.abs(1./(1./(1j*w*C) + 1j*w*L + R))
-=======
-	return np.abs(1j*w*C/(1-w**2*L*C + 1j*w*R*C))
-	#return np.abs(1./(R + 1./(1j*w*C) + 1j*w*L))
->>>>>>> 2c1b3f157e9b3e0aef9aa23c8b43bf891f11d1af
+	return w*C/np.sqrt((1 - w**2*L*C)**2 + (w*R*C)**2)
+	#return np.abs(1j*w*C/(1 - w**2*L*C + 1j*w*R*C))
 
 def chisq(theta, x, y):
 	return np.sum((y - admittance_model(x, *theta))**2)
+
+def get_S21(Y):
+	Y0 = 1/Z0
+	DY = (Y['Y11'] + Y0)*(Y['Y22'] + Y0) -Y['Y12']*Y['Y21']
+	return -2 * Y['Y21']*Y0/DY
 
 def get_cap_params(fn):
 	savename = os.path.split(fn)[-1].split(".")[0]
 	Ydata = load_data(fn)
 	f = Ydata['frequency'] * MHz
 	nY21 = -Ydata['Y21']
-<<<<<<< HEAD
-=======
 	Y2gnd = np.imag(Ydata['Y11'] + Ydata['Y21'])
-	plt.plot(f/1e6, Ydata['Y11'].imag)
-	plt.plot(f/1e6, nY21.imag)
-	plt.show()
-	exit()
->>>>>>> 2c1b3f157e9b3e0aef9aa23c8b43bf891f11d1af
+	#S21 = np.abs(get_S21(Ydata))
+	#plt.plot(f/1e6, S21)
+	#plt.show()
+	#exit()
 	wpeak = 2*pi*f[np.argmax(nY21.imag)]
 	C_est = nY21.imag[0]/(2*pi*f[0])
 	L_est = 1/(wpeak**2*C_est)
 	R_est = 1e-5
-<<<<<<< HEAD
-	nY21 = nY21[f/MHz < 450]
-	f = f[f/MHz < 450]
+	nY21 = nY21[f/MHz < 500]
+	f = f[f/MHz < 500]
 
-
-	#mask = (f > 0)
 	p0 = [C_est, L_est, R_est]
-	#popt, pcov = curve_fit(admittance_model, f, nY21, method='lm')
-=======
-	nY21 = nY21[f < 450e6]
-	f = f[f < 450e6]
-
-	#R_est = (1./nY21[0]).real
-
-	#mask = (f < (wpeak/2/pi - 100*MHz))
-	#mask = (f > 0)
-	p0 = [C_est, L_est, R_est]
-	#popt, pcov = curve_fit(admittance_model, f[mask], nY21[mask], method='lm')
->>>>>>> 2c1b3f157e9b3e0aef9aa23c8b43bf891f11d1af
+	#pdb.set_trace()
+	popt, pcov = curve_fit(admittance_model, f, np.abs(nY21), p0=p0, method='lm')
 	result = minimize(chisq, p0, args=(f, np.abs(nY21)),
 			method='Nelder-Mead')
-	C_fit, L_fit, R_fit = result["x"]
+	C_fit, L_fit, R_fit = popt
+	#C_fit, L_fit, R_fit = result["x"]
 	#C_fit, L_fit, R_fit = result["x"]
 	#R_fit = np.abs(R_fit)
 	#print (C_fit/pF, L_fit/nH, R_fit)
@@ -134,42 +122,31 @@ def get_cap_params(fn):
 	ax.set_ylabel('|-Y21| [1/Ohms]')
 	ax.grid()
 	ax.axis('tight')
-	plt.savefig(savename + "Y21.png")
+	plt.savefig(plotdir + savename + "Y21.png")
 
-<<<<<<< HEAD
 	fig, ax = plt.subplots(figsize=(10,10))
-	ax.plot(f/MHz, np.abs(nY21) - y_fit,
-			'b', label="Fit C = %1.3fpF L = %1.3fnH R=%1.3e Ohms"%(C_fit/pF,
-=======
-	fig, ax =plt.subplots(figsize=(10,10))
 	ax.scatter(f/MHz, np.abs(nY21) - y_fit,
 			 label="Fit C = %1.3fpF L = %1.3fnH R=%1.3e Ohms"%(C_fit/pF,
->>>>>>> 2c1b3f157e9b3e0aef9aa23c8b43bf891f11d1af
 				L_fit/nH, R_fit))
 	ax.legend()
 	ax.set_xlabel('Frequency [MHz]')
 	ax.set_ylabel('Fit Residuals [1/Ohms]')
 	ax.grid()
 	ax.axis('tight')
-	plt.savefig(savename + "Y21_residuals.png")
+	plt.savefig(plotdir + savename + "Y21_residuals.png")
 	plt.close('all')
 
-<<<<<<< HEAD
 	plt.close('all')
-=======
->>>>>>> 2c1b3f157e9b3e0aef9aa23c8b43bf891f11d1af
 	return C_fit, L_fit, R_fit
 
 if __name__=="__main__":
 	L_al = 10 * nH
 	filenames = glob.glob(datadir + "*_with_boundary.csv")
-<<<<<<< HEAD
 	expected_freqs = np.array([300, 305, 310, 315, 320, 325, 330, 335, 340,
 			345]) * MHz
-=======
 	filenames.sort(key=lambda x:int(x.split('/')[-1].split('.')[0].split('_')[1][:3]))
 	expected_freqs = np.array([300, 305, 310, 315, 320, 325, 330, 335, 340, 345]) * MHz
->>>>>>> 2c1b3f157e9b3e0aef9aa23c8b43bf891f11d1af
+	Nfingers = 502 - np.array([0, 17, 32, 47, 61, 74, 87, 100, 111, 122])
 	caps = []
 	inds = []
 	Rs =  []
@@ -186,26 +163,72 @@ if __name__=="__main__":
 	print (caps/pF)
 	print (inds/nH)
 
+	Lk = 0.4 * L_al
+
+	alphak = Lk/(L_al + inds)
+
 	fig, ax = plt.subplots(figsize=(10,10))
 	ax.plot(expected_freqs/MHz, caps/pF, 'ko')
 	ax.grid(which='both')
 	ax.set_xlabel(r'Design Frequency [MHz]')
 	ax.set_ylabel(r'Capacitance [pF]')
-	plt.savefig('cap_vs_design_freq.png')
+	plt.savefig(plotdir + 'cap_vs_design_freq.png')
+
+	def cap_logfit(N, A, B):
+		return A*np.log(N) + B
+	def cap_powfit(N, A, B):
+		return A*N**0.5 + B
+
+	cap_p = np.polyfit(Nfingers, caps/pF, 1)
+	p0 = [cap_p[0], cap_p[1]]
+	popt, _ = curve_fit(cap_logfit, Nfingers, caps/pF, p0=p0, method='lm')
+	popt2, _ = curve_fit(cap_powfit, Nfingers, caps/pF, p0=p0, method='lm')
+	x = np.linspace(350, 550, 100)
+	fig, ax = plt.subplots(figsize=(10,10))
+	ax.plot(Nfingers, caps/pF, 'ko')
+	ax.plot(x, np.polyval(cap_p, x), 'b--', label='linear')
+	ax.plot(x, cap_logfit(x, *popt), 'k--', label='log')
+	ax.plot(x, cap_powfit(x, *popt2), 'r--', label='sqrt')
+	ax.grid(which='both')
+	ax.legend(loc='upper left')
+	ax.set_xlabel(r'Number of Fingers')
+	ax.set_ylabel(r'Capacitance [pF]')
+	plt.savefig(plotdir + 'cap_vs_nfingers.png')
 
 	fig, ax = plt.subplots(figsize=(10,10))
 	ax.plot(expected_freqs/MHz, inds/nH, 'ko')
 	ax.grid(which='both')
 	ax.set_xlabel(r'Design Frequency [MHz]')
 	ax.set_ylabel(r'Parasitic Inductance [nH]')
-	plt.savefig('ind_vs_design_freq.png')
+	plt.savefig(plotdir + 'ind_vs_design_freq.png')
 
 	fig, ax = plt.subplots(figsize=(10,10))
-	ax.plot(expected_freqs/MHz, Rs, 'ko')
+	ax.plot(Nfingers, inds/nH, 'ko')
+	ax.grid(which='both')
+	ax.set_xlabel(r'Number of Fingers')
+	ax.set_ylabel(r'Parasitic Inductance [nH]')
+	plt.savefig(plotdir + 'ind_vs_nfingers.png')
+
+	fig, ax = plt.subplots(figsize=(10,10))
+	ax.plot(expected_freqs/MHz, alphak, 'ko')
 	ax.grid(which='both')
 	ax.set_xlabel(r'Design Frequency [MHz]')
-	ax.set_ylabel(r'resistance [Ohms]')
-	plt.savefig('Rs_vs_design_freq.png')
+	ax.set_ylabel(r'alphak')
+	plt.savefig(plotdir + 'alphak_vs_design_freq.png')
+
+	fig, ax = plt.subplots(figsize=(10,10))
+	ax.plot(Nfingers, alphak, 'ko')
+	ax.grid(which='both')
+	ax.set_xlabel(r'Number of Fingers')
+	ax.set_ylabel(r'alphak')
+	plt.savefig(plotdir + 'alphak_vs_nfingers.png')
+
+	fig, ax = plt.subplots(figsize=(10,10))
+	ax.plot(expected_freqs/MHz, Rs*1e5, 'ko')
+	ax.grid(which='both')
+	ax.set_xlabel(r'Design Frequency [MHz]')
+	ax.set_ylabel(r'Resistance (x10^-5) [Ohms]')
+	plt.savefig(plotdir + 'Rs_vs_design_freq.png')
 
 	plt.close('all')
 	L_tot = inds + L_al
@@ -213,15 +236,15 @@ if __name__=="__main__":
 	print (freqs/MHz)
 
 
-	p = np.polyfit(freqs/MHz, expected_freqs/MHz, 1)
+	p = np.polyfit(expected_freqs/MHz, freqs/MHz, 1)
 	print (p)
 	m, b = p
 	fig, ax = plt.subplots(figsize=(10,10))
-	ax.scatter(freqs/MHz, expected_freqs/MHz)
-	ax.plot(freqs/MHz, np.polyval(p, freqs/MHz), 'k',
+	ax.scatter(expected_freqs/MHz, freqs/MHz)
+	ax.plot(expected_freqs/MHz, np.polyval(p, expected_freqs/MHz), 'k',
 			label='m=%1.3f\nb=%1.3f'%(m,b))
 	ax.grid(which='both')
-	ax.set_xlabel(r'Actual Frequency [MHz]')
-	ax.set_ylabel(r'Design Frequency [MHz]')
+	ax.set_ylabel(r'Actual Frequency [MHz]')
+	ax.set_xlabel(r'Design Frequency [MHz]')
 	ax.legend(loc='upper left')
-	plt.savefig('design_vs_actual_freq.png')
+	plt.savefig(plotdir + 'design_vs_actual_freq.png')
