@@ -73,6 +73,15 @@ def get_cap_params(fn):
 	f = Ydata['frequency'] * MHz
 	nY21 = -Ydata['Y21']
 	Y2gnd = np.imag(Ydata['Y11'] + Ydata['Y21'])
+
+	fig, ax =plt.subplots(figsize=(10,10))
+	ax.semilogy(f/MHz, np.abs(nY21), 'b')
+	ax.set_xlabel('Frequency [MHz]')
+	ax.set_ylabel('|-Y21| [1/Ohms]')
+	ax.grid()
+	ax.axis('tight')
+	plt.savefig(plotdir + savename + "Y21_full.png")
+
 	#S21 = np.abs(get_S21(Ydata))
 	#plt.plot(f/1e6, S21)
 	#plt.show()
@@ -111,12 +120,16 @@ def get_cap_params(fn):
 	#plt.savefig(savename + "Y21.png")
 
 	#exit()
+
 	y_fit = admittance_model(f, C_fit, L_fit, R_fit)
 	fig, ax =plt.subplots(figsize=(10,10))
 	ax.semilogy(f/MHz, np.abs(nY21), 'b', label='Simulation')
 	ax.semilogy(f/MHz, y_fit, 'k--',
-			label="Fit C = %1.3fpF L = %1.3fnH R=%1.3e Ohms"%(C_fit/pF,
-				L_fit/nH, R_fit))
+				label="Fit C = %1.3fpF L = %1.3fnH R=%1.3e Ohms"%(C_fit/pF,
+					L_fit/nH, R_fit))
+	#ax.semilogy(f/MHz, y_est, 'r-',
+		#		label="Guess: C = %1.3fpF L = %1.3fnH R=%1.3e Ohms"%(C_est/pF,
+		#			L_est/nH, R_est))
 	ax.legend()
 	ax.set_xlabel('Frequency [MHz]')
 	ax.set_ylabel('|-Y21| [1/Ohms]')
@@ -178,17 +191,25 @@ if __name__=="__main__":
 		return A*np.log(N) + B
 	def cap_powfit(N, A, B):
 		return A*N**0.5 + B
+	def cap_harmonicfit(N, A, B):
+		return A*(1. - 1./N) + B
 
-	cap_p = np.polyfit(Nfingers, caps/pF, 1)
+	cap_p = np.polyfit(1./Nfingers, caps/pF, 1)
+	cap_l = np.polyfit(Nfingers, caps/pF, 1)
 	p0 = [cap_p[0], cap_p[1]]
-	popt, _ = curve_fit(cap_logfit, Nfingers, caps/pF, p0=p0, method='lm')
-	popt2, _ = curve_fit(cap_powfit, Nfingers, caps/pF, p0=p0, method='lm')
+	#popt, _ = curve_fit(cap_logfit, Nfingers, caps/pF, p0=p0, method='lm')
+	#popt2, _ = curve_fit(cap_powfit, Nfingers, caps/pF, p0=p0, method='lm')
+	#popt3, _ = curve_fit(cap_harmonicfit, Nfingers, caps/pF, p0=p0, method='lm')
 	x = np.linspace(350, 550, 100)
 	fig, ax = plt.subplots(figsize=(10,10))
 	ax.plot(Nfingers, caps/pF, 'ko')
-	ax.plot(x, np.polyval(cap_p, x), 'b--', label='linear')
-	ax.plot(x, cap_logfit(x, *popt), 'k--', label='log')
-	ax.plot(x, cap_powfit(x, *popt2), 'r--', label='sqrt')
+	ax.plot(x, np.polyval(cap_p, 1./x), 'k--',
+		label='Harmonic Fit: C (in pF) = {0:1.3f}/N + {1:1.3f}'.format(*cap_p))
+	ax.plot(x, np.polyval(cap_l, x), 'r--',
+		label='Linear Fit: C (in pF) = {0:1.3f}*N + {1:1.3f}'.format(*cap_l))
+	#ax.plot(x, cap_logfit(x, *popt), 'k--', label='log')
+	#ax.plot(x, cap_powfit(x, *popt2), 'r--', label='sqrt')
+	#ax.plot(x, cap_harmonicfit(x, *popt3), 'k--', label='harmonic')
 	ax.grid(which='both')
 	ax.legend(loc='upper left')
 	ax.set_xlabel(r'Number of Fingers')
@@ -202,9 +223,14 @@ if __name__=="__main__":
 	ax.set_ylabel(r'Parasitic Inductance [nH]')
 	plt.savefig(plotdir + 'ind_vs_design_freq.png')
 
+	ind_p = np.polyfit(Nfingers, inds/nH, 2)
+
 	fig, ax = plt.subplots(figsize=(10,10))
 	ax.plot(Nfingers, inds/nH, 'ko')
+	ax.plot(x, np.polyval(ind_p, x), 'k--',
+		label='Quadratic Fit:a={0:1.3e} b={1:1.3f} c={2:1.3f}'.format(*ind_p))
 	ax.grid(which='both')
+	ax.legend(loc='upper left')
 	ax.set_xlabel(r'Number of Fingers')
 	ax.set_ylabel(r'Parasitic Inductance [nH]')
 	plt.savefig(plotdir + 'ind_vs_nfingers.png')
@@ -244,7 +270,7 @@ if __name__=="__main__":
 	ax.plot(expected_freqs/MHz, np.polyval(p, expected_freqs/MHz), 'k',
 			label='m=%1.3f\nb=%1.3f'%(m,b))
 	ax.grid(which='both')
-	ax.set_ylabel(r'Actual Frequency [MHz]')
+	ax.set_ylabel(r'True Frequency [MHz]')
 	ax.set_xlabel(r'Design Frequency [MHz]')
 	ax.legend(loc='upper left')
 	plt.savefig(plotdir + 'design_vs_actual_freq.png')
