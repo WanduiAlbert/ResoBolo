@@ -56,8 +56,9 @@ def load_data(fn, nports=2, paramtype='Y'):
 
 def admittance_model(x, C, L, R):
 	w = 2*pi*x
-	return w*C/np.sqrt((1 - w**2*L*C)**2 + (w*R*C)**2)
-	#return np.abs(1j*w*C/(1 - w**2*L*C + 1j*w*R*C))
+	return np.log(w*C/np.sqrt((1 - w**2*L*C)**2 + (w*R*C)**2) )
+	#return np.log(np.abs(1j*w*C/(1 - w**2*L*C + 1j*w*R*C)))
+
 
 def chisq(theta, x, y):
 	return np.sum((y - admittance_model(x, *theta))**2)
@@ -75,11 +76,17 @@ def get_cap_params(fn):
 	Y2gnd = np.imag(Ydata['Y11'] + Ydata['Y21'])
 
 	fig, ax =plt.subplots(figsize=(10,10))
-	ax.semilogy(f/MHz, np.abs(nY21), 'b')
+	ax.plot(f/MHz, Ydata['Y21'].real, 'r', label='Y21 real')
+	ax.plot(f/MHz, Ydata['Y21'].imag, 'b', label='Y21 imag')
+	ax.plot(f/MHz, Ydata['Y11'].real, 'r--', label='Y11 real')
+	ax.plot(f/MHz, Ydata['Y11'].imag, 'b--', label='Y11 imag')
 	ax.set_xlabel('Frequency [MHz]')
 	ax.set_ylabel('|-Y21| [1/Ohms]')
 	ax.grid()
 	ax.axis('tight')
+	ax.legend(loc='best')
+	#plt.show()
+	#exit()
 	plt.savefig(plotdir + savename + "Y21_full.png")
 
 	#S21 = np.abs(get_S21(Ydata))
@@ -90,42 +97,26 @@ def get_cap_params(fn):
 	C_est = nY21.imag[0]/(2*pi*f[0])
 	L_est = 1/(wpeak**2*C_est)
 	R_est = 1e-5
+	C1_est = 2.0*pF
 	nY21 = nY21[f/MHz < 500]
 	f = f[f/MHz < 500]
 
 	p0 = [C_est, L_est, R_est]
 	#pdb.set_trace()
-	popt, pcov = curve_fit(admittance_model, f, np.abs(nY21), p0=p0, method='lm')
-	result = minimize(chisq, p0, args=(f, np.abs(nY21)),
-			method='Nelder-Mead')
+	popt, pcov = curve_fit(admittance_model, f, np.log(np.abs(nY21)), p0=p0, method='lm')
+	#result = minimize(chisq, p0, args=(f, np.abs(nY21)),
+	#		method='Nelder-Mead')
 	C_fit, L_fit, R_fit = popt
-	#C_fit, L_fit, R_fit = result["x"]
-	#C_fit, L_fit, R_fit = result["x"]
-	#R_fit = np.abs(R_fit)
-	#print (C_fit/pF, L_fit/nH, R_fit)
+	#C_fit, L_fit, R_fit, C1_fit = result['x']
 
 	y_est = admittance_model(f, C_est, L_est, R_est)
-	#print (wpeak/2/pi/MHz)
-	#print (C_est/pF, L_est/nH, R_est)
-	#fig, ax =plt.subplots(figsize=(10,10))
-	#ax.semilogy(f/MHz, np.abs(nY21), 'b', label='Simulation')
-	#ax.semilogy(f/MHz, y_est, 'k--',
-	#		label="est C = %1.3fpF L = %1.3fnH R=%1.3f Ohms"%(C_est/pF,
-	#			L_est/nH, R_est))
-	#ax.legend()
-	#ax.set_xlabel('Frequency [MHz]')
-	#ax.set_ylabel('|-Y21| [1/Ohms]')
-	#ax.grid()
-	#ax.axis('tight')
-	#plt.savefig(savename + "Y21.png")
-
-	#exit()
 
 	y_fit = admittance_model(f, C_fit, L_fit, R_fit)
 	fig, ax =plt.subplots(figsize=(10,10))
 	ax.semilogy(f/MHz, np.abs(nY21), 'b', label='Simulation')
-	ax.semilogy(f/MHz, y_fit, 'k--',
-				label="Fit C = %1.3fpF L = %1.3fnH R=%1.3e Ohms"%(C_fit/pF,
+	#ax.semilogy(f/MHz, np.exp(y_est), 'g', label='Guess')
+	ax.semilogy(f/MHz, np.exp(y_fit), 'k--',
+				label="Fit C = %1.3fpF L = %1.3fnH R=%1.3e Ohms "%(C_fit/pF,
 					L_fit/nH, R_fit))
 	#ax.semilogy(f/MHz, y_est, 'r-',
 		#		label="Guess: C = %1.3fpF L = %1.3fnH R=%1.3e Ohms"%(C_est/pF,
@@ -139,8 +130,8 @@ def get_cap_params(fn):
 
 	fig, ax = plt.subplots(figsize=(10,10))
 	ax.scatter(f/MHz, np.abs(nY21) - y_fit,
-			 label="Fit C = %1.3fpF L = %1.3fnH R=%1.3e Ohms"%(C_fit/pF,
-				L_fit/nH, R_fit))
+				label="Fit C = %1.3fpF L = %1.3fnH R=%1.3e Ohms "%(C_fit/pF,
+					L_fit/nH, R_fit))
 	ax.legend()
 	ax.set_xlabel('Frequency [MHz]')
 	ax.set_ylabel('Fit Residuals [1/Ohms]')
