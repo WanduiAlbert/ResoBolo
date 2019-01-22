@@ -76,15 +76,16 @@ def get_cap_params(fn):
 	Y2gnd = np.imag(Ydata['Y11'] + Ydata['Y21'])
 
 	fig, ax =plt.subplots(figsize=(10,10))
-	ax.plot(f/MHz, Ydata['Y21'].real, 'r', label='Y21 real')
-	ax.plot(f/MHz, Ydata['Y21'].imag, 'b', label='Y21 imag')
-	ax.plot(f/MHz, Ydata['Y11'].real, 'r--', label='Y11 real')
-	ax.plot(f/MHz, Ydata['Y11'].imag, 'b--', label='Y11 imag')
+	ax.plot(f/MHz, np.abs(nY21), 'r')
+	#ax.plot(f/MHz, Ydata['Y21'].real, 'r', label='Y21 real')
+	#ax.plot(f/MHz, Ydata['Y21'].imag, 'b', label='Y21 imag')
+	#ax.plot(f/MHz, Ydata['Y11'].real, 'r--', label='Y11 real')
+	#ax.plot(f/MHz, Ydata['Y11'].imag, 'b--', label='Y11 imag')
 	ax.set_xlabel('Frequency [MHz]')
 	ax.set_ylabel('|-Y21| [1/Ohms]')
 	ax.grid()
 	ax.axis('tight')
-	ax.legend(loc='best')
+	#ax.legend(loc='best')
 	#plt.show()
 	#exit()
 	plt.savefig(plotdir + savename + "Y21_full.png")
@@ -109,16 +110,16 @@ def get_cap_params(fn):
 	C_fit, L_fit, R_fit = popt
 	#C_fit, L_fit, R_fit, C1_fit = result['x']
 
-	y_est = admittance_model(f, C_est, L_est, R_est)
+	y_est = np.exp(admittance_model(f, C_est, L_est, R_est))
 
-	y_fit = admittance_model(f, C_fit, L_fit, R_fit)
+	y_fit = np.exp(admittance_model(f, C_fit, L_fit, R_fit))
 	fig, ax =plt.subplots(figsize=(10,10))
-	ax.semilogy(f/MHz, np.abs(nY21), 'b', label='Simulation')
-	#ax.semilogy(f/MHz, np.exp(y_est), 'g', label='Guess')
-	ax.semilogy(f/MHz, np.exp(y_fit), 'k--',
+	ax.plot(f/MHz, np.abs(nY21), 'b', label='Simulation')
+	#ax.plot(f/MHz, y_est, 'g', label='Guess')
+	ax.plot(f/MHz, y_fit, 'k--',
 				label="Fit C = %1.3fpF L = %1.3fnH R=%1.3e Ohms "%(C_fit/pF,
 					L_fit/nH, R_fit))
-	#ax.semilogy(f/MHz, y_est, 'r-',
+	#ax.plot(f/MHz, y_est, 'r-',
 		#		label="Guess: C = %1.3fpF L = %1.3fnH R=%1.3e Ohms"%(C_est/pF,
 		#			L_est/nH, R_est))
 	ax.legend()
@@ -194,8 +195,8 @@ if __name__=="__main__":
 	x = np.linspace(350, 550, 100)
 	fig, ax = plt.subplots(figsize=(10,10))
 	ax.plot(Nfingers, caps/pF, 'ko')
-	ax.plot(x, np.polyval(cap_p, 1./x), 'k--',
-		label='Harmonic Fit: C (in pF) = {0:1.3f}/N + {1:1.3f}'.format(*cap_p))
+	#ax.plot(x, np.polyval(cap_p, 1./x), 'k--',
+	#	label='Harmonic Fit: C (in pF) = {0:1.3f}/N + {1:1.3f}'.format(*cap_p))
 	ax.plot(x, np.polyval(cap_l, x), 'r--',
 		label='Linear Fit: C (in pF) = {0:1.3f}*N + {1:1.3f}'.format(*cap_l))
 	#ax.plot(x, cap_logfit(x, *popt), 'k--', label='log')
