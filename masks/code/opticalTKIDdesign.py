@@ -45,9 +45,16 @@ def get_MB_Qi(T, f):
 
     return Q_i
 
+
+def get_simulated_LC(Nfingers):
+    C_sim = 0.05*Nfingers + 0.788
+    L_sim = 6.1e-6*Nfingers**2 + 1e-3*Nfingers + 1.780
+    return C_sim, L_sim
+
+
 if __name__=="__main__":
     df = 5 #MHz
-    N = 10
+    N = 12
     fstart = 300 #MHz
     fr = fstart + np.arange(N) * df
     target_T = 380e-3
@@ -196,6 +203,45 @@ if __name__=="__main__":
     #    blade_cell = gdspy.Cell(cellname)
     #    blade_cell.add(rect)
     #    blade_cells.append(blade_cell)
+
+
+    # Quick comparison between the design here and the predictions from sonnet
+    # simulations of the capacitor structures.
+    C_sim, L_par = get_simulated_LC(Nfingers - np.array(coarse_blades))
+    L_total = L + L_par*nH
+    C_sim *= pF
+    wr = 1./np.sqrt(L_total * C_sim)
+    fr = wr/2/pi/MHz
+    print (fr)
+    C_branch = 0.11 * pF
+    C_load = C_branch * N
+    Zin = Z0
+    Zout = 1/(1./Z0 + 1j*wr*C_load)
+    Cc = np.sqrt((2*C)/(Qi*Z0*wr))
+    y = wr * Cc * Z0
+    Gprime = (wr*Cc*Zin*y/(Zin + Zout)) - (1j*wr*Cc*Zin**2*y**2)/(Zin + Zout)**2
+    dQe = Gprime/(wr*C_sim)
+    Qe = 1/dQe
+    Qc = 1./np.real(dQe)
+    phi_c = np.arctan2(dQe.imag, dQe.real)
+    print (Qc)
+    print (phi_c*180/pi)
+    #Qc = (C*pF)/(0.5*Z0*wr*(CC*pF/2)**2)
+    Qr = 1./(1./Qc + 1./Qi)
+    #chi_c = 4*Qr**2/Qi/Qc/np.cos(phi_c)
+    #chi_c = 4*np.abs(Qe)*Qi/(Qi*np.cos(phi_c) + np.abs(Qe))**2
+    chi_c = 4*Qc*Qi/(Qi + Qc)**2#/np.cos(phi_c)
+    print (chi_c)
+
+    exit()
+
+
+
+
+
+
+
+
 
     cdy = cap.width + 4 # Weird that not cap height.
     cdx = 20

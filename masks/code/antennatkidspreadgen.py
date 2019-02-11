@@ -8,7 +8,7 @@ import pdb
 
 inv_margin = 200
 mask_dir = "../mask_files/"
-
+top = None
 # Set the library to write all the cells in
 main_lib = gdspy.GdsLibrary('main', unit=1e-6, precision=1e-9)
 gdspy.current_library = main_lib
@@ -64,7 +64,7 @@ def generate_inverted_overlay(wafer, mask_components):
 	allcells = main_lib.cell_dict
 	#pdb.set_trace()
 	#masklist = [x for x in allcells if x.endswith('inv')]
-	invwafer = gdspy.Cell('Wafer_Layout_Inverted')
+	invwafer = gdspy.Cell('Wafer_Layout_new_with_perimeter_cells_at_center_Inverted')
 	gcomponents = wafer.elements
 	#pdb.set_trace()
 	for component in gcomponents:
@@ -88,6 +88,7 @@ def cellIsPresent(cellname):
 def inverter(cell, rotation=0):
 	cell_name = cell.name + '_inv'
 	if cellIsPresent(cell_name): return
+	print (cell.name)
 	inv_cell = gdspy.Cell(cell_name)
 	cell = cell.flatten()
 	cell_ref = gdspy.CellReference(cell, rotation=rotation)
@@ -101,6 +102,8 @@ def inverter(cell, rotation=0):
 	polyset = gdspy.PolygonSet(polys, layer=layer)
 	bbox = gdspy.Rectangle([-dx/2, dy/2], [dx/2, -dy/2], layer=layer)
 	new_polyset = gdspy.fast_boolean(polyset, bbox, 'xor', layer=layer)
+	# Try and collapse the polygons together
+	new_polyset = gdspy.fast_boolean(new_polyset, None, 'or', layer=layer)
 	inv_cell.add(new_polyset)
 	#print (inv_cell)
 	return inv_cell
@@ -142,14 +145,19 @@ def get_inverted_cells():
 def make_inverted_cells():
 	allcells = main_lib.cell_dict
 	cellnames = allcells.keys()
-	# print (cellnames)
-	top = allcells['Wafer_Layout']
+	global top
 	for cell in top.get_dependencies():
 		if not cell.name.endswith('_inv'):
 			invert_cell(cell)
 
 def generate_mask():
 	print ("Generating the mask....\n\n")
+	make_inverted_cells()
+	print ("\n\nMask Generation Completed.\n\n")
+	return None
+
+def validate_mask():
+	print ("Validating the mask....\n\n")
 	all_cells = main_lib.cell_dict
 	mask = all_cells['reticle1']
 	maskhasOverlaps = ssd.check_cell_for_overlaps(mask)
@@ -167,25 +175,36 @@ def generate_mask():
 	#maskoutline = makechipoutline(ssd.mask_width, ssd.mask_length, 'MaskOutline')
 	#mask.add(maskoutline)
 
-	print ("\n\nMask Generation Completed.\n\n")
+	print ("\n\nMask Validation Completed.\n\n")
 	return mask
 
 if __name__ == "__main__":
 
 	# Generate all the missing inverted cells from the base file
-	base_fn = mask_dir + 'one_pixel_pre_reticle.gds'
-	final_fn = 'one_pixel_with_reticle.gds'
-	main_lib.read_gds(base_fn)
-	cell_dict = main_lib.cell_dict
-	gdspy.write_gds(final_fn, unit=1e-6,precision=1e-9)
+	base_fn = 'Antenna_Coupled_TKIDs_20190210_ROB.gds'
+	final_fn = 'Antenna_Coupled_TKIDs_20190210_ROB.gds'
+	#main_lib.read_gds(base_fn)
+	#cell_dict = main_lib.cell_dict
+	#top = cell_dict['Wafer_Layout_new_with_perimeter_cells_at_center']
+	#gdspy.write_gds(final_fn, unit=1e-6,precision=1e-9)
+	toGenerateMask = False
 	makeInvertedOverlay = True
 	fillmask = True
+
+	if toGenerateMask:
+		main_lib.read_gds(final_fn)
+		cell_dict = main_lib.cell_dict
+		top = cell_dict['Wafer_Layout_new_with_perimeter_cells_at_center']
+		mask = generate_mask()
+		gdspy.write_gds(final_fn, unit=1e-6,precision=1e-9)
+		exit()
+
 	if makeInvertedOverlay:
 		main_lib.read_gds(final_fn)
 		cell_dict = main_lib.cell_dict
 
 		## Give the name of the top cell in the file just read.
-		top = cell_dict['Wafer_Layout']
+		top = cell_dict['Wafer_Layout_new_with_perimeter_cells_at_center']
 		masklist = cell_dict['reticle1'].get_dependencies()
 		mask_components = {x.name:x for x in masklist}
 		inverted_cells = []
@@ -205,7 +224,7 @@ if __name__ == "__main__":
 		main_lib.read_gds(base_fn)
 		# I'll assume that all the necessary inverted cells have been generated.
 		# I now want to make the reticle cells
-		mask = generate_mask()
+		mask = validate_mask()
 
 		gdspy.write_gds(final_fn, unit=1e-6,precision=1e-9)
 		#exit()
@@ -218,7 +237,7 @@ if __name__ == "__main__":
 	cell_dict = main_lib.cell_dict
 
 	# Give the name of the global overlay cell in the file just read.
-	globaloverlay = cell_dict['Wafer_Layout']
+	globaloverlay = cell_dict['Wafer_Layout_new_with_perimeter_cells_at_center']
 	# Specify all the mask files to be referenced as a list.
 	mask_list = [cell_dict['reticle1']]
 	# specify any cells in the global overlay that should be ignored because
@@ -234,7 +253,7 @@ if __name__ == "__main__":
 	allshots = patches.gen_patches_table(globaloverlay, mask_list, to_ignore,\
 			layer_dict=def_layers, layer_order=layer_order, cellsInverted=True)
 	# Create a patch table object from the list of shots generated.
-	patchtable = patches.PatchTable(allshots, 'antenna_coupled_TKIDs.xlsx')
+	patchtable = patches.PatchTable(allshots, 'antenna_coupled_TKIDs_20190210.xlsx')
 	patchtable.generate_spreadsheet()
 
 
