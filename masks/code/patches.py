@@ -146,6 +146,10 @@ class PatchTable():
 				x.get_desired_xy(), self.shots)))
 		self.shifts_xys = np.array(list(map(lambda x:\
 				x.get_shift_xy(), self.shots)))
+		self.all_dropped_rows = np.array(list(map(lambda x:\
+				x.get_dropped_rows(), self.shots)))
+		self.all_dropped_columns = np.array(list(map(lambda x:\
+				x.get_dropped_columns(), self.shots)))
 		self.num_shots = len(self.layers)
 		self.xl = self.mask_shifts[:, 0] + self.cell_bboxs[:,0,0]
 		self.xr = self.mask_shifts[:, 0] + self.cell_bboxs[:,1,0]
@@ -306,6 +310,8 @@ class PatchTable():
 		populate_column(self.ws, char2num['W'], 15, self.array_centers[:, 1])
 		populate_column(self.ws, char2num['X'], 15, self.array_stepsizes[:, 0])
 		populate_column(self.ws, char2num['Y'], 15, self.array_stepsizes[:, 1])
+		populate_column(self.ws, char2num['Z'], 15, self.all_dropped_columns)
+		populate_column(self.ws, char2num['AA'], 15, self.all_dropped_rows)
 		populate_column(self.ws, char2num['AB'], 15, self.array_shifted)
 
 		# Adjust the spreadsheet to ensure that the width of the cells is enough
@@ -334,8 +340,8 @@ class PatchTable():
 		self.ws['O13'] = 'Wafer Shift'
 		self.ws['O14'] = 'x'
 		self.ws['P14'] = 'y'
-		self.ws['Q14'] = 'Patch'
-		self.ws['Q15'] = 'Frontside'
+		self.ws['Q13'] = 'Patch'
+		self.ws['Q14'] = 'Frontside'
 		self.ws['R14'] = 'Dose'
 		self.ws['S14'] = 'Mask'
 		self.ws['T12'] = 'Alternate Array Layout'
@@ -414,6 +420,8 @@ class Shot():
 			self.xspacing = kwargs['xspacing']
 			self.yspacing = kwargs['yspacing']
 			self.is_shifted = False
+			self.dropped_rows = np.empty((0,), dtype=np.int64)
+			self.dropped_cols = np.empty((0,), dtype=np.int64)
 			try:
 				if kwargs['is_shifted']:
 					self.is_shifted = True
@@ -425,9 +433,19 @@ class Shot():
 					self.desired_y = kwargs['desired_y']
 					self.shift_x = kwargs['shift_x']
 					self.shift_y = kwargs['shift_y']
+				elif kwargs['dropRC_args']['to_drop']:
+					self.center = np.asarray(kwargs['dropRC_args']['center'])
+					self.xspacing = kwargs['dropRC_args']['xspacing']
+					self.yspacing = kwargs['dropRC_args']['yspacing']
+					self.ncols = kwargs['dropRC_args']['num_cols']
+					self.nrows = kwargs['dropRC_args']['num_rows']
+					self.dropped_rows = kwargs['dropRC_args']['dropped_rows']
+					self.dropped_cols = kwargs['dropRC_args']['dropped_cols']
+
 			except KeyError:
+				pass
 				#do nothing
-				print ('Nope. Nothing here')
+				#print ('Nope. Nothing here')
 		# defaults
 		self.maskcell=""
 		self.maskcellsize=default
@@ -519,6 +537,16 @@ class Shot():
 		if not self.is_shifted: return None, None
 		return self.shift_x, self.shift_y
 
+	def get_dropped_columns(self):
+		if self.dropped_cols.size == 0: return None
+		#return list(self.dropped_cols)
+		return ','.join([str(x) for x in self.dropped_cols])
+
+	def get_dropped_rows(self):
+		if self.dropped_rows.size == 0: return None
+		#return list(self.dropped_rows)
+		return ','.join([str(x) for x in self.dropped_rows])
+
 def translate(shot, shift):
 	shot.cell_shift -= np.asarray(shift)
 
@@ -599,6 +627,58 @@ def get_cell_asymmetry(cell):
 	dy = ymax - np.abs(ymin)
 	return [dx, dy]
 
+def check_dropped_rows_columns(array_x, array_y, center):
+	dropped_rc_args = {}
+	dropped_rc_args['to_drop'] = True
+	# I'll assume all dimensions have at most 3dp
+	diff_x = np.diff(array_x*1000).astype(int)
+	diff_y = np.diff(array_y*1000).astype(int)
+	dx, dy = (0,0)
+	drop_rows = False
+	drop_cols = False
+	if np.all(diff_x) != 0:
+		gcd_x = np.gcd.reduce(diff_x)
+		dx = gcd_x/1000
+		cols = np.hstack(([0], np.cumsum(diff_x//gcd_x)))
+		ncols = cols[-1]+1
+		arr_x = np.zeros(ncols, dtype=bool)
+		arr_x[cols] = True
+		if not np.all(arr_x): drop_cols = True
+	else:
+		arr_x = np.ones_like(array_x, dtype=bool)
+		ncols = 1
+	if np.all(diff_y) != 0:
+		gcd_y = np.gcd.reduce(diff_y)
+		dy = gcd_y/1000
+		# Need -diff_y because as the index increases the value of y decreases
+		rows = np.hstack(([0], np.cumsum(-diff_y//gcd_y)))
+		nrows = rows[-1]+1
+		arr_y = np.zeros(nrows, dtype=bool)
+		arr_y[rows] = True
+		if not np.all(arr_y): drop_rows = True
+	else:
+		nrows = 1
+		arr_y = np.ones_like(array_y, dtype=bool)
+	if ncols > 20 or nrows > 20:
+		dropped_rc_args['to_drop'] = False
+	x0 = np.around((array_x[-1] + array_x[0])/2, 3)
+	y0 = np.around((array_y[-1] + array_y[0])/2, 3)
+	if center[0] == x0: x0 = 0
+	if center[1] == y0: y0 = 0
+	dropped_rc_args['center'] = (x0, y0)
+	dropped_rc_args['xspacing'] = dx
+	dropped_rc_args['yspacing'] = dy
+	dropped_rc_args['num_cols'] = ncols
+	dropped_rc_args['num_rows'] = nrows
+	dropped_rc_args['columns'] =  arr_x
+	dropped_rc_args['rows'] = arr_y
+	dropped_rc_args['to_drop_rows'] = drop_rows
+	dropped_rc_args['to_drop_cols'] = drop_cols
+	dropped_rc_args['dropped_rows'] = np.argwhere(np.logical_not(arr_x)).flatten()+1
+	dropped_rc_args['dropped_cols'] = np.argwhere(np.logical_not(arr_y)).flatten()+1
+	return dropped_rc_args
+
+
 def get_array_shifts(element, parent_args):
 	# Unpack the parent array info for easier computation
 	Nc,Nr = parent_args['num_cols'], parent_args['num_rows']
@@ -649,21 +729,21 @@ def get_array_shifts(element, parent_args):
 	if dx == 0 and not parent_args['is_shifted']:
 		calcx = np.zeros_like(Mx)
 		shiftx = np.zeros_like(Mx)
-		desiredx = np.zeros_like(Mx)
+		#desiredx = np.zeros_like(Mx)
 		dx = DX
 		xspacing = dx
 
 	if dy == 0 and not parent_args['is_shifted']:
 		calcy = np.zeros_like(My)
 		shifty = np.zeros_like(My)
-		desiredy = np.zeros_like(My)
+		#desiredy = np.zeros_like(My)
 		dy = DY
 		yspacing = dy
 
 	if np.all(shiftx) == 0 or np.all(calcx) == 0:
 		calcx = np.zeros_like(Mx)
 		shiftx = np.zeros_like(Mx)
-		desiredx = np.zeros_like(Mx)
+		#desiredx = np.zeros_like(Mx)
 		DX = dx
 		xspacing = dx
 
@@ -671,7 +751,7 @@ def get_array_shifts(element, parent_args):
 	if np.all(shifty) == 0 or np.all(calcy) == 0:
 		calcy = np.zeros_like(My)
 		shifty = np.zeros_like(My)
-		desiredy = np.zeros_like(My)
+		#desiredy = np.zeros_like(My)
 		DY = dy
 		yspacing = dy
 
@@ -691,29 +771,38 @@ def get_array_shifts(element, parent_args):
 		xspacing = np.abs(diffx[0])
 		calcx = np.zeros_like(Mx)
 		shiftx = np.zeros_like(Mx)
-		desiredx = np.zeros_like(Mx)
+		#desiredx = np.zeros_like(Mx)
 
 	if yongrid:
 		yspacing = np.abs(diffy[0])
 		calcy = np.zeros_like(My)
 		shifty = np.zeros_like(My)
-		desiredy = np.zeros_like(My)
+		#desiredy = np.zeros_like(My)
 
 	if xongrid and yongrid:
 		shiftArray = False
 
+	# There is another case to be considered here: We could have a global grid
+	# with some rows and columns dropped. We also want to check for this
+	# possibility because it is easier to program.
+	#pdb.set_trace()
+	dropRC_args = check_dropped_rows_columns(desiredx, desiredy,
+			parent_args['center'])
+	if dropRC_args['to_drop']: shiftArray = False
 	shift = default
 	if shiftArray: shift = mycenter + parent_args['to_shift']
 	new_args = {'center':parent_args['center'], 'num_cols':Mc, 'num_rows':Mr,\
 			'xspacing':xspacing, 'yspacing':yspacing, 'is_shifted':shiftArray,\
 		'column_pos':Mx, 'calculated_x':calcx, 'desired_x':desiredx,\
 		'shift_x': shiftx, 'row_pos':My, 'calculated_y':calcy,\
-		'desired_y':desiredy, 'shift_y': shifty, 'to_shift':shift}
+		'desired_y':desiredy, 'shift_y': shifty, 'to_shift':shift,\
+		'dropRC_args':dropRC_args}
 	return new_args
 
 def makeshot(curr_element, parent_origin=default, parentIsArray=False,
 		arrayArgs=empty_dict, mask_list=[], ignored_cells=set()):
-	#if curr_element.ref_cell.name == "bias_lines_R": pdb.set_trace()
+	#if curr_element.ref_cell.name == "pixel_new_no_antenna": pdb.set_trace()
+	#if curr_element.ref_cell.name == "alignment_marks_patch_new": pdb.set_trace()
 	if curr_element.ref_cell.name in ignored_cells: return []
 	if type(curr_element) not in allowed_element_types:
 		return []
@@ -727,6 +816,9 @@ def makeshot(curr_element, parent_origin=default, parentIsArray=False,
 	haschildren = bool(curr_cell.get_dependencies())
 
 	isArray = False
+	dropRC_args = {}
+	dropRC_args['to_drop_rows'] = False
+	dropRC_args['to_drop_cols'] = False
 	if type(curr_element) == gdspy.CellArray and not parentIsArray:
 		# Need to correct the array center by the diff btn the dimensions of the ref_cell
 		arr_center = get_center(curr_element)
@@ -737,12 +829,13 @@ def makeshot(curr_element, parent_origin=default, parentIsArray=False,
 		xspacing, yspacing = scalearr(curr_element.spacing, scale)
 		newArrayArgs = {'num_cols':curr_element.columns, 'num_rows':curr_element.rows,\
 			'center':arr_center, 'xspacing':xspacing, 'yspacing':yspacing,
-			'is_shifted':False, 'to_shift':default}
+			'is_shifted':False, 'to_shift':default, 'dropRC_args':dropRC_args}
 		isArray = True
 
 	elif type(curr_element) == gdspy.CellReference and not parentIsArray:
-		newArrayArgs = {'num_cols':1, 'num_rows':1, 'center':cell_shift, 'xspacing':0,\
-				'yspacing':0, 'is_shifted':False, 'to_shift':default}
+		newArrayArgs = {'num_cols':1, 'num_rows':1, 'center':cell_shift,\
+				'xspacing':0, 'yspacing':0, 'is_shifted':False,\
+				'to_shift':default, 'dropRC_args':dropRC_args}
 		cell_shift = default
 
 	elif type(curr_element) == gdspy.CellReference and parentIsArray:
@@ -758,7 +851,6 @@ def makeshot(curr_element, parent_origin=default, parentIsArray=False,
 			else:
 				cell_shift = newArrayArgs['to_shift']
 
-
 	elif type(curr_element) == gdspy.CellArray and parentIsArray:
 		#if curr_element.ref_cell.name == "Cap_300MHz": pdb.set_trace()
 		abs_origin = default
@@ -769,6 +861,7 @@ def makeshot(curr_element, parent_origin=default, parentIsArray=False,
 		cell_shift = arr_center
 		newArrayArgs = get_array_shifts(curr_element, arrayArgs)
 		if arrayArgs['is_shifted']: cell_shift = newArrayArgs['to_shift']
+		if newArrayArgs['dropRC_args']['to_drop']: cell_shift -= newArrayArgs['dropRC_args']['center']
 		isArray = True
 
 

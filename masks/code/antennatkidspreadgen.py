@@ -13,7 +13,7 @@ top = None
 main_lib = gdspy.GdsLibrary('main', unit=1e-6, precision=1e-9)
 gdspy.current_library = main_lib
 
-def_layers = {"Thin Gold":1, "PRO1":2, "ALUMINUM":3, "LSNSUB":4, "LSN1":5,
+def_layers = {"Thin Gold":1, "RES_PRO":2, "ALUMINUM":3, "LSNSUB":4, "LSN1":5,
 		"120nm_NbWiring":6, "STEPPER":7, "400nm_NbWiring":8, "ILD":9, "XeF2":10,
 		"Au_Thermal_Sink":11, "GP":12, 'Capacitor_Etch':13, 'Wafer Outline':22}
 
@@ -181,15 +181,15 @@ def validate_mask():
 if __name__ == "__main__":
 
 	# Generate all the missing inverted cells from the base file
-	base_fn = 'Antenna_Coupled_TKIDs_20190210_ROB.gds'
-	final_fn = 'Antenna_Coupled_TKIDs_20190210_ROB.gds'
+	base_fn = 'Antenna_Coupled_TKIDs_20190211_ROB.gds'
+	final_fn = 'Antenna_Coupled_TKIDs_20190211_ROB.gds'
 	#main_lib.read_gds(base_fn)
 	#cell_dict = main_lib.cell_dict
 	#top = cell_dict['Wafer_Layout_new_with_perimeter_cells_at_center']
 	#gdspy.write_gds(final_fn, unit=1e-6,precision=1e-9)
 	toGenerateMask = False
-	makeInvertedOverlay = True
-	fillmask = True
+	makeInvertedOverlay = False
+	fillmask = False
 
 	if toGenerateMask:
 		main_lib.read_gds(final_fn)
@@ -237,7 +237,7 @@ if __name__ == "__main__":
 	cell_dict = main_lib.cell_dict
 
 	# Give the name of the global overlay cell in the file just read.
-	globaloverlay = cell_dict['Wafer_Layout_new_with_perimeter_cells_at_center']
+	globaloverlay = cell_dict['Wafer_Layout_new']
 	# Specify all the mask files to be referenced as a list.
 	mask_list = [cell_dict['reticle1']]
 	# specify any cells in the global overlay that should be ignored because
@@ -246,14 +246,14 @@ if __name__ == "__main__":
 	# A dictionary mapping the layer names to the GDSII layer numbers.
 	# Specify the order in which the layers should be arranged in the
 	# spreadsheet.
-	layer_order = [3, 12, 9, 6, 13, 4, 5, 8, 1, 11, 10 ]
+	layer_order = [3, 12, 9, 6, 13, 4, 5, 2, 8, 1, 11, 10 ]
 	# This command creates a bunch of shots by running through the global
 	# overlay and the reticle list. If the cells on the mask are inverted
 	# specify so.
 	allshots = patches.gen_patches_table(globaloverlay, mask_list, to_ignore,\
 			layer_dict=def_layers, layer_order=layer_order, cellsInverted=True)
 	# Create a patch table object from the list of shots generated.
-	patchtable = patches.PatchTable(allshots, 'antenna_coupled_TKIDs_20190210.xlsx')
+	patchtable = patches.PatchTable(allshots, 'antenna_coupled_TKIDs_20190211.xlsx')
 	patchtable.generate_spreadsheet()
 
 
