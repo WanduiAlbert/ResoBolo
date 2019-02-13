@@ -12,8 +12,8 @@
   <width/>
   <marked>false</marked>
   <animation>0</animation>
-  <name>ThinGold</name>
-  <source>1/0@1</source>
+  <name>Au_Heater</name>
+  <source>9/0@1</source>
  </properties>
  <properties>
   <frame-color>#c080ff</frame-color>
@@ -27,8 +27,8 @@
   <width/>
   <marked>false</marked>
   <animation>0</animation>
-  <name>PRO1</name>
-  <source>2/0@1</source>
+  <name>RES_PRO</name>
+  <source>10/0@1</source>
  </properties>
  <properties>
   <frame-color>#8000ff</frame-color>
@@ -42,8 +42,8 @@
   <width/>
   <marked>false</marked>
   <animation>0</animation>
-  <name>ALUMINUM</name>
-  <source>3/0@1</source>
+  <name>Al</name>
+  <source>8/0@1</source>
  </properties>
  <properties>
   <frame-color>#ffffff</frame-color>
@@ -57,7 +57,7 @@
   <width/>
   <marked>false</marked>
   <animation>0</animation>
-  <name>LSNSUB</name>
+  <name>CIF_LSNSUB</name>
   <source>4/0@1</source>
  </properties>
  <properties>
@@ -72,8 +72,8 @@
   <width/>
   <marked>false</marked>
   <animation>0</animation>
-  <name>LSN1</name>
-  <source>5/0@1</source>
+  <name>CIF_LSN1</name>
+  <source>13/0@1</source>
  </properties>
  <properties>
   <frame-color>#01ff6b</frame-color>
@@ -87,7 +87,7 @@
   <width/>
   <marked>false</marked>
   <animation>0</animation>
-  <name>Cap_120nm_NbWiring</name>
+  <name>Cap_Nb_120nm</name>
   <source>6/0@1</source>
  </properties>
  <properties>
@@ -102,8 +102,8 @@
   <width/>
   <marked>false</marked>
   <animation>0</animation>
-  <name>STEPPER</name>
-  <source>7/0@1</source>
+  <name>Reticle_Outline</name>
+  <source>2/0@1</source>
  </properties>
  <properties>
   <frame-color>#8000ff</frame-color>
@@ -117,8 +117,8 @@
   <width/>
   <marked>false</marked>
   <animation>0</animation>
-  <name>400nm_NbWire</name>
-  <source>8/0@1</source>
+  <name>MS</name>
+  <source>11/0@1</source>
  </properties>
  <properties>
   <frame-color>#000000</frame-color>
@@ -132,8 +132,8 @@
   <width/>
   <marked>false</marked>
   <animation>0</animation>
-  <name>ILD</name>
-  <source>9/0@1</source>
+  <name>CIF_ILD</name>
+  <source>5/0@1</source>
  </properties>
  <properties>
   <frame-color>#000000</frame-color>
@@ -148,7 +148,7 @@
   <marked>false</marked>
   <animation>0</animation>
   <name>XeF2</name>
-  <source>10/0@1</source>
+  <source>14/0@1</source>
  </properties>
  <properties>
   <frame-color>#808000</frame-color>
@@ -163,7 +163,7 @@
   <marked>false</marked>
   <animation>0</animation>
   <name>Au_Thermal_Sink</name>
-  <source>11/0@1</source>
+  <source>12/0@1</source>
  </properties>
  <properties>
   <frame-color>#ff0000</frame-color>
@@ -178,7 +178,7 @@
   <marked>false</marked>
   <animation>0</animation>
   <name>GP</name>
-  <source>12/0@1</source>
+  <source>3/0@1</source>
  </properties>
  <properties>
   <frame-color>#500080</frame-color>
@@ -193,7 +193,7 @@
   <marked>false</marked>
   <animation>0</animation>
   <name>Capacitor_Etch</name>
-  <source>13/0@1</source>
+  <source>7/0@1</source>
  </properties>
  <properties>
   <frame-color>#ffc280</frame-color>
@@ -207,8 +207,23 @@
   <width/>
   <marked>false</marked>
   <animation>0</animation>
-  <name>Wafer Outline</name>
-  <source>22/0@1</source>
+  <name>Wafer_footprint</name>
+  <source>1/0@1</source>
+ </properties>
+ <properties>
+  <frame-color>#ffc280</frame-color>
+  <fill-color>#ffc280</fill-color>
+  <frame-brightness>0</frame-brightness>
+  <fill-brightness>0</fill-brightness>
+  <dither-pattern>I11</dither-pattern>
+  <valid>true</valid>
+  <visible>false</visible>
+  <transparent>false</transparent>
+  <width/>
+  <marked>false</marked>
+  <animation>0</animation>
+  <name>Filler_btwn_cells</name>
+  <source>15/0@1</source>
  </properties>
  <name/>
 </layer-properties>
