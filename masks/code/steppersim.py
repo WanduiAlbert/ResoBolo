@@ -103,7 +103,7 @@ def run_sim(fn_spreadsheet, mask_cells):
 	# The first row with information
 	r = 15
 
-	next_layer_num = 1
+	next_layer_num = 3
 	layer_cells = {}
 	layer_nums = {}
 
