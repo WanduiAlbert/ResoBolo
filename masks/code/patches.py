@@ -674,8 +674,8 @@ def check_dropped_rows_columns(array_x, array_y, center):
 	dropped_rc_args['rows'] = arr_y
 	dropped_rc_args['to_drop_rows'] = drop_rows
 	dropped_rc_args['to_drop_cols'] = drop_cols
-	dropped_rc_args['dropped_rows'] = np.argwhere(np.logical_not(arr_x)).flatten()+1
-	dropped_rc_args['dropped_cols'] = np.argwhere(np.logical_not(arr_y)).flatten()+1
+	dropped_rc_args['dropped_rows'] = np.argwhere(np.logical_not(arr_y)).flatten()+1
+	dropped_rc_args['dropped_cols'] = np.argwhere(np.logical_not(arr_x)).flatten()+1
 	return dropped_rc_args
 
 
