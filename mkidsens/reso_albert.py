@@ -26,7 +26,7 @@ dBm = u.dB(u.mW)
 gamma_s = 1
 Q_int = 3e7
 # f_g = 205.128 * u.MHz
-f_g = 469.9 * u.MHz
+f_g = 305.8 * u.MHz
 T_amp = 5.22 * u.Kelvin
 eta_read = 0.1
 chi_ph = 0.658 # flink factor for phonon noise
@@ -43,12 +43,12 @@ N_pol = 1
 #Rb = 854 * u.kOhm
 #Vdc = 7.0 * u.Volt
 
-P_opt = 5.00*u.pW #((Vdc/Rb)**2 * Rh).to(u.pW)
+P_opt = 14.00*u.pW #((Vdc/Rb)**2 * Rh).to(u.pW)
 
-gamma_leg = 2.975 # conductivity index = beta + 1
-K_leg = 120.660 * u.picoWatt/u.Kelvin**gamma_leg
-T_c = 1.385 * u.Kelvin
-T_0 = 0.08 * u.Kelvin # Previously 0.23K Temperature of the thermal bath
+gamma_leg = 2.130 # conductivity index = beta + 1
+K_leg = 403.705 * u.picoWatt/u.Kelvin**gamma_leg
+T_c = 1.329 * u.Kelvin
+T_0 = 0.25 * u.Kelvin # Previously 0.23K Temperature of the thermal bath
 
 # Material properties of the Aluminum superconductors
 tau_max = 500 * u.microsecond
@@ -61,7 +61,7 @@ N_0 = ((3 * (gamma * (density/A_r)))/(2*np.pi**2 * k_B**2)).to('1/(J um^3)')
 rho = 1.15 * u.uOhm * u.cm
 L_g = 6.1 * u.nH # From simulations
 Z0 = 50 * u.Ohm # Characteristic impedance of the line
-C_c1 = 0.2878 * u.pF
+C_c1 = 0.3984 * u.pF * 2
 C_c = C_c1/2.
 
 class TKIDBolometer:

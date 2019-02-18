@@ -5,11 +5,19 @@ matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 
 from tkid_params import *
+from tkid_params import OperatingPoint
+P_read = -81*dBm
+P_read -= 20*np.log10(4)*dB # Accounting for the 4 resonators being read at the
+# same time
+P_opt = 14*u.pW
+op = OperatingPoint(P_opt=P_opt, f_r=305.8*u.MHz, T_0=250*u.mK,
+		P_read=P_read)
+op.calculate_noise()
 
 # First thing is I want to plot out the responsivity of the bolometer as a
 # function of frequency
 
-print ("The bolometer time constant", tau_b)
+print ("The bolometer time constant", op.tau_b)
 
 
 nu = np.r_[0:1000:5000j] * u.Hz
@@ -20,7 +28,7 @@ H = np.ones_like(nu.value)
 #H = np.abs(H)
 
 # r = dx/dPopt
-r = ((chi_qp * beta/2/Q_i) * tau_qp/tau_th * kappa/P_b).to(1/u.pW) * H
+r = ((op.chi_qp * op.beta/2/op.Q_i) * op.tau_qp/op.tau_th * op.kappa/op.P_b).to(1/u.pW) * H
 
 # S_opt = (2 * (1 + n_opt) * h * nu_opt * P_opt * H).to(u.aW**2/u.Hz)
 
