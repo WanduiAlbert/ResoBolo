@@ -12,7 +12,7 @@ from scipy.special import kn, iv
 import pdb
 
 np.set_printoptions(precision=4)
-
+verbose = False
 datatype = u.quantity.Quantity
 
 def niceprint(*args):
@@ -101,14 +101,19 @@ class OperatingPoint:
 		self.T_0 = T_0 #Temperature of the thermal bath
 		self.P_read = P_read.to(u.pW)
 		self.P_opt = P_opt
+		self.K_leg = 0
+		self.gamma_leg = 1
+		self.C_c1 = 0.3984 * u.pF
+		self.C_c = self.C_c1/2
 
 		print ("Resonator parameters set.")
 
+	def calculate_noise(self):
 		self.x = 0.5*self.P_read/self.P_opt
 		self.P_total = 0.5*self.P_read + self.P_opt
 		#pdb.set_trace()
-		self.T_b= (((self.P_total/K_leg).si.value +
-			self.T_0.si.value**gamma_leg)**(1./gamma_leg))*u.Kelvin
+		self.T_b= (((self.P_total/self.K_leg).si.value +
+			self.T_0.si.value**self.gamma_leg)**(1./self.gamma_leg))*u.Kelvin
 		niceprint("The temperature of the island", self.T_b)
 
 		self.C_b = 0.25*(self.T_b/(350*u.mK))*u.pJ/u.Kelvin #Heat capacity
@@ -116,7 +121,7 @@ class OperatingPoint:
 
 		self.L = L_g + L_k # total inductance
 		self.alpha = (L_k/self.L).to(1)
-		niceprint ("The total inductance", self.L)
+		if verbose: niceprint ("The total inductance", self.L)
 
 		# f_r = 329 * u.MHz
 		self.omega_r = (2*np.pi*self.f_r).to(1/u.s)
@@ -124,11 +129,9 @@ class OperatingPoint:
 
 		# C_i = 27.98 * u.pF
 		#C_c1 = 0.19 * u.pF
-		C_c1 = 0.3984 * u.pF
-		C_c = C_c1/2
 
 		# C = C_c1 + C_i
-		self.C_i = self.C - C_c
+		self.C_i = self.C - self.C_c
 		# omega_r = (1./np.sqrt(L*C)).to('1/s')
 		# f_r = (omega_r/(2*np.pi)).to('MHz')
 
@@ -152,19 +155,20 @@ class OperatingPoint:
 		self.tau_qp = (tau_max/(1 + self.n_qp/n_qp_star)).to('us')
 		self.Q_qp = ((2 * N_0 * Delta)/(self.alpha * gamma_s * S_1 * self.n_qp)).to(1)
 		self.Q_sigma = (np.pi/4)*np.exp(Delta/(k_B * self.T_b))/np.sinh(self.eta)/K_0(self.eta)
-		self.Q_c = (2 * self.C_i/(self.omega_r * C_c**2 * Z0)).to(1)
+		self.Q_c = (2 * self.C_i/(self.omega_r * self.C_c**2 * Z0)).to(1)
 		self.Q_i = 1./(1/self.Q_qp + 1./Q_int)
 		self.Q_r  = 1./(1./self.Q_c + 1./self.Q_i)
 		self.P_crit = (0.8 * (self.omega_r)* E_crit * self.Q_c/2/self.Q_r**3).to(u.pW)
 
-		niceprint ("Q factor from qp losses, Q_qp ", self.Q_qp)
-		niceprint ("Resonant Frequency, f_r ", self.f_r)
-		niceprint ("Internal Q factor, Q_i ", self.Q_i)
-		niceprint ("Coupling Q factor, Q_c ", self.Q_c)
-		niceprint ("Resonator Q factor, Q_r ", self.Q_r)
-		niceprint ("Kinetic Inductance Fraction, alpha ", self.alpha)
-		niceprint ("Beta ", self.beta)
-		niceprint ("surface resistance, Rs", Rs)
+		if verbose:
+			niceprint ("Q factor from qp losses, Q_qp ", self.Q_qp)
+			niceprint ("Resonant Frequency, f_r ", self.f_r)
+			niceprint ("Internal Q factor, Q_i ", self.Q_i)
+			niceprint ("Coupling Q factor, Q_c ", self.Q_c)
+			niceprint ("Resonator Q factor, Q_r ", self.Q_r)
+			niceprint ("Kinetic Inductance Fraction, alpha ", self.alpha)
+			niceprint ("Beta ", self.beta)
+			niceprint ("surface resistance, Rs", Rs)
 
 		self.dx = ((self.f_g - self.f_r)/self.f_r).to(1)
 		self.S_21 = 1 - (self.Q_r/self.Q_c)* 1./(1 + 2 * 1j * self.Q_r * self.dx)
@@ -176,38 +180,39 @@ class OperatingPoint:
 		self.chi_qp = self.Q_i/self.Q_qp
 		self.P_g = (2/self.chi_c) * self.P_read
 
-		niceprint("")
-		niceprint ("Resonator Bandwidth", self.df_r)
-		niceprint ("Coupling efficiency", self.chi_c)
-		niceprint ("Detuning efficiency", self.chi_g)
-		niceprint ("Fraction of Q_i from qp losses", self.chi_qp)
+		if verbose:
+			niceprint("")
+			niceprint ("Resonator Bandwidth", self.df_r)
+			niceprint ("Coupling efficiency", self.chi_c)
+			niceprint ("Detuning efficiency", self.chi_g)
+			niceprint ("Fraction of Q_i from qp losses", self.chi_qp)
 
 		# Now we include the NEP estimates for the resobolo currently
 		self.kappa = (1/2 + Delta/k_B/self.T_b).to(1)
 		self.P_leg = self.P_opt * (1 + self.x) # Total power into the resobolo thermal link
-		gamma_g = (K_leg * gamma_leg * self.T_b**gamma_leg / self.P_leg).to(1)
+		gamma_g = (self.K_leg * self.gamma_leg * self.T_b**self.gamma_leg / self.P_leg).to(1)
 		#self.G_b = (gamma_g * self.P_leg/self.T_b).to('pW/K') # Conductance of the resobolo
-		self.G_b = (gamma_leg*K_leg*self.T_b**(gamma_leg-1)).to('pW/K') # Conductance of the resobolo
+		self.G_b = (self.gamma_leg*self.K_leg*self.T_b**(self.gamma_leg-1)).to('pW/K') # Conductance of the resobolo
 		self.P_b = self.G_b * self.T_b
 		self.tau_b = (self.C_b/self.G_b).to('ms')
 		self.f_b = (1/2/pi/self.tau_b).to(u.Hz) # roll off frequency for bolometer
 
+		if verbose:
+			niceprint ("")
+			niceprint ("dln n_qp/ d ln T_b", self.kappa)
+			niceprint ("Conductance of Island ", self.G_b)
+			niceprint ("Heat Capacity of Island ", self.C_b)
+			niceprint ("Quasiparticle lifetime, tau_qp ", self.tau_qp)
+			niceprint ("Equilibrium qp lifetime, tau_th ", self.tau_th)
+			niceprint ("Bolometer Time constant", self.tau_b)
+			niceprint ("Bolometer Roll off frequency", self.f_b)
 
-		niceprint ("")
-		niceprint ("dln n_qp/ d ln T_b", self.kappa)
-		niceprint ("Conductance of Island ", self.G_b)
-		niceprint ("Heat Capacity of Island ", self.C_b)
-		niceprint ("Quasiparticle lifetime, tau_qp ", self.tau_qp)
-		niceprint ("Equilibrium qp lifetime, tau_th ", self.tau_th)
-		niceprint ("Bolometer Time constant", self.tau_b)
-		niceprint ("Bolometer Roll off frequency", self.f_b)
-
-		niceprint ("")
-		niceprint ("The optical power is ", self.P_opt)
-		niceprint ("The readout power is ", self.P_read)
-		niceprint ("The generated power is ", self.P_g)
-		niceprint ("Critical readout power ", self.P_crit)
-		niceprint ("The island power, P_b ", self.P_b)
+			niceprint ("")
+			niceprint ("The optical power is ", self.P_opt)
+			niceprint ("The readout power is ", self.P_read)
+			niceprint ("The generated power is ", self.P_g)
+			niceprint ("Critical readout power ", self.P_crit)
+			niceprint ("The island power, P_b ", self.P_b)
 
 		# Calculating the responsivities on resonance
 		# r = dx/dPopt
@@ -218,7 +223,7 @@ class OperatingPoint:
 		niceprint ("")
 		niceprint ("resobolo responsivity ignoring bolometer rolloff", self.r_f)
 
-	def calculate_noise(self):
+	def calculate_noise_spectra(self):
 
 		# Phonon NEP
 		self.S_ph = (4 * chi_ph * k_B * self.T_b**2 * self.G_b ).to(u.aW**2/u.Hz)
@@ -246,7 +251,7 @@ class OperatingPoint:
 
 
 	def plot_noise(self, ax):
-		self.calculate_noise()
+		self.calculate_noise_spectra()
 		self.nu = np.logspace(-1, 6, 5000) * u.Hz
 		self.ones = np.ones_like(self.nu.value)
 		self.bolo_rolloff =  1/(1 + 1j * 2 * np.pi * (self.nu * self.tau_b).to(1))
@@ -270,27 +275,42 @@ class OperatingPoint:
 
 if __name__=="__main__":
 	# We are using the heater pad to mimic the optical load on the bolometer
-	Rh = 0.106 * u.Ohm
-	Rb = 854 * u.kOhm
-	Vdc = 7.0 * u.Volt
-	gamma_leg = 3.131 # conductivity index = beta + 1
-	K_leg = 403.705 * u.picoWatt/u.Kelvin**gamma_leg
+	Rh = 0.150 * u.Ohm
+	frequencies = np.array([305.8, 318.4, 337.4])*u.MHz
+	Rb = np.array([300, 404, 510]) * u.kOhm
+	Pref = 10e-12
+	Vmax = (Pref/Rh.value)**0.5*510e3
+	Npowers = 10
+	Vdc = np.linspace(0, Vmax, Npowers)*u.Volt
+	P_opt = ((Rh/Rb[:, np.newaxis]**2)*Vdc**2).to(u.pW)
+	print (P_opt.shape)
+	gamma_leg = np.array([3.131, 2.918, 3.031])# conductivity index = beta + 1
+	K_leg = np.array([403.705, 186.552, 141.179])* u.picoWatt
+	Cc = np.array([0.3984, 0.3731, 0.3478])*u.pF
 	T_c = 1.329 * u.Kelvin
 	T_0 = 0.25 * u.Kelvin # Previously 0.23K Temperature of the thermal bath
 	P_read = -81*dBm
 	P_read -= 20*np.log10(4)*dB # Accounting for the 4 resonators being read at the
 	# same time
-	P_opt = 10*u.pW
-	op = OperatingPoint(P_opt=P_opt, f_r=305.8*u.MHz, T_0=250*u.mK,
-			P_read=P_read)
+	#P_opt = 10*u.pW
+	for ireso, reso in enumerate(frequencies):
+		op = OperatingPoint(P_opt=0*u.pW, f_r=reso, T_0=T_0, P_read=P_read)
+		op.C_c1 = Cc[ireso]
+		op.gamma_leg = gamma_leg[ireso]
+		op.K_leg = K_leg[ireso]/u.Kelvin**gamma_leg[ireso]
+		for ipow in range(Npowers):
+			if ipow > 0: continue
+			op.P_opt = P_opt[ireso, ipow]
+			op.calculate_noise()
+			op.calculate_noise_spectra()
 	#op.calculate_noise()
-	fig, ax = plt.subplots(figsize=(10,10))
-	op.plot_noise(ax)
-	ax.set_xlabel(r'Frequency [Hz]')
-	ax.set_ylabel(r'NEP [aW/rtHz]')
-	ax.set_ylim([1, 1000])
-	ax.set_xlim([0.1, 1e6])
-	ax.grid(which='major', axis='both')
-	ax.legend(loc='best')
-	plt.savefig('Waffle_TKID_305.8MHz_Noise_Prediction.png')
+	#fig, ax = plt.subplots(figsize=(10,10))
+	#op.plot_noise(ax)
+	#ax.set_xlabel(r'Frequency [Hz]')
+	#ax.set_ylabel(r'NEP [aW/rtHz]')
+	#ax.set_ylim([1, 1000])
+	#ax.set_xlim([0.1, 1e6])
+	#ax.grid(which='major', axis='both')
+	#ax.legend(loc='best')
+	#plt.savefig('Waffle_TKID_305.8MHz_Noise_Prediction.png')
 
