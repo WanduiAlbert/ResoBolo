@@ -293,16 +293,34 @@ if __name__=="__main__":
 	P_read -= 20*np.log10(4)*dB # Accounting for the 4 resonators being read at the
 	# same time
 	#P_opt = 10*u.pW
+	NEPs = np.zeros((len(frequencies), Npowers))
+	NEPs_ph = np.zeros((len(frequencies), Npowers))
+	NEPs_amp = np.zeros((len(frequencies), Npowers))
 	for ireso, reso in enumerate(frequencies):
 		op = OperatingPoint(P_opt=0*u.pW, f_r=reso, T_0=T_0, P_read=P_read)
 		op.C_c1 = Cc[ireso]
 		op.gamma_leg = gamma_leg[ireso]
 		op.K_leg = K_leg[ireso]/u.Kelvin**gamma_leg[ireso]
 		for ipow in range(Npowers):
-			if ipow > 0: continue
+			#if ipow != 6: continue
 			op.P_opt = P_opt[ireso, ipow]
 			op.calculate_noise()
 			op.calculate_noise_spectra()
+			NEPs[ireso, ipow] = op.NEP_total.value
+			NEPs_ph[ireso, ipow] = op.NEP_ph.value
+			NEPs_amp[ireso, ipow] = op.NEP_amp.value
+			fig, ax = plt.subplots(figsize=(10,10))
+			op.plot_noise(ax)
+			ax.set_title("%.1f MHz reso biased at %.1f pW"%(frequencies[ireso].value, P_opt[ireso, ipow].value))
+			ax.set_xlabel(r'Frequency [Hz]')
+			ax.set_ylabel(r'NEP [aW/rtHz]')
+			ax.set_ylim([1, 1000])
+			ax.set_xlim([0.1, 1e6])
+			ax.grid(which='major', axis='both')
+			ax.legend(loc='best')
+			plt.savefig('Waffle_TKID_%.1fMHz_%.1fpW_Noise_Prediction.png'%(frequencies[ireso].value, P_opt[ireso, ipow].value))
+			plt.close()
+			#op.calculate_noise_spectra()
 	#op.calculate_noise()
 	#fig, ax = plt.subplots(figsize=(10,10))
 	#op.plot_noise(ax)
@@ -313,4 +331,20 @@ if __name__=="__main__":
 	#ax.grid(which='major', axis='both')
 	#ax.legend(loc='best')
 	#plt.savefig('Waffle_TKID_305.8MHz_Noise_Prediction.png')
-
+	exit()
+	P_readout = (1*u.mW*10**(P_read.value/10)).to(u.pW)
+	print (P_readout)
+	for ireso, reso in enumerate(frequencies):
+		fig, ax = plt.subplots(figsize=(10,10))
+		ax.plot(P_opt[ireso].value, NEPs[ireso], label='total')
+		#ax.plot(P_opt[ireso].value, NEPs_ph[ireso], 'k--', label='phonon')
+		#ax.plot(P_opt[ireso].value, NEPs_amp[ireso], 'k-.', label='amplifier')
+		ax.set_title("%.1f MHz reso"%(frequencies[ireso].value))
+		ax.set_xlabel(r'Optical Power [pW]')
+		ax.set_ylabel(r'NEP [aW/rtHz]')
+		ax.legend(loc="lower right")
+		#ax.set_ylim([1, 1000])
+		#ax.set_xlim([0.1, 1e6])
+		ax.grid(which='major', axis='both')
+		plt.savefig('Waffle_TKID_%.1fMHz_NEP_vs_Power.png'%(frequencies[ireso].value))
+		plt.close()
