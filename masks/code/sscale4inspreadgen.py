@@ -4,6 +4,7 @@ import gdspy
 import patches
 import smallscaledarkresonators as ssd
 import numpy as np
+import pdb
 
 # Set the library to write all the cells in
 main_lib = gdspy.GdsLibrary('main', unit=1e-6, precision=1e-9)
@@ -50,9 +51,10 @@ if __name__ == "__main__":
 	mask_list = [cell_dict['ResoArray_Mask_May2018']]
 	to_ignore = set(['WaferOutline'])
 	layer_order = [12, 9, 6, 3, 8 ]
+	#pdb.set_trace()
 	allshots = patches.gen_patches_table(globaloverlay, mask_list, to_ignore,
-			def_layers, layer_order)
+			def_layers, layer_order, invcell_ending='_r')
 	patchtable = patches.PatchTable(allshots, 'ResonatorArray_4in.xlsx')
 	patchtable.generate_spreadsheet()
-	invwafer = generate_inverted_overlay(globaloverlay, mask_list)
-	gdspy.write_gds(fn,unit=1e-6,precision=1e-9)
+	#invwafer = generate_inverted_overlay(globaloverlay, mask_list)
+	#gdspy.write_gds(fn,unit=1e-6,precision=1e-9)

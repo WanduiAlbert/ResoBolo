@@ -160,6 +160,7 @@ def run_sim(fn_spreadsheet, mask_cells):
 			print ("failed for cell " + name)
 
 		# Make sure we are left with geometry after blading
+		#pdb.set_trace()
 		assert pcell is not None
 
 		c = gdspy.Cell(name)
