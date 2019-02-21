@@ -163,7 +163,7 @@ def generate_mask():
 def validate_mask():
 	print ("Validating the mask....\n\n")
 	all_cells = main_lib.cell_dict
-	mask = all_cells['reticle_no_lens']
+	mask = all_cells['reticle_nolens']
 	maskhasOverlaps = ssd.check_cell_for_overlaps(mask)
 	if maskhasOverlaps:
 		print ("FIX ME: Some cells on the mask were found to have overlaps.")
@@ -185,8 +185,8 @@ def validate_mask():
 if __name__ == "__main__":
 
 	# Generate all the missing inverted cells from the base file
-	base_fn = 'Antenna_Coupled_TKIDs_20190212_ROB.gds'
-	final_fn = 'Antenna_Coupled_TKIDs_20190212_ROB.gds'
+	base_fn = 'Antenna_Coupled_TKIDs_20190221_ROB.gds'
+	final_fn = 'Antenna_Coupled_TKIDs_20190221_ROB.gds'
 	#main_lib.read_gds(base_fn)
 	#cell_dict = main_lib.cell_dict
 	#top = cell_dict['Wafer_Layout_new_with_perimeter_cells_at_center']
@@ -258,7 +258,7 @@ if __name__ == "__main__":
 	allshots = patches.gen_patches_table(globaloverlay, mask_list, to_ignore,\
 			layer_dict=def_layers, layer_order=layer_order, cellsInverted=True)
 	# Create a patch table object from the list of shots generated.
-	patchtable = patches.PatchTable(allshots, 'antenna_coupled_TKIDs_20190212.xlsx')
+	patchtable = patches.PatchTable(allshots, 'antenna_coupled_TKIDs_20190221.xlsx')
 	patchtable.generate_spreadsheet()
 
 

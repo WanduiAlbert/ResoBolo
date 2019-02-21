@@ -12,12 +12,45 @@ gdspy.current_library = main_lib
 def_layers = {"Thin Gold":1, "PRO1":2, "ALUMINUM":3, "LSNSUB":4, "LSN1":5,
 		"120nm_NbWiring":6, "STEPPER":7, "400nm_NbWiring":8, "ILD":9, "XeF2":10, "GP":12, 'Wafer Outline':22}
 
+def make_inverted_cell(cellref, mask_components):
+	cellname = cellref.ref_cell.name
+	print (cellname)
+	#if cellname == "reso_structure_4in": pdb.set_trace()
+	invcellname = ssd.get_inv_cellname(cellname)
+	if invcellname in mask_components:
+		invcellref = gdspy.CellReference(invcellname)
+	elif cellname in mask_components:
+		invcellref = gdspy.CellReference(cellname)
+	else:
+		try:
+			invcell = main_lib.cell_dict[invcellname]
+			invcellref = gdspy.CellReference(invcell)
+		except KeyError:
+			invcell = gdspy.Cell(invcellname)
+			subcells = cellref.ref_cell.elements
+			for a_cell in subcells:
+				a_cellref = make_inverted_cell(a_cell, mask_components)
+				if type(a_cell) == gdspy.CellArray:
+					a_cellarr = gdspy.CellArray(a_cellref.ref_cell, columns=a_cell.columns, rows=a_cell.rows,\
+						spacing=a_cell.spacing,origin=a_cell.origin)
+					invcell.add(a_cellarr)
+				else:
+					a_cellref.origin = a_cell.origin
+					invcell.add(a_cellref)
+			invcellref = gdspy.CellReference(invcell)
+	invcellref.origin = cellref.origin
+
+	return invcellref
+
 def generate_inverted_overlay(wafer, mask_list):
 	mask_components = set()
 	for mask in mask_list:
 		for x in mask.elements:
 			if type(x) not in patches.allowed_element_types: continue
 			mask_components.add(x.ref_cell.name)
+	#for comp in mask_components:
+	#	print (comp)
+	#exit()
 	invwafer = gdspy.Cell('Global_Overlay_4in_Inverted')
 	gcomponents = wafer.elements
 	for component in gcomponents:
@@ -26,7 +59,7 @@ def generate_inverted_overlay(wafer, mask_list):
 		if ctype not in patches.allowed_element_types: continue
 		if component.ref_cell.name == "frame" : continue
 		try:
-			invcomponent = ssd.make_inverted_cell(component, mask_components)
+			invcomponent = make_inverted_cell(component, mask_components)
 		except ValueError:
 			invcomponent = component
 		if ctype == gdspy.CellArray:
@@ -40,7 +73,7 @@ def generate_inverted_overlay(wafer, mask_list):
 	return invwafer
 
 if __name__ == "__main__":
-	fn = '../mask_files/sscale_darkres_4in.gds'
+	fn = '../mask_files/sscale_darkres_4in_with_island.gds'
 	main_lib.read_gds(fn)
 	cell_dict = main_lib.cell_dict
 	# bowtie_r = ssd.invert_cell(cell_dict['R_BowtieSlot'])[0]
@@ -50,11 +83,11 @@ if __name__ == "__main__":
 	globaloverlay = cell_dict['Global_Overlay_4in']
 	mask_list = [cell_dict['ResoArray_Mask_May2018']]
 	to_ignore = set(['WaferOutline'])
-	layer_order = [12, 9, 6, 3, 8 ]
+	layer_order = [12, 9, 6, 5, 3, 8, 10]
 	#pdb.set_trace()
 	allshots = patches.gen_patches_table(globaloverlay, mask_list, to_ignore,
 			def_layers, layer_order, invcell_ending='_r')
 	patchtable = patches.PatchTable(allshots, 'ResonatorArray_4in.xlsx')
 	patchtable.generate_spreadsheet()
-	#invwafer = generate_inverted_overlay(globaloverlay, mask_list)
-	#gdspy.write_gds(fn,unit=1e-6,precision=1e-9)
+	invwafer = generate_inverted_overlay(globaloverlay, mask_list)
+	gdspy.write_gds(fn,unit=1e-6,precision=1e-9)
