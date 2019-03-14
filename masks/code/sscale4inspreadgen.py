@@ -73,7 +73,7 @@ def generate_inverted_overlay(wafer, mask_list):
 	return invwafer
 
 if __name__ == "__main__":
-	fn = '../mask_files/sscale_darkres_4in_with_island_20190310.gds'
+	fn = '../mask_files/sscale_darkres_4in_with_island_20190313.gds'
 	main_lib.read_gds(fn)
 	cell_dict = main_lib.cell_dict
 	# bowtie_r = ssd.invert_cell(cell_dict['R_BowtieSlot'])[0]
