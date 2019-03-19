@@ -16,8 +16,8 @@ verbose = False
 datatype = u.quantity.Quantity
 
 def niceprint(*args):
-  __builtins__.print(*("{0:0.4f}".format(a) if isinstance(a, datatype) or\
-	  isinstance(a, float) else a for a in args))
+	print(*("{0:0.4f}".format(a) if isinstance(a, datatype) or\
+		isinstance(a, float) else a for a in args))
 
 K_0 = lambda x: kn(0, x)
 I_0 = lambda x: iv(0, x)
@@ -116,7 +116,7 @@ class OperatingPoint:
 			self.T_0.si.value**self.gamma_leg)**(1./self.gamma_leg))*u.Kelvin
 		niceprint("The temperature of the island", self.T_b)
 
-		self.C_b = 0.25*(self.T_b/(350*u.mK))*u.pJ/u.Kelvin #Heat capacity
+		self.C_b = 0.25*(self.T_b/(350*u.mK))**2*u.pJ/u.Kelvin #Heat capacity
 
 
 		self.L = L_g + L_k # total inductance
@@ -189,7 +189,7 @@ class OperatingPoint:
 
 		# Now we include the NEP estimates for the resobolo currently
 		self.kappa = (1/2 + Delta/k_B/self.T_b).to(1)
-		self.P_leg = self.P_opt * (1 + self.x) # Total power into the resobolo thermal link
+		self.P_leg = self.P_total # Total power into the resobolo thermal link
 		gamma_g = (self.K_leg * self.gamma_leg * self.T_b**self.gamma_leg / self.P_leg).to(1)
 		#self.G_b = (gamma_g * self.P_leg/self.T_b).to('pW/K') # Conductance of the resobolo
 		self.G_b = (self.gamma_leg*self.K_leg*self.T_b**(self.gamma_leg-1)).to('pW/K') # Conductance of the resobolo
@@ -250,9 +250,9 @@ class OperatingPoint:
 		niceprint ("Total NEP", self.NEP_total)
 
 
-	def plot_noise(self, ax):
+	def plot_noise(self, ax, fmax=6):
 		self.calculate_noise_spectra()
-		self.nu = np.logspace(-1, 6, 5000) * u.Hz
+		self.nu = np.logspace(-1, fmax, 5000) * u.Hz
 		self.ones = np.ones_like(self.nu.value)
 		self.bolo_rolloff =  1/(1 + 1j * 2 * np.pi * (self.nu * self.tau_b).to(1))
 		self.qp_rolloff =  1/(1 + 1j * 2 * np.pi * (self.nu * self.tau_qp).to(1))
