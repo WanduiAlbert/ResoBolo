@@ -61,34 +61,6 @@ def style_range(ws, cell_range, border=Border(), fill=None, font=None, alignment
 			cell.border = border
 			cell.fill = fill
 			cell.alignment = alignment
-	#		 if cell.value:
-	#			 dims[cell.column] = max((dims.get(cell.column, 0), len(cell.value)))
-	# for col, value in dims.items():
-	#	 ws.column_dimensions[col].width = value
-
-
-	#first_cell = ws[cell_range.split(":")[0]]
-	#if alignment:
-	#	ws.merge_cells(cell_range)
-	#	first_cell.alignment = alignment
-
-	#rows = ws[cell_range]
-	#if font:
-	#	first_cell.font = font
-
-	#for cell in rows[0]:
-	#	cell.border = cell.border + top
-	#for cell in rows[-1]:
-	#	cell.border = cell.border + bottom
-
-	#for row in rows:
-	#	l = row[0]
-	#	r = row[-1]
-	#	l.border = l.border + left
-	#	r.border = r.border + right
-	#	if fill:
-	#		for c in row:
-	#			c.fill = fill
 
 def populate_column(sheet, col, startrow, dataset):
 	N = len(dataset)
@@ -98,7 +70,68 @@ def populate_column(sheet, col, startrow, dataset):
 
 
 class PatchTable():
+	"""
+	Class representing a collection of the jobs to be shot by the stepper
+	programmer. The PatchTable is used to generate a spreadsheet that is then
+	entered into the stepper.
 
+	Attributes:
+	-------------
+		tvpa_shift,
+		aga_x_shift,
+		aga_y_shift: The relative positions of the TVPA and AGA marks with
+			respect to the center of the alignment marks cell. Assumes that the
+			alignment marks cell always starts with "alignment". Customize this
+			before generating the spreadsheet.
+
+			By default:
+				tvpa_shift = np.array([0.125, 0])
+				aga_x_shift = np.array([-0.125, 0])
+				aga_y_shift = np.array([-0.225, 0])
+
+		align_layer:
+			First layer to be shot. This is the layer on which the
+			alignment cell is to be placed on.
+		shots: list of Shot objects, each representing a job on the stepper.
+		filename: name of the workbook in which to save the spreadsheet.
+		wb: Excel workbook in which the spreadsheet is saved.
+		ws: active Excel worksheet instance in which to save the data.
+		shift_ws: secondary worksheet that holds all the array shift information.
+		layers: array of all the layer numbers of the stepper jobs.
+		names: names of all the stepper jobs.
+		mask_names: array of the names of all the reticle cells used to source the
+			jobs.
+		mask_shifts:
+		cell_sizes:
+		cell_shifts:
+		cell_bboxs:
+		array_sizes:
+		array_centers:
+		array_stepsizes:
+		array_shifted:
+		array_positions:
+		calculated_xys:
+		desired_xys:
+		shifts_xys:
+		num_shots:
+		xl:
+		xr:
+		yu:
+		yd:
+		wafer_shifts:
+
+
+	Methods:
+	------------
+		generate_spreadsheet(): Creates and saves a spreadsheet under the
+			name self.filename.
+
+	Example:
+	----------
+		patchtable = PatchTable(shotlist, "stepperprog.xlsx") where the shotlist has
+			been generated using gen_patches_table(...).
+		patchtable.generate_spreadsheet()
+	"""
 	# Some class constants that define the relative positions of the TVPA and
 	# AGA Marks with respect to the center of the alignment marks cell
 	# These are defined for alignment_marks_patch_new_r
@@ -112,7 +145,21 @@ class PatchTable():
 	#aga_y_shift = np.array([-0.18125, 0])
 
 
-	def __init__(self, shotlist, wb_filename="ResonatorArray.xlsx"):
+	def __init__(self, shotlist, wb_filename="stepper.xlsx"):
+		"""
+		PatchTable(shotlist, wb_filename)
+		----------------------------------------------------------
+
+		Creates a PatchTable class initialized with a list of Shot() objects and
+		the name of the workbook filename.
+
+		Params:
+			shotlist (list):  List of Shot() objects to be represented on the
+				spreadsheet.
+			wb_filename (str): Name of the excel file in which the stepper
+				programming information is to be saved.
+
+		"""
 		self.shots = shotlist
 		self.filename = wb_filename
 		self.wb = Workbook()
@@ -376,6 +423,54 @@ class PatchTable():
 		self.wb.save(self.filename)
 
 class Shot():
+	"""
+	Class represents a single shot that is to be made by the stepper. Holds all
+	the information present in a single row of the stepper programming
+	spreadsheet.
+
+	-------------------------------------------------------------------------
+
+	Attributes:
+	------------
+		def_layers: Dictionary mapping between layer names and layer numbers.
+		inv_layers = Same dictionary structure as def_layers but with the layer
+			numbers as the keys and the layer names as the values.
+		ordering: list of the order in which the layers are to be shot. Used to
+			define an ordering for sorting shots.
+		cell: gdspy cell that represents the shot.
+		cellname: name of the gdspy cell.
+		layer: Layer number of the cell. Note that a shot MUST have only one layer.
+			   If cell has more than 1 layer, a RuntimeError is raised.
+		cell_bbox: 2x2 array that is the bounding box of the cell
+		cell_size: array representing the size of the cell
+		mask_name: name of the reticle cell from which the shot is to be made
+		cell_shift: position of the cell in the global overlay to be made
+		isArray: whether the shot is to be made into an array or not.
+		maskcell:
+		maskcellsize:
+		mask_shift:
+		mask_cellbbox:
+
+		If the cell is arrayed, checks the kwargs:
+		kwargs:
+		---------
+			ncols:
+			nrows:
+			center:
+			xspacing:
+			yspacing:
+			is_shifted:
+			If is_shifted is True,
+				column_pos:
+				row_pos:
+				calculated_x:
+				calculated_y:
+				desired_x:
+				desired_y:
+				shift_x:
+				shift_y:
+
+	"""
 	def_layers = {"Thin Gold":1, "PRO1":2, "ALUMINUM":3, "LSNSUB":4, "LSN1":5,\
 			"120nm_NbWiring":6, "STEPPER":7, "400nm_NbWiring":8, "ILD":9,\
 			"XeF2":10, "GP":12, 'Wafer Outline':22}
@@ -583,6 +678,31 @@ def find_match(ref_cell, match_name):
 
 def gen_patches_table(globaloverlay, mask_list, ignored_cells, layer_dict=None,\
 		layer_order=None, cellsInverted=True, invcell_ending='_inv'):
+	"""
+	Function for generating a list of shots using the layout cell and a list of
+	reticle cells. Descends down the hierarchy of cells in the layout cell and
+	identifies the positions, sizes and array properties needed to generate the
+	full layout. Each unique cell on the layout MUST have a matching cell in one
+	of the reticle cells on the reticle list.
+
+	Args:
+	---------------
+		globaloverlay (gdspy.Cell): layout cell that is to be fabricated.
+		mask_list ([gdspy.Cell, ...]): list of all the reticle_cells.
+		ignored_cells ([gdspy.Cell, ...]): list of all subcells of the layout
+			cell that shouldn't be shot.
+		layer_dict (dict): dictionary mapping layer names: layer numbers.
+		layer_order (list): list of all the layer numbers in the order in which they
+			are to be shot.
+		cellsInverted (bool): Boolean value representing whether the cells on the
+			reticles are the inverted versions of the cells on the layout.
+		invcell_ending (str): Naming convention used to distinguish cells on the
+			layout and the inverted cells on the reticle.
+	Returns:
+	------------------
+		(list): A list of all the shots for the stepper program.
+
+	"""
 	Shot.update_layers(layer_dict)
 	if layer_order:
 		Shot.update_layerorder(layer_order)
@@ -801,8 +921,35 @@ def get_array_shifts(element, parent_args):
 
 def makeshot(curr_element, parent_origin=default, parentIsArray=False,
 		arrayArgs=empty_dict, mask_list=[], ignored_cells=set()):
-	#if curr_element.ref_cell.name == "pixel_new_no_antenna": pdb.set_trace()
-	#if curr_element.ref_cell.name == "alignment_marks_patch_new": pdb.set_trace()
+	"""
+	Function that descends down the hierarchy of cells, starting at the current
+	element as the root of the tree and generates a list of all the shots in all 
+	the lower levels of the tree and keeps track of the locations of all the
+	shots. Each shot represents a unique gdspy CellReference or CellArray
+	object and MUST have a single layer.
+
+	Args:
+	---------------
+		curr_element (gdspy.Cell): gdspy CellReference object.
+		parent_origin (numpy.array): By default numpy.array([0,0]). The origin
+			of the element that contains the current element.
+		parentIsArray (bool): Boolean value representing whether or not the
+			element containing the current element is in an array or not. Required
+			in order to correctly place all the subsequent subcells.
+			shot.
+		arrayArgs (dict): If parentIsArray is True, then this holds all the
+			array information.
+		mask_list ([gdspy.Cell, ...]): list of all the reticle cells. By
+			default, it is the empty list.
+			are to be shot.
+
+	Returns:
+	------------------
+		([Shot(), ...]): A list of all the shots in the subtree with the
+			current element as the root of the cell hierarchy tree.
+
+
+	"""
 	if curr_element.ref_cell.name in ignored_cells: return []
 	if type(curr_element) not in allowed_element_types:
 		return []
@@ -852,7 +999,6 @@ def makeshot(curr_element, parent_origin=default, parentIsArray=False,
 				cell_shift = newArrayArgs['to_shift']
 
 	elif type(curr_element) == gdspy.CellArray and parentIsArray:
-		#if curr_element.ref_cell.name == "Cap_300MHz": pdb.set_trace()
 		abs_origin = default
 		arr_center = scalearr(get_center(curr_element), scale)
 		#if curr_element.ref_cell.name == "L_MS_feed_bolometer":
@@ -898,88 +1044,3 @@ def makeshot(curr_element, parent_origin=default, parentIsArray=False,
 		child_shotlist.extend(makeshot(child, abs_origin, isArray, newArrayArgs,\
 			mask_list=mask_list, ignored_cells=ignored_cells))
 	return child_shotlist
-
-
-# def makeshot(element, parent=None, hierarchy=0):
-#	 #pdb.set_trace()
-#	 isArray = False
-#	 if type(element) == gdspy.CellArray:
-#		 isArray = True
-#	 elif type(element) != gdspy.CellReference:
-#		 return []
-
-#	 cell = element.ref_cell
-#	 cellname = cell.name
-#	 # If a cell has dependencies, then the elements gives a list of all the cell
-#	 # references in this cell. If the cell has no dependencies, then subelements
-#	 # just gives the polygon set that makes up the cell. I don't want the
-#	 # polygonset stuff.
-#	 subelements = []
-#	 if cell.get_dependencies():
-#		 subelements = cell.elements
-
-#	 if isArray:
-#		 arr_center = scalearr(get_center(element), scale)
-#		 ncols = element.columns
-#		 nrows = element.rows
-#		 xspacing, yspacing = scalearr(element.spacing, scale)
-#		 args = {'num_cols':ncols, 'num_rows':nrows,\
-#			 'center':arr_center, 'xspacing':xspacing, 'yspacing':yspacing}
-
-#	 # If deps is an empty set then immediately construct the shot from the
-#	 # element. Otherwise loop through the dependencies of the current element and
-#	 # obtain shots from each of them.
-#	 if not subelements:
-#		 cell_shift = scalearr(element.origin, scale)
-#		 cell_size = scalearr(get_size(element), scale)
-#	 else:
-#		 shotlist = []
-#		 for el in subelements:
-#			 shots = makeshot(el, parent=element, hierarchy=hierarchy + 1)
-#			 # For each shot that has been made from each element, update its origin
-#			 # relative to the origin for  the element
-#			 if hierarchy >= 2:
-#				 translate(shot, scalearr(parent.origin, scale))
-#			 shotlist.extend(shots)
-#		 # If the current shot is part of a larger array, I want to keep track of
-#		 # that information
-#		 if isArray:
-#			 for shot in shotlist:
-#				 shot.isArray = True
-#				 shot.center = arr_center
-#				 shot.ncols = ncols
-#				 shot.nrows = nrows
-#				 shot.xspacing, shot.yspacing = xspacing, yspacing
-#		 return shotlist
-
-#	 if isArray:
-#		 args = {'num_cols':ncols, 'num_rows':nrows,\
-#			 'center':arr_center, 'xspacing':xspacing, 'yspacing':yspacing}
-#		 shot = Shot(cell, cell_shift, cell_size, isArray=True, **args)
-#	 else:
-#		 args = {'num_cols':1, 'num_rows':1,\
-#			 'center':cell_shift, 'xspacing':0, 'yspacing':0}
-#		 try:
-#			 shot = Shot(cell, (0, 0), cell_size, isArray=True, **args)
-#		 except RuntimeError:
-#			 print ("Failed for", element)
-#			 return []
-
-#	 if hierarchy >= 2:
-#		 translate(shot, scalearr(parent.origin, scale))
-#	 return [shot]
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

@@ -73,7 +73,7 @@ def generate_inverted_overlay(wafer, mask_list):
 	return invwafer
 
 if __name__ == "__main__":
-	fn = '../mask_files/sscale_darkres_4in_with_island.gds'
+	fn = '../mask_files/sscale_darkres_4in_with_island_20190313.gds'
 	main_lib.read_gds(fn)
 	cell_dict = main_lib.cell_dict
 	# bowtie_r = ssd.invert_cell(cell_dict['R_BowtieSlot'])[0]
@@ -87,7 +87,7 @@ if __name__ == "__main__":
 	#pdb.set_trace()
 	allshots = patches.gen_patches_table(globaloverlay, mask_list, to_ignore,
 			def_layers, layer_order, invcell_ending='_r')
-	patchtable = patches.PatchTable(allshots, 'ResonatorArray_4in.xlsx')
+	patchtable = patches.PatchTable(allshots, 'ResonatorArray_4in_20190310.xlsx')
 	patchtable.generate_spreadsheet()
 	invwafer = generate_inverted_overlay(globaloverlay, mask_list)
 	gdspy.write_gds(fn,unit=1e-6,precision=1e-9)
