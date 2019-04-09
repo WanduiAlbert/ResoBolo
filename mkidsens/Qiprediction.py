@@ -1,19 +1,104 @@
 #! /usr/bin/env python3
 
-# My version of the resonator code. Most of the calculations are adapted from the ipython notebook that I have in this folder.
-# I initialize the resonator bolometer with some of its parameters so I can easily adjust it.
-
 import numpy as np
 from math import pi
-import astropy.units as u
-from astropy.constants import h,k_B, c, m_e, N_A
 import matplotlib.pyplot as plt
 from scipy.special import kn, iv
 import pdb
+from scipy import optimize, special, interpolate
+from scipy.constants import k, h
+K0 = lambda x: kn(0, x)
+I0 = lambda x: iv(0, x)
 
 np.set_printoptions(precision=4)
 verbose = False
-datatype = u.quantity.Quantity
+
+MHz = 1e6
+pW = 1e-12
+eV = 1.6e-19 # Joules
+um = 1e-6
+microsecond = 1e-6
+mJ = 1e-3
+mol = 1
+Kelvin = 1
+cm = 1e-2
+g = 1
+mK = 1e-3
+#N0 = 1.72e10/um**3/eV
+alpha_k = 0.51
+nu = 337.4*MHz
+
+Tc = 1.329
+K = 151.193e-12
+n = 2.104
+Tb = 0.151
+t = 0.05 * um
+w_trace = 1 * um #width of inductor trace
+s_trace = 1 * um #spacing between inductor meanders
+N_sq = 16200  # Number of squares
+l = N_sq * w_trace # Total length of the inductor (approximately. More exact is +21um + ...)
+A = t * w_trace # cross-sectional area
+V_sc = l * A
+
+gamma = 1.35 * mJ/mol/Kelvin**2
+density = 2.7 * g/cm**3
+A_r = 26.98 * g/mol
+N0 = ((3 * (gamma * (density/A_r)))/(2*pi**2 * k**2))
+# Material properties of the Aluminum superconductor
+tau_max = 955.1 * microsecond
+n_qp_star = 363 * 1./um**3
+R = 1./(tau_max * n_qp_star)
+alphak = 0.472
+
+P = np.r_[0:20:100j]*pW
+T = (P/K + Tb**(n+1))**(1./(n + 1)) # island temperature
+G = K*(n+1)*T**n
+delta = 3.5*k*Tc/2
+PdBm = -110
+Pread = 1e-3*10**(PdBm/10)
+tau0 = 438e-9
+#P += Pread
+
+etas = [0.01, 0.1, 0.5, 0.9, 1.5, 5]
+plt.figure(figsize=(10,10))
+for eta_read in etas:
+    Gamma = eta_read*Pread/delta
+    print (Gamma)
+    print ((2*Gamma/V_sc/R)**0.5*um**3)
+    R2 = 1./(3.5**2*(2*N0*k*Tc)*tau0)
+    print (N0)
+    print (R/um**3*microsecond)
+    print (R2/um**3*microsecond)
+    exit()
+    kappa = 0.5 + delta/(k*T)
+    q = (h*nu/2/k/T)
+    nth = 2*N0*np.sqrt(2*pi*delta*k*T)*np.exp(-delta/(k*T))
+    nqp = np.sqrt((nth + n_qp_star)**2 + (2*Gamma/V_sc/R)) - n_qp_star
+    #nqp = nth
+    S1 = 2/pi * np.sqrt(2*delta/(pi*k*T))*np.sinh(q)*K0(q)
+    S2 = 1 + np.sqrt(2*delta/(pi*k*T))*np.exp(-q)*I0(q)
+
+    x = alpha_k * S2 * nqp / (4*N0*delta)
+    Qi = (2*N0*delta)/(alphak*S1*nqp)
+
+    dQi = 1./Qi
+
+    plt.semilogy(T/mK, dQi, label="Background Rate:%1.1f"%(eta_read))
+
+plt.xlabel("Island Temperature [mK]")
+plt.ylabel("dQi")
+plt.grid()
+plt.ylim((1e-7, 1e-3))
+plt.legend(loc="lower right")
+plt.savefig("dQi_vs_T_w_background_gen.png")
+plt.show()
+exit()
+#print ("\n\n%1.3f\n%1.3e"%(T, x))
+#print ("%1.3f\n%1.3e\n\n\n\n"%(kappa, G))
+#print ("\n\n%1.3f\n%1.3e\n\n\n\n"%(T, x))
+
+S = (nu * x * kappa)/(G * T)
+#S = (nu * beta * kappa)/(2 * Qi * G * T)
 
 def niceprint(*args):
 	print(*("{0:0.4f}".format(a) if isinstance(a, datatype) or\
@@ -49,8 +134,8 @@ T_c = 1.329 * u.Kelvin
 T_0 = 0.25 * u.Kelvin # Previously 0.23K Temperature of the thermal bath
 
 # Material properties of the Aluminum superconductor
-tau_max = 500 * u.microsecond
-n_qp_star = 100 * 1/u.um**3
+tau_max = 955.1 * u.microsecond
+n_qp_star = 363 * 1/u.um**3
 gamma = 1.35 * u.mJ/u.mol/u.Kelvin**2
 density = 2.7 * u.g/u.cm**3
 A_r = 26.98 * u.g/u.mol

@@ -49,7 +49,7 @@ T_c = 1.329 * u.Kelvin
 T_0 = 0.25 * u.Kelvin # Previously 0.23K Temperature of the thermal bath
 
 # Material properties of the Aluminum superconductor
-tau_max = 500 * u.microsecond
+tau_max = 955.1 * u.microsecond
 n_qp_star = 100 * 1/u.um**3
 gamma = 1.35 * u.mJ/u.mol/u.Kelvin**2
 density = 2.7 * u.g/u.cm**3
