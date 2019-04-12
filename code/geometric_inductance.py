@@ -61,9 +61,15 @@ def complex_of_real(y):
 	r, i = np.split(y, 2)
 	return r + 1j*i
 
+#def inductance_model(x, L, R, C):
+#	w = 2*pi*x
+#	return real_of_complex(1/(R + 1j*w*L + 1./(1j*w*C)))
 def inductance_model(x, L, R):
 	w = 2*pi*x
-	return real_of_complex(R + 1./(1j*w*L))
+	return real_of_complex(1/(R + 1j*w*L))
+	#return real_of_complex(1j*w*C + 1/(R + 1j*w*L))
+	#return real_of_complex(1/(R + 1j*w*L + 1./(1j*w*C)))
+	#return real_of_complex(1j*w*C + 1/(R + 1j*w*L))
 
 def tline_model(x, Zc, w0, eps):
 	w = 2*pi*x
@@ -86,38 +92,43 @@ def get_ind_params(fn):
 	nY21 = nY21[f/MHz < 800]
 	f = f[f/MHz < 800]
 
-	fig, ax =plt.subplots(figsize=(10,10))
-	ax.plot(f/MHz, np.abs(nY21), 'b')
-	#ax.plot(f/MHz, Ydata['Y21'].real, 'r', label='Y21 real')
-	#ax.plot(f/MHz, Ydata['Y21'].imag, 'b', label='Y21 imag')
-	#ax.plot(f/MHz, Ydata['Y11'].real, 'r--', label='Y11 real')
-	#ax.plot(f/MHz, Ydata['Y11'].imag, 'b--', label='Y11 imag')
-	ax.set_xlabel('Frequency [MHz]')
-	ax.set_ylabel('|-Y21| [1/Ohms]')
-	ax.grid()
-	ax.axis('tight')
-	#ax.legend(loc='best')
-	#plt.show()
-	#exit()
-	plt.savefig(plotdir + savename + "Y21_full.png")
+	#fig, ax =plt.subplots(figsize=(10,10))
+	#ax.plot(f/MHz, np.abs(nY21), 'b')
+	##ax.plot(f/MHz, Ydata['Y21'].real, 'r', label='Y21 real')
+	##ax.plot(f/MHz, Ydata['Y21'].imag, 'b', label='Y21 imag')
+	##ax.plot(f/MHz, Ydata['Y11'].real, 'r--', label='Y11 real')
+	##ax.plot(f/MHz, Ydata['Y11'].imag, 'b--', label='Y11 imag')
+	#ax.set_xlabel('Frequency [MHz]')
+	#ax.set_ylabel('|-Y21| [1/Ohms]')
+	#ax.grid()
+	#ax.axis('tight')
+	##ax.legend(loc='best')
+	##plt.show()
+	##exit()
+	#plt.savefig(plotdir + savename + "Y21_full.png")
 
-	L_est = 10*nH
-	p0 = [L_est, 0.1]
-	popt, pcov = curve_fit(inductance_model, f, real_of_complex(nY21), p0=p0, method='lm')
+	L_est = 4*nH
+	p0 = [L_est, 1e-7]
+	bounds = ([0]*2, [np.inf]*2)
+	popt, pcov = curve_fit(inductance_model, f, real_of_complex(nY21), p0=p0,\
+			bounds=bounds, method='trf')
 	L_fit, R_fit = popt
 
 	y_est = complex_of_real(inductance_model(f, *p0))
 
 	y_fit = complex_of_real(inductance_model(f, *popt))
 	print (popt)
+	label = "Fit L = %1.3fnH\n    R = %1.3fuOhms"%(L_fit/nH,
+			 R_fit/1e-6)
 	fig, ax =plt.subplots(figsize=(10,10))
 	ax.plot(f/MHz, np.abs(nY21), 'b', label='Simulation')
 	#ax.plot(f/MHz, y_est, 'g', label='Guess')
-	ax.plot(f/MHz, np.abs(y_fit), 'k--', label="Fit L = %1.3fnH"%(L_fit/nH))
+	ax.plot(f/MHz, np.abs(y_fit), 'k--', label=label)
 	#ax.plot(f/MHz, y_est, 'r-',
 		#		label="Guess: C = %1.3fpF L = %1.3fnH R=%1.3e Ohms"%(C_est/pF,
 		#			L_est/nH, R_est))
 	ax.legend()
+	#ax.set_yscale('log')
 	ax.set_xlabel('Frequency [MHz]')
 	ax.set_ylabel('|-Y21| [1/Ohms]')
 	ax.grid()
@@ -125,7 +136,7 @@ def get_ind_params(fn):
 	plt.savefig(plotdir + savename + "Y21.png")
 
 	fig, ax = plt.subplots(figsize=(10,10))
-	ax.scatter(f/MHz, np.abs(nY21) - np.abs(y_fit), label="Fit L = %1.3fnH"%(L_fit/nH))
+	ax.scatter(f/MHz, np.abs((nY21 - y_fit)/nY21), label=label)
 	ax.legend()
 	ax.set_xlabel('Frequency [MHz]')
 	ax.set_ylabel('Fit Residuals [1/Ohms]')
@@ -135,8 +146,10 @@ def get_ind_params(fn):
 	plt.close('all')
 
 	plt.close('all')
-	return L_fit
+	return L_fit, R_fit
 
 if __name__=="__main__":
 	fn = datadir + "waffle_inductor_geometric.csv"
+	get_ind_params(fn)
+	fn = datadir + "waffle_inductor_kinetic.csv"
 	get_ind_params(fn)

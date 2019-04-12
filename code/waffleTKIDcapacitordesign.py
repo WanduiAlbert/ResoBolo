@@ -296,7 +296,7 @@ if __name__=="__main__":
 	ccs = []
 	Qcs = []
 	Z0 = 50
-	L0 = 4.953*nH
+	L0 = 5.998*nH
 	x = list(map(lambda x: get_simulated_LC(x-0.5), main_nfingers))
 	C_cap, L_cap = list(zip(*x))
 	L_cap = np.array(L_cap)*nH
@@ -307,6 +307,7 @@ if __name__=="__main__":
 	Qi = []
 	for fr in fr_meas:
 		Qi.append(get_MB_Qi(target_T, fr*MHz))
+	Qi = np.array(Qi)
 	for i in range(N):
 		cmain = IDC(1.0)
 		cmain.contact_width=25
@@ -315,29 +316,33 @@ if __name__=="__main__":
 		Cs.append(cmain.capacitance())
 	Cs = np.array(Cs)
 	print (Cs/pF)
-	wr = 2*pi*fr*MHz
+	wr = 2*pi*fr_meas*MHz
 	L_total = 1./(wr**2*Cs)
+	L_al = 10.057*nH
 	print (Cs/pF - C_cap/pF)
-	print (L_cap/nH)
-	print (L_geom/nH)
+	#print (L_cap/nH)
+	#print (L_geom/nH)
 	print (L_total/nH)
-	print ((L_total - L_geom)/nH)
-	exit()
-	C_branch = 0.11 * pF
-	C_load = C_branch * N
+	print ((L_total - L_al)/nH)
+	C_load = 7 * pF
 	Zin = Z0
 	Zout = 1/(1./Z0 + 1j*wr*C_load)
-	Cc = np.sqrt((2*C)/(Qi*Z0*wr))
-	CC = np.average(Cc) # use the same coupling cap for all the resonators
+	#Cc = np.sqrt((2*Cs)/(Qi*Z0*wr))
+	Cc = np.array([0.3478, 0.3731, 0.3984, 0.4322])*pF
+	CC = Cc/2
+	print (CC/pF)
+	#CC = np.average(Cc) # use the same coupling cap for all the resonators
 	#CC = 0.1945 * pF # Using a number from actual calculations
 	y = wr * CC * Z0
 	Gprime = (wr*CC*Zin*y/(Zin + Zout)) - (1j*wr*CC*Zin**2*y**2)/(Zin + Zout)**2
-	dQe = Gprime/(wr*C)
+	dQe = Gprime/(wr*Cs)
 	Qe = 1/dQe
 	Qc = 1./np.real(dQe)
-	#print (Qc)
-	#print (Qc)
+	print (Qc)
 	phi_c = np.arctan2(dQe.imag, dQe.real)
+	print (phi_c)
+	exit()
+	#print (Qc)
 	#print (phi_c*180/pi)
 	#Qc = (C*pF)/(0.5*Z0*wr*(CC*pF/2)**2)
 	Qr = 1./(1./Qc + 1./Qi)
