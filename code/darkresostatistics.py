@@ -32,33 +32,35 @@ print (cf190401.size)
 print (design.size)
 xticks = 280 + 10*np.arange(23)
 
+tdesign = 1.018*design - 38.9
+
 plt.figure(figsize=(35,10))
 plt.plot(design, np.ones(design.size), marker='o', ms=15,
 		linestyle='None', label='Design')
-plt.plot(firstwafer, np.ones(firstwafer.size), marker='d', ms=15,
+plt.plot(firstwafer, np.ones(firstwafer.size) + 1, marker='d', ms=15,
 		linestyle='None', label='First Wafer')
-plt.plot(r675, np.ones(r675.size), marker='h', ms=15, linestyle='None',
+plt.plot(r675, np.ones(r675.size) + 0.5, marker='h', ms=15, linestyle='None',
 		label='R675')
-plt.plot(cf190401, np.ones(cf190401.size), marker='v', ms=15,
+plt.plot(cf190401, np.ones(cf190401.size) - 0.5, marker='v', ms=15,
 		linestyle='None', label='CF190401')
 plt.grid()
 plt.xticks(xticks)
-plt.yticks([1])
+plt.xlim((270, 500))
+plt.yticks([0, 1, 2])
 #plt.axis('tight')
 plt.legend(loc='upper left')
 plt.xlabel('Frequency [MHz]')
 plt.savefig('frequencyscatter_darkreso.png')
 
-
-
 #plt.figure(figsize=(35,10))
 #plt.plot(design, np.ones(design.size), marker='o', ms=15,
 #		linestyle='None', label='Design')
-#plt.plot(cf190401, np.ones(cf190401.size), marker='v', ms=15,
+#plt.plot(cf190401, np.ones(cf190401.size) + 0.5, marker='v', ms=15,
 #		linestyle='None', label='CF190401')
 #plt.grid()
 #plt.xticks(xticks)
-#plt.yticks([1])
+#plt.xlim((270, 500))
+#plt.yticks([0, 1, 2])
 ##plt.axis('tight')
 #plt.legend(loc='upper left')
 #plt.xlabel('Frequency [MHz]')
@@ -70,16 +72,66 @@ plt.savefig('frequencyscatter_darkreso.png')
 #plt.figure(figsize=(35,10))
 #plt.plot(design, np.ones(design.size), marker='o', ms=15,
 #		linestyle='None', label='Design')
-#plt.plot(r675, np.ones(r675.size), marker='h', ms=15, linestyle='None',
+#plt.plot(r675, np.ones(r675.size) - 0.5, marker='h', ms=15, linestyle='None',
 #		label='R675')
 #plt.grid()
 #plt.xticks(xticks)
-#plt.yticks([1])
+#plt.xlim((270, 500))
+#plt.yticks([0, 1, 2])
 ##plt.axis('tight')
 #plt.legend(loc='upper left')
 #plt.xlabel('Frequency [MHz]')
 #plt.savefig('frequencyscatter_darkreso_r675.png')
 
+
+# Want to generate the cumulative distribution functions for the different
+# resonators
+X = np.r_[270:510:100j]
+
+def generate_cdf(x, y):
+	cdf = np.zeros_like(x)
+	N = y.size
+	for i in range(x.size):
+		cdf[i] =  y[y <= x[i]].size
+	cdf /= N
+	return cdf
+
+def get_KS_statistic(cdf1, cdf2):
+	return np.max(np.abs(cdf1 - cdf2))
+
+
+design_cdf = generate_cdf(X, design)
+firstwafer_cdf = generate_cdf(X, firstwafer)
+r675_cdf = generate_cdf(X, r675)
+cf190401_cdf = generate_cdf(X, cf190401)
+
+firstwafer_KS = get_KS_statistic(design_cdf, firstwafer_cdf)
+r675_KS = get_KS_statistic(design_cdf, r675_cdf)
+cf190401_KS = get_KS_statistic(design_cdf, cf190401_cdf)
+
+alpha = 0.05
+def reject_nullhypothesis(alpha, n, m, Dnm):
+	c = np.sqrt(-0.5*np.log(alpha))
+	print (c)
+	thresh = c * np.sqrt((n+m)/n/m)
+	return Dnm > thresh
+
+print (reject_nullhypothesis(alpha, design.size, firstwafer.size, firstwafer_KS))
+print (reject_nullhypothesis(alpha, design.size, r675.size, r675_KS))
+print (reject_nullhypothesis(alpha, design.size, cf190401.size, cf190401_KS))
+
+
+plt.figure(figsize=(10,10))
+plt.plot(X, design_cdf, label='Design')
+plt.plot(X, firstwafer_cdf, label='First Wafer, KS=%1.2f'%(firstwafer_KS))
+plt.plot(X, r675_cdf, label='R675, KS=%1.2f'%(r675_KS))
+plt.plot(X, cf190401_cdf, label='CF190401, KS=%1.2f'%(cf190401_KS))
+plt.legend(loc='upper left')
+plt.grid()
+plt.xlabel('Resonance Frequency [MHz]')
+plt.ylabel('Cumulative Probability')
+plt.savefig('darkreso_kolmogorov_comparison.png')
+exit()
 
 
 design = np.array([306, 321, 318, 471, 468, 483, 339, 324, 327, 462, 465, 450,
