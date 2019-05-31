@@ -200,12 +200,12 @@ if __name__=="__main__":
 	Cs = []
 	ccs = []
 	Qcs = []
-	Z0 = 30*u.Ohm
+	Z0 = 50*u.Ohm
 	L = 10*u.nH
 	for i in range(N):
 		c = IDC(1.0)
 		c.contact_width=25
-		c.set_dimensions(tracew, gapw, finger_length, finger_gap, nfingers[i]-1)
+		c.set_dimensions(tracew, gapw, finger_length, finger_gap, nfingers[i]+0.5)
 		ccs.append(c.capacitance()*pF)
 		# Now for the main capacitor
 		cmain = IDC(1.0)

@@ -124,12 +124,13 @@ for T_c, Tstart in zip(Tcs, Tstarts):
 	ax.set_xlabel('Island Temperature [mK]')
 	ax.set_ylabel('NEP [aW/rtHz]')
 	ax.legend(loc='upper left', title='NEP')
+	ax.set_title(r"Tc = %1.1f K"%(T_c))
 	#ax2 = ax.twinx()
 	#ax2.plot(T*1e3, S/kHz*pW, color='blue')
 	#ax2.set_ylabel('Responsivity [KHz/pW]')
 	plt.savefig('responsivityNEP_vs_temperature_%1.1fK.pdf'%(T_c))
 	plt.savefig('responsivityNEP_vs_temperature_%1.1fK.png'%(T_c))
-
+	plt.show()
 
 	fig, ax = plt.subplots(figsize=(10,10))
 	ax.semilogy(T*1e3, NEP_total/aW, 'r',label='Total')
