@@ -143,6 +143,8 @@ class OperatingPoint:
 		self.beta = S_2/S_1
 
 		N_0 = ((3 * (gamma * (density/A_r)))/(2*np.pi**2 * k_B**2)).to('1/(J um^3)')
+		print (N_0.to(1/u.um**3/u.eV)/1e10)
+		exit()
 		Gamma_gen = (eta_read * self.P_read/Delta).to('1/s')
 		self.n_th = (2*N_0 * np.sqrt(2*np.pi* k_B * self.T_b* Delta)*np.exp(-Delta/(k_B*self.T_b))).to('1/um^3')
 		E_crit = 2 * N_0 * Delta**2 * V_sc

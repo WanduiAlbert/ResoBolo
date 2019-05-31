@@ -51,21 +51,20 @@ P_opt = 14.00*pW #((Vdc/Rb)**2 * Rh).to(u.pW)
 
 n = 2.000 # conductivity index = beta + 1
 K_leg = 136.776 * pW/Kelvin**(n+1)
-T_c = 1.284 * Kelvin
-#T_c = 1.8 * Kelvin
-T_0 = 0.25 * Kelvin # Previously 0.23K Temperature of the thermal bath
-Tstart = 0.2
-alphak = 0.378
 
+Tcs = [1.0, 1.2, 1.8]
+Tstarts = [0.15, 0.2, 0.3]
+T_c = 1.284 * Kelvin
+Tstart = 0.2
+T_c = 1.8 * Kelvin
+Tstart = 0.3
+#T_c = 0.8 * Kelvin
+#Tstart = 0.15
+T_0 = 0.25 * Kelvin # Previously 0.23K Temperature of the thermal bath
+alphak = 0.378
 f_r = 336*MHz
 f_g = 336*MHz
 omega_r = 2*pi*f_r
-
-Delta = 1.764 * k_B * T_c
-
-T = np.r_[Tstart:1:1000j]
-kappa = 0.5 + Delta/(k_B*T)
-G = K_leg * (n+1)*T**n
 
 Pg_dBm = -90
 Pg = 1e-3 * 10**(Pg_dBm/10)
@@ -75,48 +74,110 @@ density = 2.7 * g/cm**3
 A_r = 26.98 * g/mol
 rho = 1.255 * uOhm * cm
 
-eta = h * f_g / (2*k_B * T)
-S_1 = (2/pi)*np.sqrt(2*Delta/(pi*k_B*T))*np.sinh(eta)*K_0(eta)
-S_2 = 1 + np.sqrt(2*Delta/(pi*k_B*T)) * np.exp(-eta) * I_0(eta)
+plt.figure(123, figsize=(10,10))
+plt.figure(321, figsize=(10,10))
+plt.figure(213, figsize=(10,10))
+for T_c, Tstart in zip(Tcs, Tstarts):
 
-N_0 = (3 * (gamma * (density/A_r)))/(2*pi**2 * k_B**2)
-Gamma_gen = 0
-n_th = 2*N_0 * np.sqrt(2*pi* k_B * T* Delta)*np.exp(-Delta/(k_B*T))
+	Delta = 1.764 * k_B * T_c
 
-# Quality factors
-n_qp = np.sqrt((n_th + n_qp_star)**2 + (2*Gamma_gen*n_qp_star*tau_max/V_sc)) - n_qp_star
-tau_qp = tau_max/(1 + n_qp/n_qp_star)
-Q_qp = (2 * N_0 * Delta)/(alphak * S_1 * n_qp)
-Q_sigma = (np.pi/4)*np.exp(Delta/(k_B * T))/np.sinh(eta)/K_0(eta)
-Q_c = 22400
-Q_i = 1./(1/Q_qp + 1./Q_int)
-Q_r  = 1./(1./Q_c + 1./Q_i)
-chi_c = 4*Q_r**2/(Q_c*Q_i)
-x = (alphak * n_qp * S_2)/(4 * N_0 * Delta)
+	T = np.r_[Tstart:0.8:1000j]
+	kappa = 0.5 + Delta/(k_B*T)
+	G = K_leg * (n+1)*T**n
 
-#responsivity
-S = f_r * x * kappa / (G * T)
+	eta = h * f_g / (2*k_B * T)
+	S_1 = (2/pi)*np.sqrt(2*Delta/(pi*k_B*T))*np.sinh(eta)*K_0(eta)
+	S_2 = 1 + np.sqrt(2*Delta/(pi*k_B*T)) * np.exp(-eta) * I_0(eta)
+	beta = S_2/S_1
 
-NEP_ph = np.sqrt(4*chi_ph*k_B*T**2*G)
-NEP_amp = (2/S)*np.sqrt(k_B*T_amp/Pg)/(chi_c*Q_i)
-NEP_gr = (2*G*T/n_qp/kappa)/np.sqrt(R*V_sc)
+	N_0 = (3 * (gamma * (density/A_r)))/(2*pi**2 * k_B**2)
+	Gamma_gen = 0
+	n_th = 2*N_0 * np.sqrt(2*pi* k_B * T* Delta)*np.exp(-Delta/(k_B*T))
 
-NEP_total = np.sqrt(NEP_ph**2 + NEP_amp**2 + NEP_gr**2)
+	# Quality factors
+	n_qp = np.sqrt((n_th + n_qp_star)**2 + (2*Gamma_gen*n_qp_star*tau_max/V_sc)) - n_qp_star
+	tau_qp = tau_max/(1 + n_qp/n_qp_star)
+	Q_qp = (2 * N_0 * Delta)/(alphak * S_1 * n_qp)
+	Q_sigma = (np.pi/4)*np.exp(Delta/(k_B * T))/np.sinh(eta)/K_0(eta)
+	Q_c = 22400
+	Q_i = 1./(1/Q_qp + 1./Q_int)
+	Q_r  = 1./(1./Q_c + 1./Q_i)
+	chi_c = 4*Q_r**2/(Q_c*Q_i)
+	x = (alphak * n_qp * S_2)/(4 * N_0 * Delta)
+	#responsivity
+	S = f_r * x * kappa / (G * T)
 
-fig, ax = plt.subplots(figsize=(10,10))
-ax.plot(T*1e3, NEP_total/aW, 'r',label='Total')
-ax.plot(T*1e3, NEP_ph/aW, color='green', ls='dashed',label='Phonon')
-ax.plot(T*1e3, NEP_gr/aW, color='blue', ls='dotted', label='GR')
-ax.plot(T*1e3, NEP_amp/aW, color='red', ls='-.', label='Amplifier')
-ax.set_xlim(left=Tstart*1e3)
-ax.grid()
-ax.set_xlabel('Island Temperature [mK]')
-ax.set_ylabel('NEP [aW/rtHz]')
-ax.legend(loc='best', title='NEP')
-ax2 = ax.twinx()
-ax2.plot(T*1e3, S/kHz*pW, color='blue')
-ax2.set_ylabel('Responsivity [KHz/pW]')
-plt.savefig('responsivityNEP_vs_temperature_%1.1fK.png'%(T_c))
+	NEP_ph = np.sqrt(4*chi_ph*k_B*T**2*G)
+	NEP_amp = (G*T/(kappa*x))*(2/Q_i)*np.sqrt(k_B*T_amp/Pg)
+	#NEP_amp = (f_r/S)*(Q_c/(2*Q_r**2))*np.sqrt(k_B*T_amp/Pg)
+	NEP_gr = (2*G*T/n_qp/kappa)/np.sqrt(R*V_sc)
+
+	NEP_total = np.sqrt(NEP_ph**2 + NEP_amp**2 + NEP_gr**2)
+
+	fig, ax = plt.subplots(figsize=(10,10))
+	ax.plot(T*1e3, NEP_total/aW, 'r',label='Total')
+	ax.plot(T*1e3, NEP_ph/aW, color='green', ls='dashed',label='Phonon')
+	ax.plot(T*1e3, NEP_gr/aW, color='blue', ls='dotted', label='GR')
+	ax.plot(T*1e3, NEP_amp/aW, color='black', ls='-.', label='Amplifier')
+	ax.set_xlim(left=Tstart*1e3)
+	ax.grid()
+	ax.set_xlabel('Island Temperature [mK]')
+	ax.set_ylabel('NEP [aW/rtHz]')
+	ax.legend(loc='upper left', title='NEP')
+	#ax2 = ax.twinx()
+	#ax2.plot(T*1e3, S/kHz*pW, color='blue')
+	#ax2.set_ylabel('Responsivity [KHz/pW]')
+	plt.savefig('responsivityNEP_vs_temperature_%1.1fK.pdf'%(T_c))
+	plt.savefig('responsivityNEP_vs_temperature_%1.1fK.png'%(T_c))
+
+
+	fig, ax = plt.subplots(figsize=(10,10))
+	ax.semilogy(T*1e3, NEP_total/aW, 'r',label='Total')
+	ax.semilogy(T*1e3, NEP_ph/aW, color='green', ls='dashed',label='Phonon')
+	ax.semilogy(T*1e3, NEP_gr/aW, color='blue', ls='dotted', label='GR')
+	ax.semilogy(T*1e3, NEP_amp/aW, color='black', ls='-.', label='Amplifier')
+	ax.set_xlim(left=Tstart*1e3)
+	ax.grid()
+	ax.set_xlabel('Island Temperature [mK]')
+	ax.set_ylabel('NEP [aW/rtHz]')
+	ax.legend(loc='lower right', title='NEP')
+	#ax2 = ax.twinx()
+	#ax2.semilogy(T*1e3, S/kHz*pW, color='blue')
+	#ax2.set_ylabel('Responsivity [KHz/pW]')
+	plt.savefig('responsivityNEP_vs_temperature_%1.1fK_log.pdf'%(T_c))
+	plt.savefig('responsivityNEP_vs_temperature_%1.1fK_log.png'%(T_c))
+
+	plt.figure(123)
+	ax = plt.gca()
+	ax.plot(T*1e3, Q_r, label='%1.1fK'%(T_c))
+	#ax.set_xlim(left=Tstart*1e3)
+	ax.grid()
+	ax.set_xlabel('Island Temperature [mK]')
+	ax.set_ylabel('$Q_r$')
+	ax.legend(title='$T_c$', loc='best')
+	plt.savefig('Qr_vs_temperature.pdf')
+	plt.savefig('Qr_vs_temperature.png')
+
+	plt.figure(321)
+	ax = plt.gca()
+	ax.plot(T*1e3, NEP_total/aW, label='%1.1fK'%(T_c))
+	ax.grid()
+	ax.set_xlabel('Island Temperature [mK]')
+	ax.set_ylabel('NEP [aW/rtHz]')
+	ax.legend(loc='lower right', title='$T_c$')
+	plt.savefig('NEP_vs_temperature.pdf')
+	plt.savefig('NEP_vs_temperature.png')
+
+	plt.figure(213)
+	ax = plt.gca()
+	ax.plot(T*1e3, S/kHz*pW, label='%1.1fK'%(T_c))
+	ax.grid()
+	ax.set_xlabel('Island Temperature [mK]')
+	ax.set_ylabel('Responsivity [kHz/pW]')
+	ax.legend(loc='upper left', title='$T_c$')
+	plt.savefig('responsivity_vs_temperature.pdf')
+	plt.savefig('responsivity_vs_temperature.png')
+
 
 
 #Tcs = np.r_[0.8:2:1000j]
