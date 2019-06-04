@@ -4,6 +4,7 @@ import numpy as np
 import scipy.signal as sig
 from math import pi
 import matplotlib.pyplot as plt
+import matplotlib.cm as cm
 
 width = 12.8
 height = 12.8
@@ -16,7 +17,7 @@ patch = np.zeros((nx, ny))
 # Want to try and simulate random gaussian fields in 2d
 dk_x = 0.1
 dk_y = 0.1
-nk = 128
+nk = 1024
 
 kxs = np.arange(nk)*dk_x
 kys = np.arange(nk)*dk_y
@@ -27,16 +28,17 @@ for i in range(nx):
 	for j in range(ny):
 		# modulate the amplitude somehow
 		k = (kxs[i]**2 + kys[j]**2)**0.5
-		patch += np.sin(kxs[i]*X + kys[j]*Y + np.random.randn()*pi)
+		patch += k*np.sin(kxs[i]*X + kys[j]*Y + np.random.rand()*2*pi)
 
 
 fig, ax = plt.subplots(figsize=(10,10))
-img = ax.imshow(patch, aspect='equal', origin='lower', cmap='Greys', extent=extent)
+img = ax.imshow(patch, aspect='equal', origin='lower', cmap=cm.RdBu_r, extent=extent)
 #ax.plot(Xpos, Ypos, 'k.', ms=20)
 ax.set_xlabel('[Deg]')
 ax.set_ylabel('[Deg]')
 plt.colorbar(img)
 plt.savefig('gaussianfield_realspace_constructed.png')
+plt.show()
 
 exit()
 # Simulating galaxy clusters
