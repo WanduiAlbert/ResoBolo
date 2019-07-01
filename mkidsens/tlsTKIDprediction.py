@@ -96,7 +96,7 @@ if __name__=="__main__":
 	n = 1.862
 	K = 122*pW#/K^(n+1)
 	nu = fr*MHz
-	Tbath = 80e-3
+	Tbath = 90e-3
 
 	Ntemps = 115
 	Npowers = 110
@@ -126,7 +126,7 @@ if __name__=="__main__":
 	nu1 = 1
 	nu2 = 1e3
 	T2 = 120e-3
-	beta = 1.8
+	beta = 2.0
 	Stls = Atls/np.sqrt(N)*(nu1/nu2)**(-0.5)*(temps/T2)**(-beta)
 	NEFtls = nu*np.sqrt(Stls)
 	NEPtls = np.sqrt(Stls)/responsivity
