@@ -54,6 +54,12 @@ tau_max = 488.1 * u.microsecond
 n_qp_star = 763 * 1/u.um**3
 #tau_max = 500 * u.microsecond
 #n_qp_star = 100 * 1/u.um**3
+#tau_max = 688.1 * u.microsecond
+#n_qp_star = 663 * 1/u.um**3
+#tau_max = 500.1 * u.microsecond
+#n_qp_star = 100 * 1/u.um**3
+R = 1./(tau_max * n_qp_star)
+#R *= 0.5
 gamma = 1.35 * u.mJ/u.mol/u.Kelvin**2
 density = 2.7 * u.g/u.cm**3
 A_r = 26.98 * u.g/u.mol
@@ -89,6 +95,7 @@ L_g = 6.1 * u.nH # From simulations
 Rs = (rho/t).to('Ohm') # surface resistance in ohms/sq
 L_k = (h * Rs/(2 * np.pi**2 * Delta) * N_sq).to('nH') # Kinetic inductance contribution
 Z0 = 50 * u.Ohm # Characteristic impedance of the line
+C_load = 7*u.pF
 
 class OperatingPoint:
 	"""
@@ -119,7 +126,7 @@ class OperatingPoint:
 			self.T_0.si.value**self.gamma_leg)**(1./self.gamma_leg))*u.Kelvin
 		niceprint("The temperature of the island", self.T_b)
 
-		self.C_b = 0.25*(self.T_b/(350*u.mK))**2*u.pJ/u.Kelvin #Heat capacity
+		self.C_b = (0.25*(self.T_b/(350*u.mK))**2*u.pJ/u.Kelvin).to(u.pJ/u.Kelvin) #Heat capacity
 
 
 		self.L = L_g + L_k # total inductance
@@ -156,20 +163,43 @@ class OperatingPoint:
 		# Quality factors
 		Gamma_th = ((self.n_th * V_sc/tau_max)* (1 + 0.5 * self.n_th/n_qp_star)).to('1/s')
 		self.n_qp = (np.sqrt((self.n_th + n_qp_star)**2 + (2*Gamma_gen*n_qp_star*tau_max/V_sc)) - n_qp_star).to('1/um^3')
-		self.tau_th = (tau_max/(1 + self.n_th/n_qp_star)).to('us')
-		self.tau_qp = (tau_max/(1 + self.n_qp/n_qp_star)).to('us')
+		self.tau_th = (1./(R*self.n_th)).to('us')
+		self.tau_qp = (1./(R*self.n_qp)).to('us')
+		#self.tau_th = (tau_max/(1 + self.n_th/n_qp_star)).to('us')
+		#self.tau_qp = (tau_max/(1 + self.n_qp/n_qp_star)).to('us')
+		if verbose:
+			niceprint ("")
+			niceprint ("Thermal quasiparticle density, n_th ", self.n_th)
+			niceprint ("Equilibrium qp lifetime, tau_th ", self.tau_th)
+			niceprint ("Total quasiparticle density, n_qp ", self.n_qp)
+			niceprint ("Quasiparticle lifetime, tau_qp ", self.tau_qp)
+			niceprint ("QP rolloff frequency, f3dB_qp ", (1./(2*pi*self.tau_qp)).to(u.kHz))
+		niceprint ("Quasiparticle parameters calculated.\n")
+
 		self.Q_qp = ((2 * N_0 * Delta)/(self.alpha * gamma_s * S_1 * self.n_qp)).to(1)
 		self.Q_sigma = (np.pi/4)*np.exp(Delta/(k_B * self.T_b))/np.sinh(self.eta)/K_0(self.eta)
+		#y = (self.omega_r*self.C_c*Z0).to(1)
+		#Zin = Z0
+		#Zout = 1./(1/Z0 + 1j*self.omega_r*C_load)
+		#Gprime = (self.omega_r*self.C_c*Zin*y/(Zin + Zout)) - (1j*self.omega_r*self.C_c*Zin**2*y**2)/(Zin + Zout)**2
+		#dQe = (Gprime/self.omega_r/self.C_i).to(1)
+		#self.Q_e = self.Q_c*np.cos(self.phi_c)*np.exp(1j*self.phi_c)
 		self.Q_c = (2 * self.C_i/(self.omega_r * self.C_c**2 * Z0)).to(1)
+		#self.Q_c = 1./np.real(dQe)
+		#self.Q_e = 1./dQe
+		#self.phi_c = np.arctan2(np.imag(self.Q_e), np.real(self.Q_e))
+		#self.Q_c = (2 * self.C_i/(self.omega_r * self.C_c**2 * Z0)).to(1)
 		self.Q_i = 1./(1/self.Q_qp + 1./Q_int)
 		self.Q_r  = 1./(1./self.Q_c + 1./self.Q_i)
 		self.P_crit = (0.8 * (self.omega_r)* E_crit * self.Q_c/2/self.Q_r**3).to(u.pW)
 
 		if verbose:
+			niceprint ("")
 			niceprint ("Q factor from qp losses, Q_qp ", self.Q_qp)
-			niceprint ("Resonant Frequency, f_r ", self.f_r)
+			niceprint ("Resonant Frequency, f_r ", self.f_r.to(u.MHz))
 			niceprint ("Internal Q factor, Q_i ", self.Q_i)
 			niceprint ("Coupling Q factor, Q_c ", self.Q_c)
+			#niceprint ("Coupling phase angle, phi_c ", self.phi_c)
 			niceprint ("Resonator Q factor, Q_r ", self.Q_r)
 			niceprint ("Kinetic Inductance Fraction, alpha ", self.alpha)
 			niceprint ("Beta ", self.beta)
@@ -209,14 +239,11 @@ class OperatingPoint:
 			niceprint ("dln n_qp/ d ln T_b", self.kappa)
 			niceprint ("Conductance of Island ", self.G_b)
 			niceprint ("Heat Capacity of Island ", self.C_b)
-			niceprint ("Quasiparticle density, n_qp ", self.n_th)
-			niceprint ("Quasiparticle lifetime, tau_qp ", self.tau_qp)
-			niceprint ("Equilibrium qp lifetime, tau_th ", self.tau_th)
 			niceprint ("Bolometer Time constant", self.tau_b)
 			niceprint ("Bolometer Roll off frequency", self.f_b)
 
 			niceprint ("")
-			niceprint ("The optical power is ", self.P_opt)
+			niceprint ("The optical power is ", self.P_opt.to(u.pW))
 			niceprint ("The readout power is ", self.P_g)
 			niceprint ("The dissipated power is ", self.P_diss)
 			niceprint ("Critical readout power ", self.P_crit)
@@ -232,6 +259,7 @@ class OperatingPoint:
 
 		niceprint ("")
 		niceprint ("resobolo responsivity ignoring bolometer rolloff", self.r_f)
+		niceprint ("resobolo resonator rolloff", self.df_r)
 
 	def calculate_noise_spectra(self):
 
@@ -246,25 +274,38 @@ class OperatingPoint:
 		self.NEF_ph = (self.r_f * self.NEP_ph).to(u.Hz**0.5)
 
 		# Amplifier NEP
-		self.S_amp = (k_B * T_amp/self.P_g).to(1/u.Hz)
+		self.S_amp = (self.Q_c/2/self.Q_r**2)**2*(k_B * T_amp/self.P_g).to(1/u.Hz)
 
-		self.NEP_amp = (2 * self.S_amp**0.5/self.r/self.chi_c/self.Q_i).to(u.aW/u.Hz**0.5)
+		self.NEP_amp = (self.S_amp**0.5/self.r).to(u.aW/u.Hz**0.5)
 		self.NEF_amp = (self.r_f * self.NEP_amp).to(u.Hz**0.5)
+		#self.S_amp = (k_B * T_amp/self.P_read).to(1/u.Hz)
+
+		#self.NEP_amp = (2 * self.S_amp**0.5/self.r/self.chi_c/self.Q_i).to(u.aW/u.Hz**0.5)
 
 		# Shot NEP
-		self.S_shot = 2 * self.n_qp * V_sc * (1/tau_max + 1/self.tau_qp)
+		self.S_shot = 4 * self.n_qp * self.tau_qp / V_sc
 
-		self.NEP_gr = (self.S_shot**0.5 * (self.tau_th/(self.n_qp * V_sc) * self.P_b/self.kappa)).to(u.aW/u.Hz**0.5)
+		self.NEP_gr = (self.S_shot**0.5 * self.P_b/(self.n_qp * self.kappa)).to(u.aW/u.Hz**0.5)
 		self.NEF_gr = (self.r_f * self.NEP_gr).to(u.Hz**0.5)
+		#self.S_shot = self.n_qp * V_sc * (1/tau_max + 1/self.tau_qp)
+
+		#self.NEP_gr = (2*self.S_shot**0.5 * self.P_b/(self.n_qp * self.kappa *
+		#	V_sc) * self.tau_th).to(u.aW/u.Hz**0.5)
+#		self.S_shot = 2 * self.n_qp * V_sc * (1/tau_max + 1/self.tau_qp)
+#
+#		self.NEP_gr = (self.S_shot**0.5 * (self.tau_th/(self.n_qp * V_sc) * self.P_b/self.kappa)).to(u.aW/u.Hz**0.5)
+#
 
 		# TLS NEP
-		self.Stls0 = 1.2e-15/u.Hz
+		self.alpha_tls = 0.5
 		self.beta_tls = 2
+		# Made this prediction off of Jonas's review paper
+		self.kappatls0 = 1.9e-19/u.Hz*u.Kelvin**self.beta_tls*u.Hz**0.5
+		self.kappatls0 = 1.9e-17/u.Hz*u.Kelvin**self.beta_tls*u.Hz**0.5
 		self.nu_tls = 1 * u.Hz
 		self.nu_ref = 1 * u.kHz
 		# TLS spectrum at 1 Hz
-		self.Stls = self.Stls0/np.sqrt(self.N_ph)*(self.T_b/(0.12*u.K))**(-self.beta_tls)\
-				*(self.nu_tls/self.nu_ref)**(-0.5)
+		self.Stls = self.kappatls0/np.sqrt(self.N_ph)*self.T_b**(-self.beta_tls)* self.nu_tls**(-self.alpha_tls)
 		self.NEF_tls = (self.Stls**0.5*self.f_r).to(u.Hz**0.5)
 		self.NEP_tls = (self.Stls**0.5/self.r).to(u.aW/u.Hz**0.5)
 
@@ -345,13 +386,14 @@ if __name__=="__main__":
 	Npowers = 10
 	Vdc = np.linspace(0, Vmax, Npowers)*u.Volt
 	P_opt = ((Rh/Rb[:, np.newaxis]**2)*Vdc**2).to(u.pW)
+	#P_opt = np.linspace(0, 20, 21)*u.pW
 	#print (P_opt)
 	gamma_leg = np.array([2.962, 2.754, 2.862])# conductivity index = beta + 1
 	K_leg = np.array([352, 165, 122])* u.picoWatt
 	Cc = np.array([0.3984, 0.3731, 0.3478])*u.pF
-	T_c = 1.329 * u.Kelvin
+	T_c = 1.284 * u.Kelvin
 	T_0 = 0.08 * u.Kelvin
-	P_g = -80*dBm
+	P_g = -81*dBm
 	P_g -= 20*np.log10(4)*dB # Accounting for the 4 resonators being read at the
 	# same time
 	#P_opt = 10*u.pW
@@ -359,7 +401,7 @@ if __name__=="__main__":
 	NEPs_ph = np.zeros((len(frequencies), Npowers))
 	NEPs_amp = np.zeros((len(frequencies), Npowers))
 	for ireso, reso in enumerate(frequencies):
-		op = OperatingPoint(P_opt=0*u.pW, f_r=reso, T_0=T_0, P_g=P_g)
+		op = OperatingPoint(P_opt=P_opt, f_r=reso, T_0=T_0, P_g=P_g)
 		op.C_c1 = Cc[ireso]
 		op.gamma_leg = gamma_leg[ireso]
 		op.K_leg = K_leg[ireso]/u.Kelvin**gamma_leg[ireso]

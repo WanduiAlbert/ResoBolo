@@ -17,6 +17,7 @@ g = 1e-3
 mJ = 1e-3
 pW = 1e-12
 aW = 1e-18
+tls_scale = 1e-19
 
 makeplots = False
 # Aluminum material properties
@@ -80,7 +81,7 @@ def get_responsivity(fr, P, Tb, K, n, Qi, Tc=1.284):
 	x = alpha_k * S2 * nqp / (4*N0*delta)
 	S = (beta * kappa)/(2*Qi*G * T)
 
-	return S
+	return S, beta, kappa
 
 
 
@@ -119,8 +120,15 @@ if __name__=="__main__":
 	Ptotal = Pthermal + Ps*(2*Qr**2/Qc/Qi)
 	N = E/(h*nu) #Microwave photon number
 
-	responsivity = get_responsivity(nu, Ptotal, temps, K, n, Qi, Tc=1.284)
-
+	responsivity, beta, kappa = get_responsivity(nu, Ptotal, temps, K, n, Qi, Tc=1.284)
+	chi_ph = (n+1)/(2*n+3) * ((Tbath/temps)**(2*n+3)-1)/((Tbath/temps)**(n+1) - 1)
+	G = (n+1)*K*temps**n
+	#upperTLSlimit = 4*(n+1)*chi_ph*responsivity**2*(k*temps)*Pthermal
+	upperTLSlimit = chi_ph*beta**2*kappa**2*k/(Qi**2*G)
+	print (chi_ph)
+	print (beta)
+	print (kappa)
+	print (Qi)
 	Atls = 1.2e-17
 	# I want the noise at 1 Hz
 	nu1 = 1
@@ -151,12 +159,20 @@ if __name__=="__main__":
 	fig.colorbar(img, label='NEF TLS(1 Hz) [Hz/rtHz]')
 	plt.show()
 
-	exit()
+	fig, ax = plt.subplots(figsize=(10,10))
+	img = ax.pcolormesh(Pthermal/pW, Pg, np.log(upperTLSlimit/tls_scale), cmap="viridis")
+	ax.set_xlabel('Popt [pW]')
+	ax.set_ylabel('Pread [dBm]')
+	ax.grid()
+	ax.set_title(r"Tbath = %1.1f mK"%(Tbath*1e3))
+	fig.colorbar(img, label=r'log Upper limit on STLS ($\times 10^{-19}$) [$\mathrm{Hz}^{-1}$]')
+	plt.show()
+
 	# Let's make the TLS NEP histogram just for kicks
 	fig, ax = plt.subplots(figsize=(10,10))
-	ax.hist((NEPtls/aW).flatten(), bins=20, color='k',\
-		density=True, histtype='stepfilled')
-	ax.set_xlabel('NEP TLS [aW/rtHz]')
+	ax.hist(np.log(upperTLSlimit/tls_scale).flatten(), bins=40, color='k',\
+		density=False, histtype='step')
+	ax.set_xlabel('ln STLS [1/Hz]')
 	ax.grid()
 	plt.show()
 	exit()
