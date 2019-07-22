@@ -12,6 +12,7 @@ from scipy.special import kn, iv
 pW = 1e-12
 MHz = 1e6
 kHz = 1e3
+Hz = 1
 um = 1e-6
 Kelvin = 1
 microsecond = 1e-6
@@ -35,8 +36,8 @@ T_amp = 5.22 * Kelvin
 eta_read = 0.01
 chi_ph = 0.658 # flink factor for phonon noise
 # Material properties of the Aluminum superconductor
-tau_max = 500 * microsecond
-n_qp_star = 100 * 1/um**3
+tau_max = 606 * microsecond
+n_qp_star = 763 * 1/um**3
 R = 1./(n_qp_star * tau_max)
 # Physical properties of the superconductor + resonator capacitor
 t = 0.05 * um
@@ -103,7 +104,15 @@ for T_c, Tstart in zip(Tcs, Tstarts):
 	Q_i = 1./(1/Q_qp + 1./Q_int)
 	Q_r  = 1./(1./Q_c + 1./Q_i)
 	chi_c = 4*Q_r**2/(Q_c*Q_i)
+	chi_g = 1
 	x = (alphak * n_qp * S_2)/(4 * N_0 * Delta)
+	P_diss = (chi_g*chi_c/2) * Pg
+	Pc_tls = 1e-3*10**(-95.3/10)
+	Ec_tls = (Pc_tls*Q_i/omega_r)
+	Nc_tls = (Ec_tls/(hbar*omega_r))
+	E_stored = (P_diss*Q_i/omega_r)
+	N_ph = (E_stored/(hbar*omega_r)) # number of #microwave photons
+	print (N_ph)
 	#responsivity
 	S = f_r * x * kappa / (G * T)
 
@@ -111,36 +120,49 @@ for T_c, Tstart in zip(Tcs, Tstarts):
 	NEP_amp = (G*T/(kappa*x))*(2/Q_i)*np.sqrt(k_B*T_amp/Pg)
 	#NEP_amp = (f_r/S)*(Q_c/(2*Q_r**2))*np.sqrt(k_B*T_amp/Pg)
 	NEP_gr = (2*G*T/n_qp/kappa)/np.sqrt(R*V_sc)
+	# TLS NEP
+	alpha_tls = 0.5
+	beta_tls = 2
+	kappatls0 = 3.2e-16/Hz*Kelvin**beta_tls*Hz**0.5/np.sqrt(Nc_tls)
+	#print (kappatls0)
+	nu_tls = 1 * Hz
+	# TLS spectrum at 1 Hz
+	Stls = kappatls0/np.sqrt(1 + N_ph/Nc_tls)*T**(-beta_tls)* nu_tls**(-alpha_tls)
+	#print (Stls)
+	NEP_tls = (Stls**0.5*f_r/S)
 
-	NEP_total = np.sqrt(NEP_ph**2 + NEP_amp**2 + NEP_gr**2)
+
+	NEP_total = np.sqrt(NEP_ph**2 + NEP_amp**2 + NEP_gr**2 + NEP_tls**2)
 
 	fig, ax = plt.subplots(figsize=(10,10))
 	ax.plot(T*1e3, NEP_total/aW, 'r',label='Total')
 	ax.plot(T*1e3, NEP_ph/aW, color='green', ls='dashed',label='Phonon')
 	ax.plot(T*1e3, NEP_gr/aW, color='blue', ls='dotted', label='GR')
 	ax.plot(T*1e3, NEP_amp/aW, color='black', ls='-.', label='Amplifier')
+	ax.plot(T*1e3, NEP_tls/aW, color='cyan', ls='dashed', label='TLS @ 1 Hz')
 	ax.set_xlim(left=Tstart*1e3)
 	ax.grid()
 	ax.set_xlabel('Island Temperature [mK]')
-	ax.set_ylabel('NEP [aW/rtHz]')
+	ax.set_ylabel('NEP [aW/$\sqrt{\mathrm{Hz}}$]')
 	ax.legend(loc='upper left', title='NEP')
-	ax.set_title(r"Tc = %1.1f K"%(T_c))
+	#ax.set_title(r"Tc = %1.1f K"%(T_c))
 	#ax2 = ax.twinx()
 	#ax2.plot(T*1e3, S/kHz*pW, color='blue')
 	#ax2.set_ylabel('Responsivity [KHz/pW]')
 	plt.savefig('responsivityNEP_vs_temperature_%1.1fK.pdf'%(T_c))
 	plt.savefig('responsivityNEP_vs_temperature_%1.1fK.png'%(T_c))
-	plt.show()
+	#plt.show()
 
 	fig, ax = plt.subplots(figsize=(10,10))
 	ax.semilogy(T*1e3, NEP_total/aW, 'r',label='Total')
 	ax.semilogy(T*1e3, NEP_ph/aW, color='green', ls='dashed',label='Phonon')
 	ax.semilogy(T*1e3, NEP_gr/aW, color='blue', ls='dotted', label='GR')
 	ax.semilogy(T*1e3, NEP_amp/aW, color='black', ls='-.', label='Amplifier')
+	ax.semilogy(T*1e3, NEP_tls/aW, color='cyan', ls='dashed', label='TLS @ 1 Hz')
 	ax.set_xlim(left=Tstart*1e3)
 	ax.grid()
 	ax.set_xlabel('Island Temperature [mK]')
-	ax.set_ylabel('NEP [aW/rtHz]')
+	ax.set_ylabel('NEP [aW/$\sqrt{\mathrm{Hz}}$]')
 	ax.legend(loc='lower right', title='NEP')
 	#ax2 = ax.twinx()
 	#ax2.semilogy(T*1e3, S/kHz*pW, color='blue')
@@ -164,7 +186,7 @@ for T_c, Tstart in zip(Tcs, Tstarts):
 	ax.plot(T*1e3, NEP_total/aW, label='%1.1fK'%(T_c))
 	ax.grid()
 	ax.set_xlabel('Island Temperature [mK]')
-	ax.set_ylabel('NEP [aW/rtHz]')
+	ax.set_ylabel('NEP [aW/$\sqrt{\mathrm{Hz}}$]')
 	ax.legend(loc='lower right', title='$T_c$')
 	plt.savefig('NEP_vs_temperature.pdf')
 	plt.savefig('NEP_vs_temperature.png')
@@ -179,7 +201,7 @@ for T_c, Tstart in zip(Tcs, Tstarts):
 	plt.savefig('responsivity_vs_temperature.pdf')
 	plt.savefig('responsivity_vs_temperature.png')
 
-
+plt.show()
 
 #Tcs = np.r_[0.8:2:1000j]
 #Ts = np.r_[0.25:1:1000j]
