@@ -50,6 +50,7 @@ T_c = 1.329 * u.Kelvin
 T_0 = 0.25 * u.Kelvin # Previously 0.23K Temperature of the thermal bath
 
 # Material properties of the Aluminum superconductor
+#tau_max = 955.1 * u.microsecond
 tau_max = 488.1 * u.microsecond
 n_qp_star = 763 * 1/u.um**3
 #tau_max = 500 * u.microsecond
@@ -94,6 +95,7 @@ L_g = 6.1 * u.nH # From simulations
 
 Rs = (rho/t).to('Ohm') # surface resistance in ohms/sq
 L_k = (h * Rs/(2 * np.pi**2 * Delta) * N_sq).to('nH') # Kinetic inductance contribution
+#L_k = 0.851 * L_g
 Z0 = 50 * u.Ohm # Characteristic impedance of the line
 C_load = 7*u.pF
 
@@ -128,7 +130,6 @@ class OperatingPoint:
 
 		self.C_b = (0.25*(self.T_b/(350*u.mK))**2*u.pJ/u.Kelvin).to(u.pJ/u.Kelvin) #Heat capacity
 
-
 		self.L = L_g + L_k # total inductance
 		self.alpha = (L_k/self.L).to(1)
 		if verbose: niceprint ("The total inductance", self.L)
@@ -153,8 +154,6 @@ class OperatingPoint:
 		self.beta = S_2/S_1
 
 		N_0 = ((3 * (gamma * (density/A_r)))/(2*np.pi**2 * k_B**2)).to('1/(J um^3)')
-		#print (N_0.to(1/u.um**3/u.eV)/1e10)
-		#exit()
 		Gamma_gen = (eta_read * self.P_g/Delta).to('1/s')
 		self.n_th = (2*N_0 * np.sqrt(2*np.pi* k_B * self.T_b* Delta)*np.exp(-Delta/(k_B*self.T_b))).to('1/um^3')
 		E_crit = 2 * N_0 * Delta**2 * V_sc
@@ -253,8 +252,9 @@ class OperatingPoint:
 
 		# Calculating the responsivities on resonance
 		# r = dx/dPopt
-		self.r = (0.5 * (self.chi_qp * self.beta/self.Q_i) *\
-			self.tau_qp/self.tau_th * self.kappa/self.P_b).to(1/u.pW)
+		self.r = (self.dx*self.kappa/((1 + self.dx)*self.T_b*self.G_b)).to(1./u.pW)
+		#self.r = (0.5 * (self.chi_qp * self.beta/self.Q_i) *\
+		#	self.tau_qp/self.tau_th * self.kappa/self.P_b).to(1/u.pW)
 		self.r_f = (self.f_r * self.r).to(u.kHz/u.pW)
 
 		niceprint ("")
@@ -267,7 +267,7 @@ class OperatingPoint:
 		n = self.gamma_leg - 1
 		chi_ph = (n+1)/(2*n+3) * ((self.T_0/self.T_b).to(1)**(2*n+3)-1)/\
 				((self.T_0/self.T_b).to(1)**(n+1) - 1)
-		niceprint ("The bolometer flink factor ", chi_ph)
+		niceprint ("The bolometer flink factor", chi_ph)
 		self.S_ph = (4 * chi_ph * k_B * self.T_b**2 * self.G_b ).to(u.aW**2/u.Hz)
 
 		self.NEP_ph = self.S_ph ** 0.5
@@ -278,7 +278,7 @@ class OperatingPoint:
 
 		self.NEP_amp = (self.S_amp**0.5/self.r).to(u.aW/u.Hz**0.5)
 		self.NEF_amp = (self.r_f * self.NEP_amp).to(u.Hz**0.5)
-		#self.S_amp = (k_B * T_amp/self.P_read).to(1/u.Hz)
+		#self.S_amp = (k_B * T_amp/self.P_g).to(1/u.Hz)
 
 		#self.NEP_amp = (2 * self.S_amp**0.5/self.r/self.chi_c/self.Q_i).to(u.aW/u.Hz**0.5)
 
