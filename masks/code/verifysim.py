@@ -36,8 +36,10 @@ import gdspy
 import argparse
 import os
 
-orig = "../mask_files/sscale_darkres_4in_with_island_20190310.gds"
-sim = "../mask_files/sscale_darkres_4in_with_island_20190310_sim-output.gds"
+#orig = "../mask_files/sscale_darkres_4in_with_island_20190310.gds"
+#sim = "../mask_files/sscale_darkres_4in_with_island_20190310_sim-output.gds"
+orig = "Antenna_Coupled_TKIDs_20190221_ROB.gds"
+sim = "Antenna_Coupled_TKIDs_20190221_ROB_sim-output.gds"
 
 parser = argparse.ArgumentParser(description="""Stepper verify. Given an output
 		file from steppersim.py and the original file, checks how well the
