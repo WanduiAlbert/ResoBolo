@@ -35,7 +35,7 @@
 # You can also deploy your own backend outside of matplotlib by
 # referring to the module name (which must be in the PYTHONPATH) as
 # 'module://my_backend'
-backend      : TkAgg
+backend      : qt4agg
 
 # If you are using the Qt4Agg backend, you can choose here
 # to use the PyQt4 bindings or the newer PySide bindings to
@@ -136,9 +136,9 @@ patch.antialiased      : True    # render patches in antialised (no jaggies)
 #font.serif          : Computer Modern Roman
 #font.sans-serif     : Computer Modern Sans Serif
 
-font.family         : serif #arial
-font.serif          : Times New Roman
-font.sans-serif     : Computer Modern Sans Serif
+font.family         : sans-serif #arial
+font.serif          : CMU Serif #Palatino Linotype #Courier
+font.sans-serif     : CMU Sans Serif
 font.style          : normal
 font.variant        : normal
 font.weight         : normal
@@ -148,7 +148,7 @@ font.stretch        : normal
 # settings for axes and ticks. Special text sizes can be defined
 # relative to font.size, using the following values: xx-small, x-small,
 # small, medium, large, x-large, xx-large, larger, or smaller
-font.size           : 30.0
+font.size           : 36.0
 #font.serif          : Bitstream Vera Serif, New Century Schoolbook, Century Schoolbook L, Utopia, ITC Bookman, Bookman, Nimbus Roman No9 L, Times New Roman, Times, Palatino, Charter, serif
 #font.sans-serif     : Bitstream Vera Sans, Lucida Grande, Verdana, Geneva, Lucid, Arial, Helvetica, Avant Garde, sans-serif
 #font.cursive        : Apple Chancery, Textile, Zapf Chancery, Sand, cursive
@@ -172,7 +172,10 @@ text.usetex         : False  # use latex for all text handling. The following fo
                               # If another font is desired which can loaded using the
                               # LaTeX \usepackage command, please inquire at the
                               # matplotlib mailing list
-text.latex.preamble :  # IMPROPER USE OF THIS FEATURE WILL LEAD TO LATEX FAILURES
+#text.latex.unicode : False # use "ucs" and "inputenc" LaTeX packages for handling
+                            # unicode strings.
+text.latex.preamble :  \usepackage{amsmath}, \usepackage{amssymb}
+                            # IMPROPER USE OF THIS FEATURE WILL LEAD TO LATEX FAILURES
                             # AND IS THEREFORE UNSUPPORTED. PLEASE DO NOT ASK FOR HELP
                             # IF THIS FEATURE DOES NOT DO WHAT YOU EXPECT IT TO.
                             # preamble is a comma separated list of LaTeX statements
@@ -213,13 +216,13 @@ text.latex.preamble :  # IMPROPER USE OF THIS FEATURE WILL LEAD TO LATEX FAILURE
 # These settings are only used if mathtext.fontset is 'custom'.
 # Note that this "custom" mode is unsupported and may go away in the
 # future.
-mathtext.cal : cursive
-mathtext.rm  : serif
-mathtext.tt  : monospace
-mathtext.it  : serif:italic
-mathtext.bf  : serif:bold
-mathtext.sf  : sans
-mathtext.fontset : cm # Should be 'cm' (Computer Modern), 'stix',
+mathtext.cal : cmu sans serif
+mathtext.rm  : cmu sans serif
+mathtext.tt  : cmu sans serif #monospace
+mathtext.it  : sans serif:italic
+mathtext.bf  : sans serif:bold
+mathtext.sf  : sans serif
+mathtext.fontset : custom #cm # Should be 'cm' (Computer Modern), 'stix',
                        # 'stixsans' or 'custom'
 mathtext.fallback_to_cm : True  # When True, use symbols from the Computer Modern
                                  # fonts when a symbol can not be found in one of
@@ -239,7 +242,7 @@ axes.edgecolor      : black   # axes edge color
 axes.linewidth      : 2.0     # edge linewidth
 axes.grid           : False   # display grid or not
 axes.titlesize      : 30   # fontsize of the axes title
-axes.labelsize      : 28  # fontsize of the x any y labels
+axes.labelsize      : 36  # fontsize of the x any y labels
 axes.labelweight    : normal  # weight of the x and y labels
 axes.labelcolor     : black
 axes.axisbelow      : False   # whether axis gridlines and ticks are below
@@ -282,7 +285,7 @@ xtick.minor.width    : 1.0    # minor tick width in points
 xtick.major.pad      : 4      # distance to major tick label in points
 xtick.minor.pad      : 4      # distance to the minor tick label in points
 xtick.color          : k      # color of the tick labels
-xtick.labelsize      : 25     # fontsize of the tick labels
+xtick.labelsize      : 35     # fontsize of the tick labels
 xtick.direction      : in     # direction: in, out, or inout
 
 ytick.major.size     : 10      # major tick size in points
@@ -292,7 +295,7 @@ ytick.minor.width    : 1.0    # minor tick width in points
 ytick.major.pad      : 4      # distance to major tick label in points
 ytick.minor.pad      : 4      # distance to the minor tick label in points
 ytick.color          : k      # color of the tick labels
-ytick.labelsize      : 25     # fontsize of the tick labels
+ytick.labelsize      : 35     # fontsize of the tick labels
 ytick.direction      : in     # direction: in, out, or inout
 
 
@@ -308,7 +311,7 @@ legend.fancybox      : True  # if True, use a rounded box for the
 legend.loc	     : Best
 legend.framealpha    : 0.8
 legend.numpoints     : 2      # the number of points in the legend line
-legend.fontsize      : 20
+legend.fontsize      : 25
 legend.borderpad     : 0.5    # border whitespace in fontsize units
 legend.markerscale   : 1.0    # the relative size of legend markers vs. original
 # the following dimensions are in axes coords
@@ -324,7 +327,7 @@ legend.scatterpoints : 3 # number of scatter points
 
 ### FIGURE
 # See http://matplotlib.org/api/figure_api.html#matplotlib.figure.Figure
-figure.figsize   : 15, 10    # figure size in inches
+figure.figsize   : 10, 10    # figure size in inches
 figure.dpi       : 80      # figure dots per inch
 figure.facecolor : 0.75    # figure facecolor; 0.75 is scalar gray
 figure.edgecolor : white   # figure edgecolor

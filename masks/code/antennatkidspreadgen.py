@@ -68,7 +68,7 @@ def generate_inverted_overlay(wafer, mask_components):
 	allcells = main_lib.cell_dict
 	#pdb.set_trace()
 	#masklist = [x for x in allcells if x.endswith('inv')]
-	invwafer = gdspy.Cell('Wafer_Layout_new_with_permiter_cells_at_center_Inverted')
+	invwafer = gdspy.Cell('Wafer_Layout_new_actual_Inverted')
 	gcomponents = wafer.elements
 	#pdb.set_trace()
 	for component in gcomponents:
@@ -185,15 +185,15 @@ def validate_mask():
 if __name__ == "__main__":
 
 	# Generate all the missing inverted cells from the base file
-	base_fn = 'Antenna_Coupled_TKIDs_20190221_ROB.gds'
-	final_fn = 'Antenna_Coupled_TKIDs_20190221_ROB.gds'
+	base_fn = 'Antenna_Coupled_TKIDs_20190826_AW.gds'
+	final_fn = 'Antenna_Coupled_TKIDs_20190826_AW.gds'
 	#main_lib.read_gds(base_fn)
 	#cell_dict = main_lib.cell_dict
 	#top = cell_dict['Wafer_Layout_new_with_perimeter_cells_at_center']
 	#gdspy.write_gds(final_fn, unit=1e-6,precision=1e-9)
 	toGenerateMask = False
-	makeInvertedOverlay = False
-	fillmask = True
+	makeInvertedOverlay = True
+	fillmask = False
 
 	if toGenerateMask:
 		main_lib.read_gds(final_fn)
@@ -208,7 +208,7 @@ if __name__ == "__main__":
 		cell_dict = main_lib.cell_dict
 
 		## Give the name of the top cell in the file just read.
-		top = cell_dict['Wafer_Layout_new_with_permiter_cells_at_center']
+		top = cell_dict['Wafer_Layout_new_actual']
 		masklist = cell_dict['reticle1'].get_dependencies()
 		mask_components = {x.name:x for x in masklist}
 		inverted_cells = []
