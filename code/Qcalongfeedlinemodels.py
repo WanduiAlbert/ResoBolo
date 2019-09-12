@@ -3,13 +3,14 @@ import matplotlib.pyplot as pl
 import reso_fit
 from scipy.interpolate import RectBivariateSpline
 pi = np.pi
+from scipy import optimize
 
 # transmission line
 # Nb/Nb, 0.3um ILD, 20um MS, 80um CPW 20um wide slot
 
 xline_eps = 13.2 - 0.0081j
 xline_n = np.sqrt(xline_eps)
-xline_Z0 = 38.
+xline_Z0 = 40.
 xline_ltot = 0.502
 
 def abcd_shuntimp(Z):
@@ -36,6 +37,13 @@ def s_of_abcd(abcd,Z0):
 	s22 = (-a + b - c + d) / denom
 	s = np.array([[s11,s12],[s21,s22]])
 	return s
+
+def periodic_model(t, A, B, nu, phi):
+	return A + B*np.cos(2*pi*nu*t + phi)
+
+def fabryperot_model(t, A, B, C, D, nu, phi):
+	#return A + B/(1 + C - 2*D*np.cos(2*pi*nu*t + phi))#*1/(1 + D*np.sin(2*pi*nu*t + phi)**2)
+	return A + B/( C+np.cos(2*pi*nu*t + phi)**2 + D*np.sin(2*pi*nu*t + phi))
 
 ncf = 101
 nfrac = 101
@@ -102,48 +110,68 @@ for k in range(ncf):
 		yfit = yf_re + 1j*yf_im
 		Qes[j] = Qe
 		f0s[j] = f0f*1e6 - f0
-		'''
-		pl.figure()
-		pl.plot(fs*1e-6,np.angle(s21))
-		pl.show()
-		exit()
 
-		pl.figure()
-		pl.plot(fs*1e-6,dbmag(s[1,0]),label='s21')
-		pl.plot(fs*1e-6,dbmag(reso.yfit),label='fit')
-		pl.xlabel('Frequency (MHZ)')
-		pl.ylabel('|S|')
-		pl.grid()
-		pl.legend()
-		pl.figure()
+	# We now have Qe as a function of the position along the feedline nfrac
+	Qes = np.array(Qes)
+	xfine = np.linspace(0,1,1<<16)
+	Qesinterp = np.interp(xfine, fracs, Qes, period=1)
+	#pl.figure()
+	#pl.plot(xfine, np.abs(Qesinterp),'r-')
+	#pl.plot(fracs, np.abs(Qes), 'bh', ls='None')
+	#pl.grid()
+	#pl.show()
+	#exit()
+	#Qefft = np.fft.fft(Qesinterp - np.mean(Qesinterp))
+	#fracfft = np.fft.fftfreq(Qesinterp.size, xfine[1] - xfine[0])
+	#Qefft = np.fft.fft(Qesinterp)
+	#fracfft = np.fft.fftshift(np.fft.fftfreq(Qesinterp.size, xfine[1] - xfine[0]))
+	#pl.figure()
+	#pl.plot(fracfft, np.abs(Qefft))
+	#pl.grid()
+	#pl.yscale('log')
+	#pl.xlim(left=0, right=50)
+	#pl.show()
+	#exit()
+	A = np.max(np.abs(Qes))
+	B = A - np.min(np.abs(Qes))
+	C = B/70
+	p0 = [A, -B, C, 0.15*C, 3.8, -pi/9]
+	Qerefine = fabryperot_model(xfine, *p0)
+	pl.figure()
+	pl.plot(xfine, Qerefine,'r-')
+	pl.plot(fracs, np.abs(Qes), 'bh', ls='None')
+	try:
+		popt, pcov = optimize.curve_fit(fabryperot_model,fracs, np.abs(Qes), p0=p0)
+		#print (popt)
+		Qeabsfine = fabryperot_model(xfine, *popt)
+		pl.plot(xfine, Qeabsfine,'g--')
+	except RuntimeError:
+		pass
+		#continue
+	pl.grid()
+	pl.show()
+	exit()
+	#p0 = [np.min(Qes.imag), np.mean(Qes.imag), 1, 0]
+	#popt, pcov = optimize.curve_fit(periodic_model,fracs, Qes.imag, p0=p0)
+	#print (popt)
 
-		pl.plot(s[1,0].real,s[1,0].imag,label='s21')
-		pl.plot(reso.yfit.real,reso.yfit.imag,label='fit')
-		pl.xlabel('Re[S21]')
-		pl.ylabel('Im[S21]')
-		pl.grid()
-		pl.xlim(-1,1)
-		pl.ylim(-1,1)
-		pl.legend()
-		pl.show()
-		exit()
-		'''
+
+
 	color = cmap(k/(ncf-1.))
 	pl.subplot(211)
 	pl.plot(fracs,np.abs(Qes),label='%d MHz'%(f0*1e-6),color=color)
 	pl.subplot(212)
 	pl.plot(fracs,np.angle(Qes)*180./pi,label='%d MHz'%(f0*1e-6),color=color)
-	#if k == 30:
-	#	pl.show()
 	all_Qes.append(Qes)
 	all_f0s.append(f0s)
 
 pl.subplot(211)
 pl.title('Qe variation with resonator position l=502mm eps=13 Z=30')
 pl.grid()
-lgd = pl.legend(ncol=3, loc='upper left', bbox_to_anchor=(1.0,1.0))
+pl.legend()
 pl.ylabel('|Qe|')
 pl.subplot(212)
+lgd = pl.legend(ncol=3, loc='upper left', bbox_to_anchor=(1.0,1.0))
 pl.grid()
 pl.xlabel('Resonator position along line')
 pl.ylabel('angle(Qe) (deg)')
