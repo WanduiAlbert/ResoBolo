@@ -45,3 +45,11 @@ def al_conductivity(T,r0=2.97e-9):
   k = 1 ./ (W0 + Wi + Wi0)
 
   return k
+
+if __name__=="__main__":
+	A1l1 = 103e-3
+	A2l2 = 519e-3
+	A3l3 = 13e-3
+	A4l4 = 2057e-3
+
+
