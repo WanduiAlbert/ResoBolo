@@ -25,10 +25,14 @@ cf190401 = np.array([283.7, 294.9, 299.6, 301.78, 301.83, 320.9, 325.7, 331.6,
 design = np.array([306, 318, 321, 324, 327, 330, 333, 336, 339, 351, 354, 369,
 	372, 381, 384, 387, 390, 393, 396, 399, 402, 405, 408, 417, 420, 435, 438,
 	450, 453, 456, 459, 462, 465, 468, 471, 483])
+cf190313 = np.array([291.9, 298.7, 303.8, 318.0, 324.0, 332.8, 338.8, 355.2,
+	360.3, 368.0, 368.2, 372.5, 378.0, 388.9, 389.6, 395.0, 400.3, 413.2,
+	441.0, 444.8, 450.3])
 
 print (firstwafer.size)
 print (r675.size)
 print (cf190401.size)
+print (cf190313.size)
 print (design.size)
 xticks = 280 + 10*np.arange(23)
 
@@ -37,20 +41,25 @@ tdesign = 1.018*design - 38.9
 plt.figure(figsize=(35,10))
 plt.plot(design, np.ones(design.size), marker='o', ms=15,
 		linestyle='None', label='Design')
-plt.plot(firstwafer, np.ones(firstwafer.size) + 1, marker='d', ms=15,
+plt.plot(1.018*design-38.9, np.zeros(design.size), marker='o', ms=15,
+		linestyle='None', label='Design Shifted')
+plt.plot(firstwafer, np.ones(firstwafer.size) + 1.5, marker='d', ms=15,
 		linestyle='None', label='First Wafer')
 plt.plot(r675, np.ones(r675.size) + 0.5, marker='h', ms=15, linestyle='None',
 		label='R675')
 plt.plot(cf190401, np.ones(cf190401.size) - 0.5, marker='v', ms=15,
 		linestyle='None', label='CF190401')
+plt.plot(cf190313, np.ones(cf190313.size) + 1.0, marker='s', ms=15,
+		linestyle='None', label='CF190313')
 plt.grid()
 plt.xticks(xticks)
 plt.xlim((270, 500))
 plt.yticks([0, 1, 2])
 #plt.axis('tight')
-plt.legend(loc='upper left')
+lgd = plt.legend(bbox_to_anchor=(1.0, 1.0))#loc='upper left')
 plt.xlabel('Frequency [MHz]')
-plt.savefig('frequencyscatter_darkreso.png')
+plt.savefig('frequencyscatter_darkreso.png', bbox_extra_artists=(lgd,),
+		bbox_inches='tight')
 
 #plt.figure(figsize=(35,10))
 #plt.plot(design, np.ones(design.size), marker='o', ms=15,
@@ -104,10 +113,12 @@ design_cdf = generate_cdf(X, design)
 firstwafer_cdf = generate_cdf(X, firstwafer)
 r675_cdf = generate_cdf(X, r675)
 cf190401_cdf = generate_cdf(X, cf190401)
+cf190313_cdf = generate_cdf(X, cf190313)
 
 firstwafer_KS = get_KS_statistic(design_cdf, firstwafer_cdf)
 r675_KS = get_KS_statistic(design_cdf, r675_cdf)
 cf190401_KS = get_KS_statistic(design_cdf, cf190401_cdf)
+cf190313_KS = get_KS_statistic(design_cdf, cf190313_cdf)
 
 alpha = 0.05
 def reject_nullhypothesis(alpha, n, m, Dnm):
@@ -119,6 +130,7 @@ def reject_nullhypothesis(alpha, n, m, Dnm):
 print (reject_nullhypothesis(alpha, design.size, firstwafer.size, firstwafer_KS))
 print (reject_nullhypothesis(alpha, design.size, r675.size, r675_KS))
 print (reject_nullhypothesis(alpha, design.size, cf190401.size, cf190401_KS))
+print (reject_nullhypothesis(alpha, design.size, cf190313.size, cf190313_KS))
 
 
 plt.figure(figsize=(10,10))
@@ -126,6 +138,7 @@ plt.plot(X, design_cdf, label='Design')
 plt.plot(X, firstwafer_cdf, label='First Wafer, KS=%1.2f'%(firstwafer_KS))
 plt.plot(X, r675_cdf, label='R675, KS=%1.2f'%(r675_KS))
 plt.plot(X, cf190401_cdf, label='CF190401, KS=%1.2f'%(cf190401_KS))
+plt.plot(X, cf190313_cdf, label='CF190313, KS=%1.2f'%(cf190313_KS))
 plt.legend(loc='upper left')
 plt.grid()
 plt.xlabel('Resonance Frequency [MHz]')

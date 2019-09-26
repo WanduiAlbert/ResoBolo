@@ -133,20 +133,21 @@ for k in range(ncf):
 	pl.plot(fracs,np.abs(Qes),label='%d MHz'%(f0*1e-6),color=color)
 	pl.subplot(212)
 	pl.plot(fracs,np.angle(Qes)*180./pi,label='%d MHz'%(f0*1e-6),color=color)
+	#if k == 30:
+	#	pl.show()
 	all_Qes.append(Qes)
 	all_f0s.append(f0s)
 
 pl.subplot(211)
 pl.title('Qe variation with resonator position l=502mm eps=13 Z=30')
 pl.grid()
-pl.legend()
+lgd = pl.legend(ncol=3, loc='upper left', bbox_to_anchor=(1.0,1.0))
 pl.ylabel('|Qe|')
 pl.subplot(212)
-pl.legend()
 pl.grid()
 pl.xlabel('Resonator position along line')
 pl.ylabel('angle(Qe) (deg)')
-pl.savefig('mismatch02.png')
+pl.savefig('mismatch02.png', bbox_extra_artists=(lgd,), bbox_inches='tight')
 
 
 # Also want to make a scatter plot to overlay the design frequencies of the
@@ -188,6 +189,8 @@ Z3 = all_phics*180/pi
 
 interpolator = RectBivariateSpline(fracs, cfs*1e-6, all_Qcs)
 predicted_Qcs = interpolator.ev(frac_position, design_freqs)
+interpolator2 = RectBivariateSpline(fracs, cfs*1e-6, all_phics)
+predicted_phics = interpolator.ev(frac_position, design_freqs)
 
 pl.figure(figsize=(10,10))
 pl.pcolor(X, Y, Z, cmap='jet')
@@ -234,7 +237,15 @@ pl.xlabel('Resonance Frequency [MHz]')
 pl.ylabel('Qc')
 pl.savefig('predQc_vs_reso_freq.png')
 
+pl.figure(figsize=(10,10))
+pl.scatter(frac_position, predicted_Qcs, c='k')
+pl.xlabel('Resonance Frequency [MHz]')
+pl.ylabel('Qc')
+pl.savefig('predQc_vs_linepos.png')
+
 pl.show()
+data = np.vstack([design_freqs, frac_position, predicted_Qcs, predicted_phics]).T
+np.savetxt('predicted_mismatchedQc.txt', data)
 # I'm curious to see the positions of the resonators along the line
 #freqs = np.linspace(290e6,450e6,1000)
 #abcd_xline_tot = abcd_xline(freqs, xline_Z0, xline_n, xline_ltot)
