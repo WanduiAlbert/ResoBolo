@@ -48,7 +48,7 @@ P_opt = 14.00*u.pW #((Vdc/Rb)**2 * Rh).to(u.pW)
 gamma_leg = 2.130 # conductivity index = beta + 1
 K_leg = 403.705 * u.picoWatt/u.Kelvin**gamma_leg
 T_c = 1.329 * u.Kelvin
-T_0 = 0.25 * u.Kelvin # Previously 0.23K Temperature of the thermal bath
+T_0 = 0.09 * u.Kelvin # Previously 0.23K Temperature of the thermal bath
 
 # Material properties of the Aluminum superconductors
 tau_max = 500 * u.microsecond
@@ -287,9 +287,9 @@ class TKIDBolometer:
 
 
 if __name__=="__main__":
-	fg = 469.9
+	fg = 323.9
 	fr = fg
-	P_opt = 5.00 #pW
+	P_opt = 0.00 #pW
 
 	gamma_leg = 2.975
 	K_leg = 120.660

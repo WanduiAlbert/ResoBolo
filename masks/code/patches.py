@@ -501,7 +501,7 @@ class Shot():
 		layers = list(cell.get_layers())
 		if len(layers) > 1 :
 		  raise RuntimeError ("Cannot construct a shot from a cell with multiple layers")
-		self.layer = layers[0]
+		self.layer = layers[0] if not kwargs['layer'] else kwargs['layer']
 		self.cell_bbox = np.asarray(cell_bbox)
 		self.cell_size = np.asarray(cell_size)
 		self.mask_name = mask_name
@@ -724,6 +724,7 @@ def gen_patches_table(globaloverlay, mask_list, ignored_cells, layer_dict=None,\
 	for shot in allshots:
 		inv_name = inv_mask_cellname(shot, invcell_ending)
 		name = shot.cellname
+		#if name == "Ground_Plane_cap_cutout":pdb.set_trace()
 		#print (inv_name, name)
 		for mask in mcomponents:
 			inv_match = find_match(mcomponents[mask], inv_name)
@@ -735,6 +736,9 @@ def gen_patches_table(globaloverlay, mask_list, ignored_cells, layer_dict=None,\
 				shot.update_mask_location(match, mask)
 			else:
 				continue
+
+	for shot in allshots:
+		print (shot.cellname, shot.layer)
 
 	allshots.sort()
 	return allshots
@@ -950,10 +954,15 @@ def makeshot(curr_element, parent_origin=default, parentIsArray=False,
 
 
 	"""
+	# I'll define a default kwargs dictionary that will always have at least 1
+	# key:value pair
+	default_kwargs = {'layer':None}
+
 	if curr_element.ref_cell.name in ignored_cells: return []
 	if type(curr_element) not in allowed_element_types:
 		return []
 	curr_cell = curr_element.ref_cell
+	#print(curr_cell.name)
 	cell_center = get_center(curr_cell)
 	curr_origin = curr_element.origin
 	abs_origin = parent_origin + scalearr(curr_origin, scale)
@@ -1025,7 +1034,10 @@ def makeshot(curr_element, parent_origin=default, parentIsArray=False,
 		try:
 			#if curr_element.ref_cell.name == 'ustrip_to_island_R':
 			#	pdb.set_trace()
-			shot = Shot(curr_cell, cell_shift, cell_size, cell_bbox, isArray=True, **newArrayArgs)
+			# Need to check
+			default_kwargs.update(newArrayArgs)
+			shot = Shot(curr_cell, cell_shift, cell_size, cell_bbox,
+					isArray=True, **default_kwargs)
 			return [shot]
 		except RuntimeError:
 			print ("Failed for", curr_element)

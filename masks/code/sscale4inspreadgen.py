@@ -72,22 +72,115 @@ def generate_inverted_overlay(wafer, mask_list):
 
 	return invwafer
 
-if __name__ == "__main__":
-	fn = '../mask_files/sscale_darkres_4in_with_island_20190313.gds'
-	main_lib.read_gds(fn)
-	cell_dict = main_lib.cell_dict
-	# bowtie_r = ssd.invert_cell(cell_dict['R_BowtieSlot'])[0]
-	# gdsii.add(bowtie_r)
-	# gdsii.write_gds('diplexer_ready_for_production.gds',unit=1e-6,precision=1e-9)
 
+possible_endings = ['_r', '_inv']
+# Finds a suitable name for a cell from the second gds file that does not
+# conflict with a name in the 1st file.
+def rename(name, ending, index=2):
+	if not index: index = ''
+	newname = name
+	for an_ending in possible_endings:
+		if name.endswith(an_ending):
+			newname = name.replace(an_ending, ending)
+			break
+	if not newname.endswith(ending):
+		newname += str(index)
+	else:
+		newname = newname.strip(ending) + str(index) + ending
+	return newname
+
+#def inv_mask_cellname(shot, ending):
+#	if shot.cellname.endswith('_r'):
+#		name = shot.cellname
+#	elif shot.cellname.endswith('inv'):
+#		name = shot.cellname
+#	elif shot.cellname.endswith('-r'):
+#		name = shot.cellname
+#	else:
+#		name = shot.cellname + ending
+#	return name
+
+def get_rename_dict(mainlibcells, maskcells, fn2, ending, index=2):
+	tmplib = gdspy.GdsLibrary(name='tmp')
+	tmplib.read_gds(fn2)
+	tmplibcells = list(tmplib.cell_dict.keys())
+
+	renamer = {}
+	# Simply rename all the cells in tmp so they are easily identifiable
+	for tmpcell in tmplibcells:
+		if tmpcell in mainlibcells or tmpcell.startswith('alignment') or tmpcell.startswith('50um'):
+			renamer[tmpcell] = rename(tmpcell, ending, index)
+		else:
+			renamer[tmpcell] = rename(tmpcell, ending, index=None)
+			#if newname not in mainlibcells:
+			#	renamer[tmpcell] = newname
+			#else:
+			#	renamer[tmpcell] = rename(tmpcell, ending, index)
+
+
+	layermap = {}
+	# Only want to check single layer cells because those are represented on the
+	# reticle
+	maintoconsider = list(filter(
+		lambda x: len(main_lib.cell_dict[x].get_layers()) == 1,
+		mainlibcells))
+	tmptoconsider = list(filter(
+		lambda x: len(tmplib.cell_dict[x].get_layers()) == 1,
+		tmplibcells))
+	tmptoconsidermatched = [x.replace('_inv', ending) for x in tmptoconsider]
+	tmpmap = dict(zip(tmptoconsidermatched, tmptoconsider))
+	#for tlcell in tmplibcells:
+	#	renamer[tlcell] = tlcell.replace('_inv', ending)
+	for mlcell in maintoconsider:
+		isinv = mlcell.endswith(ending)
+		invmlcell = mlcell + ending if not mlcell.endswith(ending) else mlcell
+		if mlcell in maskcells or invmlcell in maskcells: continue
+		layer_1st, = main_lib.cell_dict[mlcell].get_layers()
+		layer_2nd = None
+		if mlcell in tmptoconsider:
+			print (mlcell)
+			renamer[mlcell] = mlcell
+			layer_2nd, = tmplib.cell_dict[mlcell].get_layers()
+		elif not isinv and invmlcell in tmptoconsidermatched:
+			print (mlcell)
+			renamer[tmpmap[invmlcell]] = invmlcell
+			layer_2nd, = tmplib.cell_dict[tmpmap[invmlcell]].get_layers()
+		if layer_2nd and layer_2nd not in layermap:
+			layermap[layer_2nd] = layer_1st
+		#if mlcell in maskcells or mlcell + ending in maskcells:
+		#	renamer[mlcell] = rename(mlcell, ending, index)
+		#	#print (mlcell, renamer[mlcell])
+		#elif mlcell in tmplibcellsmatched:
+		#	renamer[tmpmap[mlcell]] = rename(mlcell, ending, index)
+		#	#print (mlcell, tmpmap[mlcell], renamer[tmpmap[mlcell]])
+		#else:
+		#layermap{tmplib.cell_dict[mlcell].get_layers()[0]:mlcell.get_layers()[0]}
+
+	print (layermap)
+	return renamer, layermap
+
+if __name__ == "__main__":
+	invcell_ending = '_r'
+	fn = '../mask_files/sscale_darkres_4in_with_island_newfeedline_20190912_AW.gds'
+	main_lib.read_gds(fn)
+	mainlibcells = main_lib.cell_dict.keys()
+	cellsonmask = [x.name for x in main_lib.cell_dict['ResoArray_Mask_Sept2019'].get_dependencies(recursive=True)]
+	fn2 = 'Antenna_Coupled_TKIDs_20190826_AW.gds'
+	renamer, layermap = get_rename_dict(mainlibcells, cellsonmask, fn2, invcell_ending)
+	main_lib.read_gds(fn2, rename=renamer, layers=layermap)
+	cell_dict = main_lib.cell_dict
+	#for k in sorted(cell_dict.keys()):
+	#	print (k)
+	#exit()
 	globaloverlay = cell_dict['Global_Overlay_4in']
-	mask_list = [cell_dict['ResoArray_Mask_May2018']]
+	mask_list = [cell_dict['ResoArray_Mask_Sept2019'], cell_dict['reticle1']]
 	to_ignore = set(['WaferOutline'])
-	layer_order = [12, 9, 6, 5, 3, 8, 10]
+	layer_order = [12, 9, 4, 6, 5, 3, 8, 10]
 	#pdb.set_trace()
 	allshots = patches.gen_patches_table(globaloverlay, mask_list, to_ignore,
-			def_layers, layer_order, invcell_ending='_r')
-	patchtable = patches.PatchTable(allshots, 'ResonatorArray_4in_20190310.xlsx')
+			def_layers, layer_order, invcell_ending=invcell_ending)
+	patchtable = patches.PatchTable(allshots,
+			'ResonatorArray_4in_newfeedline_20190924.xlsx')
 	patchtable.generate_spreadsheet()
 	invwafer = generate_inverted_overlay(globaloverlay, mask_list)
 	gdspy.write_gds(fn,unit=1e-6,precision=1e-9)
