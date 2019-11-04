@@ -4,13 +4,15 @@ import reso_fit
 from scipy.interpolate import RectBivariateSpline
 pi = np.pi
 from scipy import optimize
+from scipy.constants import c, epsilon_0
 
 # transmission line
 # Nb/Nb, 0.3um ILD, 20um MS, 80um CPW 20um wide slot
 
+Z0 = 50
 xline_eps = 13.2 - 0.0081j
 xline_n = np.sqrt(xline_eps)
-xline_Z0 = 40.
+xline_Z0 = 45.
 xline_ltot = 0.502
 
 def abcd_shuntimp(Z):
@@ -45,7 +47,23 @@ def fabryperot_model(t, A, B, C, D, nu, phi):
 	#return A + B/(1 + C - 2*D*np.cos(2*pi*nu*t + phi))#*1/(1 + D*np.sin(2*pi*nu*t + phi)**2)
 	return A + B/( C+np.cos(2*pi*nu*t + phi)**2 + D*np.sin(2*pi*nu*t + phi))
 
-ncf = 101
+def qc_prediction(fs,C, Cc, Zc, n, l):
+	w0 = 2*pi*fs
+	gamma = 1.0j*2*pi*fs*n/c
+	prefactor = 2*(C)/(Cc**2*Z0*w0)#*(1 + (Cc*Z0*w0/2)**2)
+	cosh_tot = np.real(np.cosh(gamma*xline_ltot))
+	sinh_tot = np.imag(np.sinh(gamma*xline_ltot))
+	cosh_in = np.real(np.cosh(2*gamma*l))
+	sinh_in = np.imag(np.sinh(2*gamma*l))
+	cosh_out = np.real(np.cosh(2*gamma*(xline_ltot-l)))
+	sinh_out = np.imag(np.sinh(2*gamma*(xline_ltot-l)))
+	lambd = Zc/Z0
+	num = -(4*lambd**2*cosh_tot**2 + (1+lambd**2)**2*sinh_tot**2)
+	denom = lambd**2*(-2*(1+lambd**2) + (-1+lambd**2)*cosh_in +\
+			(1-lambd**2)*cosh_out)
+	return prefactor * num/denom
+
+ncf = 11
 nfrac = 101
 fracs = np.linspace(0,1,nfrac)
 cfs = np.linspace(290e6,500e6,ncf)
@@ -66,8 +84,7 @@ for k in range(ncf):
 	C0 -= Cc
 	#Qc = C0/(pi*f0*Cc**2*50.)
 	R0 = Qi * np.sqrt(L0/C0)
-	c = 3e8
-
+	#c = 3e8
 	Qr = 1/(1/Qi + 1/Qc)
 
 	df = 10*f0/Qr
@@ -107,14 +124,27 @@ for k in range(ncf):
 		f0f, Qif, Qrf, Qe_re, Qe_im, a, yf_re, yf_im = reso_fit.do_fit(fs,
 				s[1,0].real, s[1,0].imag)
 		Qe = Qe_re + 1j*Qe_im
+		dQe = 1./Qe
+		Qc = 1./np.real(dQe)
 		yfit = yf_re + 1j*yf_im
-		Qes[j] = Qe
+		Qes[j] = Qc
 		f0s[j] = f0f*1e6 - f0
 
 	# We now have Qe as a function of the position along the feedline nfrac
 	Qes = np.array(Qes)
 	xfine = np.linspace(0,1,1<<16)
+	Qcs_pred = qc_prediction(f0,C0, Cc, xline_Z0, xline_n, xline_ltot*xfine)
 	Qesinterp = np.interp(xfine, fracs, Qes, period=1)
+	pl.figure()
+	pl.title("Freq %1.3fMHz"%(f0/1e6))
+	pl.plot(xfine, Qcs_pred,'r-')
+	pl.plot(xfine, Qesinterp,'k--')
+	pl.plot(fracs, Qes, 'bh', ls='None')
+	pl.grid()
+	#pl.ylim((0, 50000))
+	pl.show()
+	continue
+	#exit()
 	#pl.figure()
 	#pl.plot(xfine, np.abs(Qesinterp),'r-')
 	#pl.plot(fracs, np.abs(Qes), 'bh', ls='None')
@@ -132,25 +162,25 @@ for k in range(ncf):
 	#pl.xlim(left=0, right=50)
 	#pl.show()
 	#exit()
-	A = np.max(np.abs(Qes))
-	B = A - np.min(np.abs(Qes))
-	C = B/70
-	p0 = [A, -B, C, 0.15*C, 3.8, -pi/9]
-	Qerefine = fabryperot_model(xfine, *p0)
-	pl.figure()
-	pl.plot(xfine, Qerefine,'r-')
-	pl.plot(fracs, np.abs(Qes), 'bh', ls='None')
-	try:
-		popt, pcov = optimize.curve_fit(fabryperot_model,fracs, np.abs(Qes), p0=p0)
-		#print (popt)
-		Qeabsfine = fabryperot_model(xfine, *popt)
-		pl.plot(xfine, Qeabsfine,'g--')
-	except RuntimeError:
-		pass
-		#continue
-	pl.grid()
-	pl.show()
-	exit()
+	#A = np.max(np.abs(Qes))
+	#B = A - np.min(np.abs(Qes))
+	#C = B/70
+	#p0 = [A, -B, C, 0.15*C, 3.8, -pi/9]
+	#Qerefine = fabryperot_model(xfine, *p0)
+	#pl.figure()
+	#pl.plot(xfine, Qerefine,'r-')
+	#pl.plot(fracs, np.abs(Qes), 'bh', ls='None')
+	#try:
+	#	popt, pcov = optimize.curve_fit(fabryperot_model,fracs, np.abs(Qes), p0=p0)
+	#	#print (popt)
+	#	Qeabsfine = fabryperot_model(xfine, *popt)
+	#	pl.plot(xfine, Qeabsfine,'g--')
+	#except RuntimeError:
+	#	pass
+	#	#continue
+	#pl.grid()
+	#pl.show()
+	#exit()
 	#p0 = [np.min(Qes.imag), np.mean(Qes.imag), 1, 0]
 	#popt, pcov = optimize.curve_fit(periodic_model,fracs, Qes.imag, p0=p0)
 	#print (popt)
