@@ -103,8 +103,8 @@ def modelQ_full(temps, PdBm, PcdBm,Tc, alpha,fd,dQ0):
 	eta_pow = 0*1e-11
 	#P0 = Delta*R*Vsc*nqp_star**2/(2*eta_pow)
 	nqp = np.sqrt((nth + nqp_star)**2 + 2*eta_pow*P/(Delta*R*Vsc)) - nqp_star
-	#dQMB = alpha*S1/(2*N0*Delta)*nqp
-	dQMB = 4*alpha/np.pi*np.sinh(eta)*K0(eta)*np.exp(-Delta/k/temps)
+	dQMB = alpha*S1/(2*N0*Delta)*nth
+	#dQMB = 4*alpha/np.pi*np.sinh(eta)*K0(eta)*np.exp(-Delta/k/temps)
 	dQTLS = fd*np.tanh(eta)/np.sqrt(1 + P/Pc)
 	dQ = dQ0 + dQMB + dQTLS
 	#_, QMB = self.xQMB(temps,f0,Tc,alpha)
@@ -621,11 +621,11 @@ for reso in range(4):
 			sigma=sig_freqs[tmask]*1e6, absolute_sigma=True, p0=[Tc0] + p0,
 			bounds=([0,0,0,0], [np.inf,1,np.inf,np.inf]))
 	xpopt[-1] = dQMBconstpopt[-1]
-	print (popt)
-	print (xpopt)
-	print (xMBpopt)
-	print (dQMBconstpopt)
-	print (f0_fit, alpha)
+	print ("popt: ", popt)
+	print ("xpopt: ", xpopt)
+	print ("xMBpopt: ", xMBpopt)
+	print ("dQMBconstpopt: ", dQMBconstpopt)
+	print ("f0_fit: ", f0_fit, "alpha_fit", alpha)
 	#continue
 	#print ((modelxMB_full(T_fine, *xMBpopt) - f0_fit*1e6)/(f0_fit*1e6)*1e6)
 	dQ_fit = modelQ(T_fine, *popt)
@@ -664,8 +664,8 @@ for reso in range(4):
 	popt_p, pcov_p = optimize.curve_fit(modelQ_p, Pmeas[pmask], dQimeas[pmask],
 			sigma=sig_dQimeas[pmask], absolute_sigma=False, p0=p0_p,
 			bounds=([-np.inf,0,0], [np.inf,np.inf,np.inf]))
-	print (popt_p)
-	print (np.sqrt(np.diag(pcov_p)))
+	print ("popt_p: ", popt_p)
+	#print (np.sqrt(np.diag(pcov_p)))
 	dQ = modelQ_p(PdBm, *popt_p)
 
 
@@ -684,8 +684,8 @@ for reso in range(4):
 	popt_full, pcov_full = optimize.curve_fit(fullwrapper, xdata, ydata,
 			sigma=sigydata, absolute_sigma=False, p0=p0_full,
 			bounds=([-np.inf,0,0,0,0], [np.inf,np.inf,1,np.inf,np.inf]))
-	print (popt_full)
-	print (np.sqrt(np.diag(pcov_full)))
+	print ("popt_full: ", popt_full)
+	#print (np.sqrt(np.diag(pcov_full)))
 	dQPfull = modelQ_full(Tbase, PdBm, *popt_full)
 	dQTfull = modelQ_full(T_fine, P_nominal, *popt_full)
 	xPfull = (modelx_full(Tbase, PdBm, *popt_full)/1e6 - f0_fit)/f0_fit*1e6
@@ -695,15 +695,12 @@ for reso in range(4):
 	xTonlyT = (modelx_full(T_fine, P_nominal, popt_full[0], *popt)/1e6 - f0_fit)/f0_fit*1e6
 	xTonlyT -= xTonlyT[0]
 
-	popt_full, pcov_full = optimize.curve_fit(fullwrapper, xdata, ydata,
-			sigma=sigydata, absolute_sigma=False, p0=p0_full,
-			bounds=([-np.inf,0,0,0,0], [np.inf,np.inf,1,np.inf,np.inf]))
 	plt.figure(figsize=(10,10))
 	plt.errorbar(temps*1e3, dQis*1e6, sig_dQis*1e6, fmt='ko', label='data')
-	plt.plot(T_fine/1e-3, dQ_fit*1e6, 'k-', label='fit dQ(T)')
-	plt.plot(T_fine/1e-3, dQx_fit*1e6, 'k-.', label='fit x(T)')
+	plt.plot(T_fine/1e-3, dQ_fit*1e6, 'k-', label='fit dQ(T, P = %1.1fdBm)'%(Pc_nominal))
+	plt.plot(T_fine/1e-3, dQx_fit*1e6, 'k-.', label='fit x(T, P = %1.1fdBm)'%(Pc_nominal))
 	plt.plot(T_fine/1e-3, dQxMB_fit*1e6, 'k:', label='fit dQ_MB(T)')
-	plt.plot(T_fine/1e-3, dQTfull*1e6, 'k--', label='fit dQ(T, P)')
+	plt.plot(T_fine/1e-3, dQTfull*1e6, 'k--', label='fit to dQ(T, P)')
 	plt.yscale('log')
 	plt.grid()
 	plt.legend(loc='upper left')
@@ -716,8 +713,8 @@ for reso in range(4):
 
 	plt.figure(figsize=(10,10))
 	plt.errorbar(Pmeas, dQimeas*1e6, sig_dQimeas*1e6, fmt='ko', label='data')
-	plt.plot(PdBm, dQ*1e6, 'k-', label='fit P')
-	plt.plot(PdBm, dQPfull*1e6, 'k--', label='fit both T and P')
+	plt.plot(PdBm, dQ*1e6, 'k-', label='fit dQ(%1.1fmK, P)'%(Tbase/1e-3))
+	plt.plot(PdBm, dQPfull*1e6, 'k--', label='fit to dQ(T, P)')
 	plt.grid()
 	plt.legend(loc='upper right')
 	#plt.axis('tight')
@@ -731,11 +728,11 @@ for reso in range(4):
 
 	plt.figure(figsize=(10,10))
 	plt.errorbar(temps[tmask]/1e-3, xtemp[tmask], sig_xtemp[tmask], fmt='ko', label='data')
-	plt.plot(T_fine/1e-3, xdQ_fit, 'k-', label='fit dQ(T)')
-	plt.plot(T_fine/1e-3, x_fit, 'k-.', label='fit x(T)')
-	plt.plot(T_fine/1e-3, xMB_fit, 'k:', label='fit xMB(T)')
-	plt.plot(T_fine/1e-3, xTonlyT, 'k', label='fit x(T, P)')
-	plt.plot(T_fine/1e-3, xTfull, 'k--', label='fit dQ(T, P)')
+	plt.plot(T_fine/1e-3, xdQ_fit, 'k-', label='fit dQ(T, P = %1.1fdBm)'%(Pc_nominal))
+	plt.plot(T_fine/1e-3, x_fit, 'k-.', label='fit x(T, P = %1.1fdBm)'%(Pc_nominal))
+	plt.plot(T_fine/1e-3, xMB_fit, 'k:', label='fit x_MB(T)')
+	plt.plot(T_fine/1e-3, xTonlyT, 'k', label='fit to dQ(T, P)')
+	#plt.plot(T_fine/1e-3, xTfull, 'k--', label='fit dQ(T, P)')
 	plt.grid()
 	plt.legend(loc='lower left')
 	plt.xlim(left=90, right=300)

@@ -39,7 +39,16 @@ def model_dQMB(T, f0, Tc, alphak):
 	dQmb = alphak*S1*nqp/(2*N0*Delta)
 	return dQmb
 
-def degeneracy_line(T, f0, Tc, alpha1, Tc1):
+def dQdegeneracy_line(T, f0, Tc, alpha1, Tc1):
+	eta = h*f0*1e6/(2*k*T)
+	Delta = 1.763*k*Tc
+	Delta1 = 1.763*k*Tc1
+	C = Delta/(k*T)
+	C1 = Delta1/(k*T)
+	lna = C - C1 + np.log(alpha1)
+	return lna
+
+def xdegeneracy_line(T, f0, Tc, alpha1, Tc1):
 	eta = h*f0*1e6/(2*k*T)
 	Delta = 1.763*k*Tc
 	Delta1 = 1.763*k*Tc1
@@ -60,9 +69,13 @@ for Tbase in T:
 	x_fit = -model_xMB(Tbase, f0, X, Y)*ppm
 	dQ_fit = model_dQMB(Tbase, f0, X, Y)*ppm
 	beta_fit = dQ_fit/x_fit
-	lna = degeneracy_line(Tbase, f0, Tcs, 0.5, 1.1)
+	lna = xdegeneracy_line(Tbase, f0, Tcs, 0.08, 1.1)
 	alpha_degen = np.exp(lna)
 	mask = (alpha_degen < 1)
+	lna = dQdegeneracy_line(Tbase, f0, Tcs, 0.08, 1.1)
+	dQalpha_degen = np.exp(lna)
+	dQmask = (dQalpha_degen < 1)
+
 	fig, ax = plt.subplots(figsize=(10,10))
 	cnt = ax.contour(X, Y, x_fit, 15, colors='black')
 	ax.clabel(cnt, inline=True, fontsize=10)
@@ -76,17 +89,18 @@ for Tbase in T:
 	fig.colorbar(mp, label='-x [ppm]')
 	plt.show()
 
-	#fig, ax = plt.subplots(figsize=(10,10))
-	#cnt2 = ax.contour(X, Y, dQ_fit, 15, colors='black')
-	#ax.clabel(cnt2, inline=True, fontsize=10)
+	fig, ax = plt.subplots(figsize=(10,10))
+	cnt2 = ax.contour(X, Y, dQ_fit, 15, colors='black')
+	ax.clabel(cnt2, inline=True, fontsize=10)
 	##mp2 = ax.pcolor(X, Y, dQ_fit, cmap=cm.viridis, alpha=0.6)
-	#mp2 = ax.imshow(dQ_fit, extent=[X.min(), X.max(), Y.min(), Y.max()],
-	#		origin='lower', aspect='auto', cmap=cm.viridis, alpha = 0.6)
-	#ax.set_xlabel('Tc [K]')
-	#ax.set_ylabel('alphak')
-	#ax.set_title('dQ[ppm] at T = %1.1f mK'%(Tbase/mK))
-	#fig.colorbar(mp2, label='dQ [ppm]')
-	#plt.show()
+	mp2 = ax.imshow(dQ_fit, extent=[X.min(), X.max(), Y.min(), Y.max()],
+			origin='lower', aspect='auto', cmap=cm.viridis, alpha = 0.6)
+	ax.plot(Tcs[dQmask], dQalpha_degen[dQmask], 'r-')
+	ax.set_xlabel('Tc [K]')
+	ax.set_ylabel('alphak')
+	ax.set_title('dQ[ppm] at T = %1.1f mK'%(Tbase/mK))
+	fig.colorbar(mp2, label='dQ [ppm]')
+	plt.show()
 
 	#fig, ax = plt.subplots(figsize=(10,10))
 	#cnt3 = ax.contour(X, Y, beta_fit, 15, colors='black')
