@@ -10,9 +10,9 @@ from scipy.constants import c, epsilon_0
 # Nb/Nb, 0.3um ILD, 20um MS, 80um CPW 20um wide slot
 
 Z0 = 50
-xline_eps = 13.2 - 0.0081j
+xline_eps = 13.4 - 0.0081j
 xline_n = np.sqrt(xline_eps)
-xline_Z0 = 45.
+xline_Z0 = 31.
 xline_ltot = 0.502
 
 def abcd_shuntimp(Z):
