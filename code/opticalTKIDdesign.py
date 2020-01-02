@@ -5,6 +5,7 @@ from math import pi
 import matplotlib.pyplot as plt
 from scipy.special import iv, kn
 from scipy.constants import h, k
+from waffleTKIDcapacitordesign import IDC
 
 K_0 = lambda x: kn(0, x)
 I_0 = lambda x: iv(0, x)
