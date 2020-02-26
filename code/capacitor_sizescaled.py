@@ -200,11 +200,12 @@ def get_cap_params(fn):
 
 if __name__=="__main__":
 	L_al = 10 * nH
-	filenames = glob.glob(datadir + "Cap_300MHz_*um_with_boundary.csv")
-	expected_size = np.array([572, 672, 756, 1006])
-	filenames.sort(key=lambda x:int(x.split('/')[-1].split('.')[0].split('_')[2][:-2]))
+	filenames = glob.glob(datadir + "Cap_300MHz_500umheight_650fingers_with_boundary.csv")
+	#expected_size = np.array([572, 672, 756, 1006])
+	expected_size = np.array([650])
+	#filenames.sort(key=lambda x:int(x.split('/')[-1].split('.')[0].split('_')[2][:-2]))
 	print (filenames)
-	Nfingers = 502
+	Nfingers = 650
 	Cs = []
 	Ls = []
 	Rs =  []
@@ -221,6 +222,7 @@ if __name__=="__main__":
 
 	print (Cs/pF)
 	print (Ls/1e-9)
+	exit()
 
 	pC = np.polyfit(expected_size, Cs/pF, 1)
 	pL = np.polyfit(expected_size, Ls/nH, 1)

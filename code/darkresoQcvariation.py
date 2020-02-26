@@ -15,6 +15,7 @@ xline_n = np.sqrt(xline_eps)
 xline_Z0 = 31.
 xline_ltot = 0.502
 pF = 1e-12
+La = 0.0e-6
 
 def abcd_shuntimp(Z):
 	zero = np.zeros_like(Z)
@@ -51,17 +52,19 @@ def fabryperot_model(t, A, B, C, D, nu, phi):
 def qc_prediction(fs,C, Cc, Zc, n, l):
 	w0 = 2*pi*fs
 	gamma = 1.0j*2*pi*fs*n/c
-	prefactor = 2*(C)/(Cc**2*Z0*w0)#*(1 + (Cc*Z0*w0/2)**2)
-	cosh_tot = np.real(np.cosh(gamma*xline_ltot))
-	sinh_tot = -np.imag(np.sinh(gamma*xline_ltot))
-	cosh_in = np.real(np.cosh(2*gamma*l))
-	sinh_in = -np.imag(np.sinh(2*gamma*l))
-	cosh_out = np.real(np.cosh(2*gamma*(xline_ltot-l)))
-	sinh_out = -np.imag(np.sinh(2*gamma*(xline_ltot-l)))
+	beta = gamma.imag
+	prefactor = 2*(C)/(Cc**2*Z0*w0)*(1 - 2*Cc*La*w0**2)
+	print ((1 - 2*Cc*La*w0**2))
+	cosh_tot = np.cos(beta*xline_ltot)
+	sinh_tot = np.sin(beta*xline_ltot)
+	cosh_in = np.cos(2*beta*l)
+	sinh_in = np.sin(2*beta*l)
+	cosh_out = np.cos(2*beta*(xline_ltot-l))
+	sinh_out = np.sin(2*beta*(xline_ltot-l))
 	lambd = Zc/Z0
-	num = -(4*lambd**2*cosh_tot**2 + (1+lambd**2)**2*sinh_tot**2)
-	denom = lambd**2*(-2*(1+lambd**2) + (-1+lambd**2)*cosh_in +\
-			(1-lambd**2)*cosh_out)
+	num = (4*lambd**2*cosh_tot**2 + (1+lambd**2)**2*sinh_tot**2)
+	denom = lambd**2*(2*(1+lambd**2) + (lambd**2 - 1)*cosh_in +\
+			(lambd**2-1)*sinh_out)
 	return prefactor * num/denom
 
 ncf = 11
@@ -149,6 +152,7 @@ frac_position = pos/total_len
 print (frac_position)
 Qcs_pred = qc_prediction(design_freqs*1e6,Cs, ordered_Ccs, xline_Z0, xline_n,
 		xline_ltot*(1 - frac_position))
+data = np.vstack([design_freqs, frac_position, Qcs_pred]).T
 
 fig,ax = pl.subplots(figsize=(10,10))
 ax.plot(design_freqs, Qcs_pred, 'ro')
@@ -157,5 +161,5 @@ ax.set_xlabel('Design Frequency')
 ax.set_ylabel('Predicted Qc')
 pl.show()
 
-np.savetxt('analytical_Qc_31.txt', Qcs_pred)
+np.savetxt('analytical_Qc_%d_0p2nH.txt'%(xline_Z0), data)
 

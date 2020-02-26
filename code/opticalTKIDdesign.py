@@ -64,8 +64,10 @@ if __name__=="__main__":
 	C = 1./(wr**2*L)
 	C_branch = 0.11 * pF
 	C_load = C_branch * N
+	L_branch = 0.0 * nH
+	L_load = L_branch * N
 	Zin = Z0
-	Zout = 1/(1./Z0 + 1j*wr*C_load)
+	Zout = 1/(1./Z0 + 1j*wr*C_load + 1./(1j*wr*L_load))
 	Cc = np.sqrt((2*C)/(Qi*Z0*wr))
 	CC = np.average(Cc) # use the same coupling cap for all the resonators
 	#CC = 0.1945 * pF # Using a number from actual calculations

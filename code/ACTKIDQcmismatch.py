@@ -5,7 +5,8 @@ import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import os, sys
 from scipy.special import iv, kn
-from scipy.constants import h, k
+from scipy.constants import h, k,c
+import scipy.optimize as opt
 
 K_0 = lambda x: kn(0, x)
 I_0 = lambda x: iv(0, x)
@@ -65,11 +66,26 @@ Zin = Z0
 Zout = 1/(1./Z0 + 1j*wr*C_load)
 Cc = np.sqrt((2*C)/(Qi*Z0*wr))
 CC = np.average(Cc) # use the same coupling cap for all the resonators
+print (CC/pF)
+Ca = 0.403*pF # from simulations
+CC = Ca/2 # from simulations
+La = 0.0*nH
+w_star = 1./np.sqrt(L*CC)
+f_star = w_star/2/pi/MHz
+
+qc_prefactor = 2*w_star*L/Z0
+
+Cpar = 0.1*pF
+factor = 1 + (Ca*Z0*wr/4)**2*((Ca + 2*Cpar)/(Ca + Cpar))**2
+#Qc = (8*C/(Ca**2*Z0*wr))*factor
+#CC *= 1.5
 y = wr * CC * Z0
 Gprime = (wr*CC*Zin*y/(Zin + Zout)) - (1j*wr*CC*Zin**2*y**2)/(Zin + Zout)**2
 dQe = Gprime/(wr*C)
 Qe = 1/dQe
-Qc = 1./np.real(dQe)
+#Qc = 1./np.real(dQe)
+Qc = qc_prefactor*(fr/f_star)**-3
+Qc = (C/Ca)*(8/(Ca*Z0*wr) - 8*(La*wr/Z0) + wr*Ca*Z0/2 + 2*La**2*wr**3*Ca/Z0)
 phi_c = np.arctan2(dQe.imag, dQe.real)
 Qr = 1./(1./Qc + 1./Qi)
 chi_c = 4*Qc*Qi/(Qi + Qc)**2#/np.cos(phi_c)
@@ -82,17 +98,21 @@ Nfingers = 502 - np.array([0, 17, 32, 47, 61, 74, 87, 100, 111, 122, 133,
 	153])
 C_true = (0.05*Nfingers + 0.788)*pF
 Lpar = (6e-6*Nfingers**2 + 1e-3*Nfingers + 1.780)*nH
-Lind = 5.998*nH
+Lind = 10.057*nH #5.998*nH with no kinetic inductance
 Ltot = Lind + Lpar
 wr_true = 1./(Ltot*C_true)**0.5
 fr_true = wr_true/2/pi/MHz
 y_true = wr_true * CC * Z0
 Zout_true = 1/(1./Z0 + 1j*wr_true*C_load)
-Gprime_true = (wr_true*CC*Zin*y_true/(Zin + Zout_true)) - (1j*wr_true*CC*Zin**2*y**2)/(Zin + Zout_true)**2
+Gprime_true = (wr_true*CC*Zin*y_true/(Zin + Zout_true)) -\
+		(1j*wr_true*CC*Zin**2*y_true**2)/(Zin + Zout_true)**2
 dQe_true = Gprime_true/(wr_true*C_true)
 Qe_true = 1/dQe_true
 Qc_true = 1./np.real(dQe_true)
-Qc_true = 2*C_true/(wr_true*Z0*CC**2)
+#Qc_true = 2*C_true/(wr_true*Z0*CC**2)
+factor = 1 + (Ca*Z0*wr_true/4)**2*((Ca + 2*Cpar)/(Ca + Cpar))**2
+Qc_true = (8*C_true/(Ca**2*Z0*wr_true))*factor
+Qc_true = (C_true/Ca)*(8/(Ca*Z0*wr_true) - 8*(La*wr_true/Z0) + wr_true*Ca*Z0/2 + 2*La**2*wr_true**3*Ca/Z0)
 phi_c_true = np.arctan2(dQe_true.imag, dQe_true.real)
 Qi_true = get_MB_Qi(target_T, fr_true*MHz)
 Qr_true = 1./(1./Qc_true + 1./Qi_true)
@@ -101,19 +121,167 @@ chi_c_true = 4*Qc_true*Qi_true/(Qi_true + Qc_true)**2#/np.cos(phi_c)
 freq_meas = np.mean(np.loadtxt(datadir + 'CF190822_f0_vs_P.txt'), axis=1)
 Qc_meas = np.mean(np.loadtxt(datadir + 'CF190822_Qcs_vs_P.txt'), axis=1)
 phic_meas = np.mean(np.loadtxt(datadir + 'CF190822_phics_vs_P.txt'), axis=1)
+resoindices = np.array([0,1,2,3,4,6,8,9])
+fr_fine1 = np.r_[230:290:1000j]
+#Qc_guess = 2*C_true[resoindices]/(Z0*2*pi*freq_meas*MHz*CC**2)
+p1 = np.polyfit(np.log(freq_meas/f_star), np.log(Qc_meas), 1)
+Qc_fit = np.exp(np.polyval(p1, np.log(fr_fine1/f_star)))
+print (p1)
 
-print(freq_meas.shape)
+freq_meas2 = np.mean(np.loadtxt(datadir + 'CF69C_f0_vs_P.txt')[:, :5], axis=1)
+Qc_meas2 = np.mean(np.loadtxt(datadir + 'CF69C_Qcs_vs_P.txt')[:, :5], axis=1)
+phic_meas2 = np.mean(np.loadtxt(datadir + 'CF69C_phics_vs_P.txt')[:, :5], axis=1)
+resoindices2 = np.array([0,1,4,5,7,9])
+#Qc_guess2 = 2*C_true[resoindices2]/(Z0*2*pi*freq_meas2*MHz*CC**2)
+fr_fine2 = np.r_[270:330:1000j]
+mask = np.ones_like(freq_meas2, dtype=bool)
+#mask[0] = False
+mask[1] = False
+#mask[3] = False
+#print (freq_meas2[mask])
+p2 = np.polyfit(np.log(freq_meas2[mask]/f_star), np.log(Qc_meas2[mask]), 1)
+Qc_fit2 = np.exp(np.polyval(p2, np.log(fr_fine2/f_star)))
+fr_fine = np.r_[230:330:1000j]
+print (p2)
+
+#def get_Qc(fr):
+#	wr = 2*pi*fr*MHz
+#print (Qc_meas)
+#print (Qc_meas2)
+wr_meas = 2*pi*freq_meas*MHz
+wr_meas2 = 2*pi*freq_meas2*MHz
+actual_L = 1./wr_meas**2/C_true[resoindices]
+actual_C = 1./wr_meas**2/Ltot[resoindices]
+#print (C_true/pF)
+#print (Lpar/nH)
+#print (fr_true)
+#print (actual_L/nH)
+#print (Ltot[resoindices]/nH)
+#print ((actual_L - Ltot[resoindices])/nH)
+#print (actual_C/pF)
+#print (C_true[resoindices]/pF)
+#print ((actual_C - C_true[resoindices])/pF)
+#exit()
+
+wr_fine = 2*pi*fr_fine*MHz
+L_fine = np.average(Ltot)
+Qc_fine = 2./(L_fine*Z0*wr_fine**3*CC**2)
+
+
+#def Qc_model(f, wstar, fref):
+#	w = 2*pi*(f-fref)
+#	return 2*L*wstar*MHz/Z0*(w/wstar)**-3
+def Qc_model(f, wstar, fref):
+	w = 2*pi*f
+	return (2*L*wstar*MHz/Z0*(w/wstar)**-3)*(1 - (f/fref)**2)
+popt, pcov = opt.curve_fit(Qc_model, freq_meas, Qc_meas, p0=[w_star/MHz, 1000])
+sigma = np.sqrt(np.diag(pcov))
+fstar = popt[0]/2/pi
+sigfstar = sigma[0]/2/pi
+fref = popt[1]
+sigfref = sigma[1]
+popt2, pcov2 = opt.curve_fit(Qc_model, freq_meas2[mask], Qc_meas2[mask],
+		p0=[w_star/MHz, 1000])
+sigma2 = np.sqrt(np.diag(pcov2))
+fstar2 = popt2[0]/2/pi
+sigfstar2 = sigma2[0]/2/pi
+fref2 = popt2[1]
+sigfref2 = sigma2[1]
+
+Ca1 = 1./((popt[0]*MHz)**2*L/2)/pF
+Ca2 = 1./((popt2[0]*MHz)**2*L/2)/pF
+
+print ("\n\n\n\n\n")
+print (fstar, sigfstar)
+print (fref, sigfref)
+print (Ca1, 2*Ca1/popt[0]*sigma[0])
+print ("\n\n\n\n\n")
+print (fstar2, sigfstar2)
+print (fref2, sigfref2)
+print (Ca2, 2*Ca2/popt[0]*sigma2[0])
+
+Qc_meas_fit = Qc_model(fr_fine1, *popt)
+Qc_meas_fit2 = Qc_model(fr_fine2, *popt2)
+
+
+# Maybe getting more desperate. What happens if line mismatch is actually
+# important in this case.
+la = 2000*um
+lb = 8754*um
+lc = 3580*um
+ld = 17508*um
+le = 11672*um
+Delta = 4200*um
+delta = 2281*um
+gamma = 4554*um
+lt = 2*(la + lb + lc + le) + 3*ld
+
+pos = np.zeros(Nreso)
+pos[0] = la + lb + lc + ld - delta
+pos[1] = pos[0] - Delta
+pos[2] = pos[0] - (Delta + gamma)
+pos[3] = pos[0] - (2*Delta + gamma)
+pos[4] = pos[0] + le + 2*delta
+pos[5] = pos[4] + Delta
+pos[6] = pos[4] + (Delta + gamma)
+pos[7] = pos[4] + (2*Delta + gamma)
+pos[8] = pos[7] + le + ld
+pos[9] = pos[8] - Delta
+pos[10] = pos[8] - (Delta + gamma)
+pos[11] = pos[8] - (2*Delta + gamma)
+
+# For reverse mapping x -> lt - x
+#pos = lt - pos
+
+er = 7.95
+n = er**0.5
+wt = c/(lt*n)
+lin = np.linspace(0.1,0.9,wr_fine.size)*lt + 1e-9
+win = c/(lin*n)
+#win = c/(pos*n)
+k = pos/lt
+#print (2*k-1)
+#print (wr_fine/MHz)
+#print (win/MHz)
+#print ((2*wt - win)/win)
+zlambda = 0.98
+
+num = 4*zlambda**2*np.cos(wr_fine/wt)**2 + (1 + zlambda**2)**2*np.sin(wr_fine/wt)**2
+denom = 2*zlambda**2*((1+zlambda**2) -
+		(-1+zlambda**2)*np.cos(wr_fine/wt)*np.cos(wr_fine/wt*(2*wt-win)/win))
+Qcfeedline = (8/(L*wr_fine**3*Z0*Ca**2))*num/denom
+Qcfeedline = 1/(wr_fine**2*L*Ca)*(8/(Ca*Z0*wr_fine) - 8*(La*wr_fine/Z0) + wr_fine*Ca*Z0/2 + 2*La**2*wr_fine**3*Ca/Z0)
+
 
 plt.figure(figsize=(10,10))
-plt.plot(Qc, 'ks', label='Original Design')
-plt.plot(Qc_true, 'bo', label='Modified Design')
-plt.plot(Qc_meas, 'rh', label='Measured')
+#plt.plot(fr_fine, Qcfeedline, 'r-')
+#plt.plot(fr_fine1, Qc_fit, 'k--')
+#plt.plot(fr_fine2, Qc_fit2, 'k--')
+plt.plot(fr_fine1, Qc_meas_fit, 'k--')
+plt.plot(fr_fine2, Qc_meas_fit2, 'k--')
+#plt.plot(fr_true, Qc, 'ks', label='Design')
+#plt.plot(freq_meas, Qc_true[resoindices], 'bo', label='Modified Design')
+plt.plot(freq_meas, Qc_meas, 'rh', label='CF190822 Measured')
+plt.plot(freq_meas2, Qc_meas2, 'bh', label='CF69C Measured')
 plt.grid()
 plt.legend(loc='best')
-plt.xlabel('Index')
+plt.xlabel('Freq [MHz]')
 plt.ylabel('Qc')
 plt.savefig('modifiedQc_vs_measuredQc.png')
 
+plt.show()
+exit()
+
+plt.figure(figsize=(10,10))
+plt.plot(freq_meas, Qc_meas/Qc_true[resoindices], 'ro', label='CF190822')
+plt.plot(freq_meas2, Qc_meas2/Qc_true[resoindices2], 'bh', label='CF69C')
+plt.grid()
+plt.legend(loc='best')
+plt.xlabel('Freq [MHz]')
+plt.ylabel('scaling of Qc between measured and design')
+plt.savefig('measuredQc_vs_scaling.png')
+
+plt.show()
 exit()
 
 
