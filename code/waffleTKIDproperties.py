@@ -59,6 +59,11 @@ def admittance_model(x, C, L, R):
 	return np.log(w*C/np.sqrt((1 - w**2*L*C)**2 + (w*R*C)**2) )
 	#return np.log(np.abs(1j*w*C/(1 - w**2*L*C + 1j*w*R*C)))
 
+def admittance_model_parallel(x, C, L, R):
+	w = 2*pi*x
+	L = 0
+	return np.log(np.abs(1j*w*C + 1./R) )
+	#return np.log(np.abs(1j*w*C/(1 - w**2*L*C + 1j*w*R*C)))
 def tline_model(x, Zc, w0, eps):
 	w = 2*pi*x
 	return np.abs(-1/Zc/(eps*np.cos(w/w0) + 1j*np.sin(w/w0)))
@@ -76,50 +81,54 @@ def get_cap_params(fn):
 	Ydata = load_data(fn)
 	f = Ydata['frequency'] * MHz
 	nY21 = -Ydata['Y21']
-	Y2gnd = np.imag(Ydata['Y11'] + Ydata['Y21'])
+	Yp1 = Ydata['Y11'] + Ydata['Y21']
+	Yp2 = Ydata['Y22'] + Ydata['Y21']
+	Yodd = Ydata['Y11'] - Ydata['Y21']
 
-	fig, ax =plt.subplots(figsize=(10,10))
-	ax.plot(f/MHz, np.abs(nY21), 'b')
-	#ax.plot(f/MHz, Ydata['Y21'].real, 'r', label='Y21 real')
-	#ax.plot(f/MHz, Ydata['Y21'].imag, 'b', label='Y21 imag')
-	#ax.plot(f/MHz, Ydata['Y11'].real, 'r--', label='Y11 real')
-	#ax.plot(f/MHz, Ydata['Y11'].imag, 'b--', label='Y11 imag')
-	ax.set_xlabel('Frequency [MHz]')
-	ax.set_ylabel('|-Y21| [1/Ohms]')
-	ax.grid()
-	ax.axis('tight')
-	#ax.legend(loc='best')
-	#plt.show()
-	#exit()
-	plt.savefig(plotdir + savename + "Y21_full.png")
+	#fig, ax =plt.subplots(figsize=(10,10))
+	#ax.plot(f/MHz, np.abs(Yp1), 'b')
+	##ax.plot(f/MHz, Ydata['Y21'].real, 'r', label='Y21 real')
+	##ax.plot(f/MHz, Ydata['Y21'].imag, 'b', label='Y21 imag')
+	##ax.plot(f/MHz, Ydata['Y11'].real, 'r--', label='Y11 real')
+	##ax.plot(f/MHz, Ydata['Y11'].imag, 'b--', label='Y11 imag')
+	#ax.set_xlabel('Frequency [MHz]')
+	#ax.set_ylabel('|-Y21| [1/Ohms]')
+	#ax.grid()
+	#ax.axis('tight')
+	##ax.legend(loc='best')
+	##plt.show()
+	##exit()
+	#plt.savefig(plotdir + savename + "Y21_full.png")
 
 	#S21 = np.abs(get_S21(Ydata))
 	#plt.plot(f/1e6, S21)
 	#plt.show()
 	#exit()
-	wpeak = 2*pi*f[np.argmax(nY21.imag)]
-	C_est = nY21.imag[0]/(2*pi*f[0])
-	L_est = 1/(wpeak**2*C_est)
+	wpeak = 2*pi*f[np.argmax(Yp1.imag)]
+	C_est = Yp1.imag[0]/(2*pi*f[0])
+	#L_est = 1/(wpeak**2*C_est)
+	L_est = 1e-20
 	R_est = 1e-5
 	C1_est = 2.0*pF
-	nY21 = nY21[f/MHz < 500]
-	f = f[f/MHz < 500]
+	#Yp1 = Yp1[f/MHz < 500]
+	#f = f[f/MHz < 500]
 
 
 	p0 = [C_est, L_est, R_est]
 	#pdb.set_trace()
-	popt, pcov = curve_fit(admittance_model, f, np.log(np.abs(nY21)), p0=p0, method='lm')
-	#popt, pcov = curve_fit(tline_model, f, np.log(np.abs(nY21)), p0=p0, method='lm')
-	#result = minimize(chisq, p0, args=(f, np.abs(nY21)),
+	popt, pcov = curve_fit(admittance_model, f, np.log(np.abs(Yp1)), p0=p0, method='lm')
+	#popt, pcov = curve_fit(tline_model, f, np.log(np.abs(Yp1)), p0=p0, method='lm')
+	#result = minimize(chisq, p0, args=(f, np.abs(Yp1)),
 	#		method='Nelder-Mead')
 	C_fit, L_fit, R_fit = popt
 	#C_fit, L_fit, R_fit, C1_fit = result['x']
-
+	print (p0)
+	print (popt)
 	y_est = np.exp(admittance_model(f, C_est, L_est, R_est))
 
 	y_fit = np.exp(admittance_model(f, C_fit, L_fit, R_fit))
 	fig, ax =plt.subplots(figsize=(10,10))
-	ax.plot(f/MHz, np.abs(nY21), 'b', label='Simulation')
+	ax.plot(f/MHz, np.abs(Yp1), 'b', label='Simulation')
 	#ax.plot(f/MHz, y_est, 'g', label='Guess')
 	ax.plot(f/MHz, y_fit, 'k--',
 				label="Fit C = %1.3fpF L = %1.3fnH R=%1.3e Ohms "%(C_fit/pF,
@@ -135,7 +144,7 @@ def get_cap_params(fn):
 	plt.savefig(plotdir + savename + "Y21.png")
 
 	fig, ax = plt.subplots(figsize=(10,10))
-	ax.scatter(f/MHz, np.abs(nY21) - y_fit,
+	ax.scatter(f/MHz, np.abs(Yp1) - y_fit,
 				label="Fit C = %1.3fpF L = %1.3fnH R=%1.3e Ohms "%(C_fit/pF,
 					L_fit/nH, R_fit))
 	ax.legend()
@@ -144,6 +153,7 @@ def get_cap_params(fn):
 	ax.grid()
 	ax.axis('tight')
 	plt.savefig(plotdir + savename + "Y21_residuals.png")
+	plt.show()
 	plt.close('all')
 
 	plt.close('all')
