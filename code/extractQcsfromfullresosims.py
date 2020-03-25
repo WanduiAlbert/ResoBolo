@@ -537,7 +537,7 @@ if __name__=="__main__":
     plt.ylabel('Q')
     lgd = plt.legend(loc='upper left', title='Thickness',\
             bbox_to_anchor=(1.0, 1.0))
-    plt.savefig(plotdir + 'frs_vs_dielectric_const.png',
+    plt.savefig(plotdir + 'Qs_vs_dielectric_const.png',
             bbox_extra_artists=(lgd,), bbox_inches='tight')
 
     plt.figure(4)
