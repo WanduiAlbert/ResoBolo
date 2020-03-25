@@ -1,0 +1,409 @@
+! Summary of output files for parameterized project.
+!
+! Project: Cap_300MHz_with_boundary_and_coupcaps_variableILDthickness.son
+! Folder:  /home/wanduialbert/Desktop/research_stuff/resobolo/numerical_sims/capacitor_pspice
+! Date:    03/24/2020 17:01:58
+
+FTYP POFL 1
+HDATE 03/06/2020 17:23:53
+
+
+USER_FILE Cap_300MHz_with_boundary_and_coupcaps_variableILDthickness.lib
+
+OUTPUT_FILE Cap_300MHz_with_boundary_and_coupcaps_variableILDthickness_param01.lib
+PARAMS
+ILD_thickness = 0.1
+ILD_dielectric_const = 3.5
+END PARAMS
+
+OUTPUT_FILE Cap_300MHz_with_boundary_and_coupcaps_variableILDthickness_param02.lib
+PARAMS
+ILD_thickness = 0.1
+ILD_dielectric_const = 3.6
+END PARAMS
+
+OUTPUT_FILE Cap_300MHz_with_boundary_and_coupcaps_variableILDthickness_param03.lib
+PARAMS
+ILD_thickness = 0.1
+ILD_dielectric_const = 3.7
+END PARAMS
+
+OUTPUT_FILE Cap_300MHz_with_boundary_and_coupcaps_variableILDthickness_param04.lib
+PARAMS
+ILD_thickness = 0.1
+ILD_dielectric_const = 3.8
+END PARAMS
+
+OUTPUT_FILE Cap_300MHz_with_boundary_and_coupcaps_variableILDthickness_param05.lib
+PARAMS
+ILD_thickness = 0.1
+ILD_dielectric_const = 3.9
+END PARAMS
+
+OUTPUT_FILE Cap_300MHz_with_boundary_and_coupcaps_variableILDthickness_param06.lib
+PARAMS
+ILD_thickness = 0.1
+ILD_dielectric_const = 4.0
+END PARAMS
+
+OUTPUT_FILE Cap_300MHz_with_boundary_and_coupcaps_variableILDthickness_param07.lib
+PARAMS
+ILD_thickness = 0.1
+ILD_dielectric_const = 4.1
+END PARAMS
+
+OUTPUT_FILE Cap_300MHz_with_boundary_and_coupcaps_variableILDthickness_param08.lib
+PARAMS
+ILD_thickness = 0.1
+ILD_dielectric_const = 4.2
+END PARAMS
+
+OUTPUT_FILE Cap_300MHz_with_boundary_and_coupcaps_variableILDthickness_param09.lib
+PARAMS
+ILD_thickness = 0.1
+ILD_dielectric_const = 4.3
+END PARAMS
+
+OUTPUT_FILE Cap_300MHz_with_boundary_and_coupcaps_variableILDthickness_param10.lib
+PARAMS
+ILD_thickness = 0.1
+ILD_dielectric_const = 4.4
+END PARAMS
+
+OUTPUT_FILE Cap_300MHz_with_boundary_and_coupcaps_variableILDthickness_param11.lib
+PARAMS
+ILD_thickness = 0.1
+ILD_dielectric_const = 4.5
+END PARAMS
+
+OUTPUT_FILE Cap_300MHz_with_boundary_and_coupcaps_variableILDthickness_param12.lib
+PARAMS
+ILD_thickness = 0.2
+ILD_dielectric_const = 3.5
+END PARAMS
+
+OUTPUT_FILE Cap_300MHz_with_boundary_and_coupcaps_variableILDthickness_param13.lib
+PARAMS
+ILD_thickness = 0.2
+ILD_dielectric_const = 3.6
+END PARAMS
+
+OUTPUT_FILE Cap_300MHz_with_boundary_and_coupcaps_variableILDthickness_param14.lib
+PARAMS
+ILD_thickness = 0.2
+ILD_dielectric_const = 3.7
+END PARAMS
+
+OUTPUT_FILE Cap_300MHz_with_boundary_and_coupcaps_variableILDthickness_param15.lib
+PARAMS
+ILD_thickness = 0.2
+ILD_dielectric_const = 3.8
+END PARAMS
+
+OUTPUT_FILE Cap_300MHz_with_boundary_and_coupcaps_variableILDthickness_param16.lib
+PARAMS
+ILD_thickness = 0.2
+ILD_dielectric_const = 3.9
+END PARAMS
+
+OUTPUT_FILE Cap_300MHz_with_boundary_and_coupcaps_variableILDthickness_param17.lib
+PARAMS
+ILD_thickness = 0.2
+ILD_dielectric_const = 4.0
+END PARAMS
+
+OUTPUT_FILE Cap_300MHz_with_boundary_and_coupcaps_variableILDthickness_param18.lib
+PARAMS
+ILD_thickness = 0.2
+ILD_dielectric_const = 4.1
+END PARAMS
+
+OUTPUT_FILE Cap_300MHz_with_boundary_and_coupcaps_variableILDthickness_param19.lib
+PARAMS
+ILD_thickness = 0.2
+ILD_dielectric_const = 4.2
+END PARAMS
+
+OUTPUT_FILE Cap_300MHz_with_boundary_and_coupcaps_variableILDthickness_param20.lib
+PARAMS
+ILD_thickness = 0.2
+ILD_dielectric_const = 4.3
+END PARAMS
+
+OUTPUT_FILE Cap_300MHz_with_boundary_and_coupcaps_variableILDthickness_param21.lib
+PARAMS
+ILD_thickness = 0.2
+ILD_dielectric_const = 4.4
+END PARAMS
+
+OUTPUT_FILE Cap_300MHz_with_boundary_and_coupcaps_variableILDthickness_param22.lib
+PARAMS
+ILD_thickness = 0.2
+ILD_dielectric_const = 4.5
+END PARAMS
+
+OUTPUT_FILE Cap_300MHz_with_boundary_and_coupcaps_variableILDthickness_param23.lib
+PARAMS
+ILD_thickness = 0.3
+ILD_dielectric_const = 3.5
+END PARAMS
+
+OUTPUT_FILE Cap_300MHz_with_boundary_and_coupcaps_variableILDthickness_param24.lib
+PARAMS
+ILD_thickness = 0.3
+ILD_dielectric_const = 3.6
+END PARAMS
+
+OUTPUT_FILE Cap_300MHz_with_boundary_and_coupcaps_variableILDthickness_param25.lib
+PARAMS
+ILD_thickness = 0.3
+ILD_dielectric_const = 3.7
+END PARAMS
+
+OUTPUT_FILE Cap_300MHz_with_boundary_and_coupcaps_variableILDthickness_param26.lib
+PARAMS
+ILD_thickness = 0.3
+ILD_dielectric_const = 3.8
+END PARAMS
+
+OUTPUT_FILE Cap_300MHz_with_boundary_and_coupcaps_variableILDthickness_param27.lib
+PARAMS
+ILD_thickness = 0.3
+ILD_dielectric_const = 3.9
+END PARAMS
+
+OUTPUT_FILE Cap_300MHz_with_boundary_and_coupcaps_variableILDthickness_param28.lib
+PARAMS
+ILD_thickness = 0.3
+ILD_dielectric_const = 4.0
+END PARAMS
+
+OUTPUT_FILE Cap_300MHz_with_boundary_and_coupcaps_variableILDthickness_param29.lib
+PARAMS
+ILD_thickness = 0.3
+ILD_dielectric_const = 4.1
+END PARAMS
+
+OUTPUT_FILE Cap_300MHz_with_boundary_and_coupcaps_variableILDthickness_param30.lib
+PARAMS
+ILD_thickness = 0.3
+ILD_dielectric_const = 4.2
+END PARAMS
+
+OUTPUT_FILE Cap_300MHz_with_boundary_and_coupcaps_variableILDthickness_param31.lib
+PARAMS
+ILD_thickness = 0.3
+ILD_dielectric_const = 4.3
+END PARAMS
+
+OUTPUT_FILE Cap_300MHz_with_boundary_and_coupcaps_variableILDthickness_param32.lib
+PARAMS
+ILD_thickness = 0.3
+ILD_dielectric_const = 4.4
+END PARAMS
+
+OUTPUT_FILE Cap_300MHz_with_boundary_and_coupcaps_variableILDthickness_param33.lib
+PARAMS
+ILD_thickness = 0.3
+ILD_dielectric_const = 4.5
+END PARAMS
+
+OUTPUT_FILE Cap_300MHz_with_boundary_and_coupcaps_variableILDthickness_param34.lib
+PARAMS
+ILD_thickness = 0.4
+ILD_dielectric_const = 3.5
+END PARAMS
+
+OUTPUT_FILE Cap_300MHz_with_boundary_and_coupcaps_variableILDthickness_param35.lib
+PARAMS
+ILD_thickness = 0.4
+ILD_dielectric_const = 3.6
+END PARAMS
+
+OUTPUT_FILE Cap_300MHz_with_boundary_and_coupcaps_variableILDthickness_param36.lib
+PARAMS
+ILD_thickness = 0.4
+ILD_dielectric_const = 3.7
+END PARAMS
+
+OUTPUT_FILE Cap_300MHz_with_boundary_and_coupcaps_variableILDthickness_param37.lib
+PARAMS
+ILD_thickness = 0.4
+ILD_dielectric_const = 3.8
+END PARAMS
+
+OUTPUT_FILE Cap_300MHz_with_boundary_and_coupcaps_variableILDthickness_param38.lib
+PARAMS
+ILD_thickness = 0.4
+ILD_dielectric_const = 3.9
+END PARAMS
+
+OUTPUT_FILE Cap_300MHz_with_boundary_and_coupcaps_variableILDthickness_param39.lib
+PARAMS
+ILD_thickness = 0.4
+ILD_dielectric_const = 4.0
+END PARAMS
+
+OUTPUT_FILE Cap_300MHz_with_boundary_and_coupcaps_variableILDthickness_param40.lib
+PARAMS
+ILD_thickness = 0.4
+ILD_dielectric_const = 4.1
+END PARAMS
+
+OUTPUT_FILE Cap_300MHz_with_boundary_and_coupcaps_variableILDthickness_param41.lib
+PARAMS
+ILD_thickness = 0.4
+ILD_dielectric_const = 4.2
+END PARAMS
+
+OUTPUT_FILE Cap_300MHz_with_boundary_and_coupcaps_variableILDthickness_param42.lib
+PARAMS
+ILD_thickness = 0.4
+ILD_dielectric_const = 4.3
+END PARAMS
+
+OUTPUT_FILE Cap_300MHz_with_boundary_and_coupcaps_variableILDthickness_param43.lib
+PARAMS
+ILD_thickness = 0.4
+ILD_dielectric_const = 4.4
+END PARAMS
+
+OUTPUT_FILE Cap_300MHz_with_boundary_and_coupcaps_variableILDthickness_param44.lib
+PARAMS
+ILD_thickness = 0.4
+ILD_dielectric_const = 4.5
+END PARAMS
+
+OUTPUT_FILE Cap_300MHz_with_boundary_and_coupcaps_variableILDthickness_param45.lib
+PARAMS
+ILD_thickness = 0.5
+ILD_dielectric_const = 3.5
+END PARAMS
+
+OUTPUT_FILE Cap_300MHz_with_boundary_and_coupcaps_variableILDthickness_param46.lib
+PARAMS
+ILD_thickness = 0.5
+ILD_dielectric_const = 3.6
+END PARAMS
+
+OUTPUT_FILE Cap_300MHz_with_boundary_and_coupcaps_variableILDthickness_param47.lib
+PARAMS
+ILD_thickness = 0.5
+ILD_dielectric_const = 3.7
+END PARAMS
+
+OUTPUT_FILE Cap_300MHz_with_boundary_and_coupcaps_variableILDthickness_param48.lib
+PARAMS
+ILD_thickness = 0.5
+ILD_dielectric_const = 3.8
+END PARAMS
+
+OUTPUT_FILE Cap_300MHz_with_boundary_and_coupcaps_variableILDthickness_param49.lib
+PARAMS
+ILD_thickness = 0.5
+ILD_dielectric_const = 3.9
+END PARAMS
+
+OUTPUT_FILE Cap_300MHz_with_boundary_and_coupcaps_variableILDthickness_param50.lib
+PARAMS
+ILD_thickness = 0.5
+ILD_dielectric_const = 4.0
+END PARAMS
+
+OUTPUT_FILE Cap_300MHz_with_boundary_and_coupcaps_variableILDthickness_param51.lib
+PARAMS
+ILD_thickness = 0.5
+ILD_dielectric_const = 4.1
+END PARAMS
+
+OUTPUT_FILE Cap_300MHz_with_boundary_and_coupcaps_variableILDthickness_param52.lib
+PARAMS
+ILD_thickness = 0.5
+ILD_dielectric_const = 4.2
+END PARAMS
+
+OUTPUT_FILE Cap_300MHz_with_boundary_and_coupcaps_variableILDthickness_param53.lib
+PARAMS
+ILD_thickness = 0.5
+ILD_dielectric_const = 4.3
+END PARAMS
+
+OUTPUT_FILE Cap_300MHz_with_boundary_and_coupcaps_variableILDthickness_param54.lib
+PARAMS
+ILD_thickness = 0.5
+ILD_dielectric_const = 4.4
+END PARAMS
+
+OUTPUT_FILE Cap_300MHz_with_boundary_and_coupcaps_variableILDthickness_param55.lib
+PARAMS
+ILD_thickness = 0.5
+ILD_dielectric_const = 4.5
+END PARAMS
+
+OUTPUT_FILE Cap_300MHz_with_boundary_and_coupcaps_variableILDthickness_param56.lib
+PARAMS
+ILD_thickness = 0.6
+ILD_dielectric_const = 3.5
+END PARAMS
+
+OUTPUT_FILE Cap_300MHz_with_boundary_and_coupcaps_variableILDthickness_param57.lib
+PARAMS
+ILD_thickness = 0.6
+ILD_dielectric_const = 3.6
+END PARAMS
+
+OUTPUT_FILE Cap_300MHz_with_boundary_and_coupcaps_variableILDthickness_param58.lib
+PARAMS
+ILD_thickness = 0.6
+ILD_dielectric_const = 3.7
+END PARAMS
+
+OUTPUT_FILE Cap_300MHz_with_boundary_and_coupcaps_variableILDthickness_param59.lib
+PARAMS
+ILD_thickness = 0.6
+ILD_dielectric_const = 3.8
+END PARAMS
+
+OUTPUT_FILE Cap_300MHz_with_boundary_and_coupcaps_variableILDthickness_param60.lib
+PARAMS
+ILD_thickness = 0.6
+ILD_dielectric_const = 3.9
+END PARAMS
+
+OUTPUT_FILE Cap_300MHz_with_boundary_and_coupcaps_variableILDthickness_param61.lib
+PARAMS
+ILD_thickness = 0.6
+ILD_dielectric_const = 4.0
+END PARAMS
+
+OUTPUT_FILE Cap_300MHz_with_boundary_and_coupcaps_variableILDthickness_param62.lib
+PARAMS
+ILD_thickness = 0.6
+ILD_dielectric_const = 4.1
+END PARAMS
+
+OUTPUT_FILE Cap_300MHz_with_boundary_and_coupcaps_variableILDthickness_param63.lib
+PARAMS
+ILD_thickness = 0.6
+ILD_dielectric_const = 4.2
+END PARAMS
+
+OUTPUT_FILE Cap_300MHz_with_boundary_and_coupcaps_variableILDthickness_param64.lib
+PARAMS
+ILD_thickness = 0.6
+ILD_dielectric_const = 4.3
+END PARAMS
+
+OUTPUT_FILE Cap_300MHz_with_boundary_and_coupcaps_variableILDthickness_param65.lib
+PARAMS
+ILD_thickness = 0.6
+ILD_dielectric_const = 4.4
+END PARAMS
+
+OUTPUT_FILE Cap_300MHz_with_boundary_and_coupcaps_variableILDthickness_param66.lib
+PARAMS
+ILD_thickness = 0.6
+ILD_dielectric_const = 4.5
+END PARAMS
+
+END USER_FILE
