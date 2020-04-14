@@ -1,0 +1,26 @@
+*  Sonnet Data File
+*  From: em Version : 16.56
+*  From Project: 300MHz_resonator_fullcapacitor_plus_inductorwithGP_variableILDparameters
+*  Data is from a network 
+*  Data File Written: 03/28/2020 00:44:00
+* < HDATE 03/06/2020 17:38:15
+* < MDATE 03/27/2020 23:02:33
+* < PARAMS
+* < ILD_thickness = 0.3
+* < ILD_dielectric_constant = 3.9
+* < END PARAMS
+*  Spice Data
+* Limits: C>0.01pF L<100.0nH R<1000.0Ohms K>0.01
+    *  Analysis frequencies: 329.5, 330.5 MHz
+.subckt 300MHz_resonator_variableILDparameters_0 1 2 REF
+C_C1 1 REF 38.664484794818pf
+L_L1 1 3 6.1320202234335nh
+R_RL1 3 REF 1.8041820715e-5
+L_L2 1 4 1.3099505634448nh
+R_RL2 4 2 1.0e-5
+L_L3 2 5 7.4510863489107nh
+R_RL3 5 REF 3.0512878686e-5
+Kn_K1 L_L1 L_L3 0.9078511993437
+Kn_K2 L_L2 L_L3 1.0
+.ends 300MHz_resonator_variableILDparameters_0
+
