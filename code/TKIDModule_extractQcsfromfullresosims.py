@@ -452,11 +452,12 @@ def get_cap_params(Ydata, savename):
     wpeak = 2*pi*f[np.argmax(nY21.imag)]
     C_est = nY21.imag[0]/(2*pi*f[0])
     L_est = 1/(wpeak**2*C_est)
+    fpeak = wpeak/2/pi
     #L_est = 1e-20
     R_est = 1e-5
     #C1_est = 2.0*pF
-    #Yp1 = Yp1[f/MHz < 500]
-    #f = f[f/MHz < 500]
+    nY21 = nY21[f < fpeak]
+    f = f[f < fpeak]
 
 
     p0 = [C_est, L_est, R_est]
@@ -700,7 +701,7 @@ if __name__=="__main__":
     plt.xlabel('Frequency [MHz]')
     plt.ylabel('Ceffective [pF]')
     plt.savefig(plotdir + 'ceff_vs_Frequency.png')
-    plt.show()
+    #plt.show()
     #plt.close('all')
     #exit()
 
@@ -747,8 +748,8 @@ if __name__=="__main__":
 
     plt.figure()
     plt.plot(Nfingers, frs, 'ko', ls='None', ms=12)
-    plt.plot(Nfine, frfine, 'r-')
-    plt.plot(Nfine, frfine2, 'b-')
+    #plt.plot(Nfine, frfine, 'r-')
+    #plt.plot(Nfine, frfine2, 'b-')
     plt.grid()
     plt.xlabel('Nfingers')
     plt.ylabel('fr [MHz]')
@@ -791,6 +792,14 @@ if __name__=="__main__":
     plt.savefig('Cs_vs_frequency.png')
 
     plt.figure()
+    plt.plot(Nfingers, Cs/pF, 'ko', ls='None', ms=12)
+    #plt.semilogy(Nfine, Qcfine, 'r-')
+    plt.grid()
+    plt.xlabel('Nfingers')
+    plt.ylabel('Cs [pF]')
+    plt.savefig('Cs_vs_Nfingers.png')
+
+    plt.figure()
     plt.plot(frs, Ls/nH, 'ko', ls='None', ms=12)
     #plt.semilogy(Nfine, Qcfine, 'r-')
     plt.grid()
@@ -799,11 +808,26 @@ if __name__=="__main__":
     plt.savefig('Lpar_vs_frequency.png')
 
     plt.figure()
+    plt.plot(Nfingers, Ls/nH, 'ko', ls='None', ms=12)
+    #plt.semilogy(Nfine, Qcfine, 'r-')
+    plt.grid()
+    plt.xlabel('Nfingers')
+    plt.ylabel('Ls [nH]')
+    plt.savefig('Lpar_vs_Nfingers.png')
+
+    plt.figure()
     plt.plot(frs, Rs, 'ko', ls='None', ms=12)
     #plt.semilogy(Nfine, Qcfine, 'r-')
     plt.grid()
     plt.xlabel('fr [MHz]')
     plt.ylabel('Rs [Ohms]')
     plt.savefig('loss_vs_frequency.png')
-    plt.show()
-    exit()
+
+    plt.figure()
+    plt.plot(Nfingers, Rs, 'ko', ls='None', ms=12)
+    #plt.semilogy(Nfine, Qcfine, 'r-')
+    plt.grid()
+    plt.xlabel('Nfingers')
+    plt.ylabel('Rs [Ohms]')
+    plt.savefig('loss_vs_Nfingers.png')
+    #plt.show()
