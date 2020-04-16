@@ -454,7 +454,7 @@ def get_cap_params(Ydata, savename):
     L_est = 1/(wpeak**2*C_est)
     fpeak = wpeak/2/pi
     #L_est = 1e-20
-    R_est = 1e-5
+    R_est = 1e-8
     #C1_est = 2.0*pF
     nY21 = nY21[f < fpeak]
     f = f[f < fpeak]
