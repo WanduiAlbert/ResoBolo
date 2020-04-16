@@ -53,27 +53,27 @@ plotdir = 'extractQc_fig/'
 l = 2258*um # length of the feedline
 
 # Resonator parameters
-C = 5.6057*pF      # Capacitance between port 1 and 2
-L = 9.2197*nH       # Inductance between port 1 and 2
+C = 5.2359*pF      # Capacitance between port 1 and 2
+L = 10.6333*nH       # Inductance between port 1 and 2
 Rc = 5.0e7           # Loss in the capacitor
 Ri = 1e-8          # Loss in the inductor
 
 #Coupling to feedline
-Cc = 0.07893*pF  # Cc between the resonator and the feedline
+Cc = 0.07509*pF  # Cc between the resonator and the feedline
 
 #Coupling to GND
-C1 = 1.4358*pF      # Capacitance from port 1 to GND. Nominaly Cc.
-C4 = 2.0996*pF      # Capacitance from port 2 to GND. Nominally absent
+C1 = 2.1355*pF      # Capacitance from port 1 to GND. Nominaly Cc.
+C4 = 1.3889*pF      # Capacitance from port 2 to GND. Nominally absent
 #C1 = 0.0766*pF      # Capacitance from port 1 to GND. Nominaly Cc.
 #C4 = 0.0001*pF      # Capacitance from port 2 to GND. Nominally absent
 
 #Feedline parameters
 #Lf1 = 0.0*nH      # Through inductance of the feedline
 #Lf2 = 0.0*nH      # Through inductance of the feedline
-Lf1 = 0.4386*nH      # Through inductance of the feedline
-Lf2 = 0.7063*nH      # Through inductance of the feedline
-C6 = 0.3719*pF      # Capacitance to GND from port 3.
-C7 = 0.3005*pF      # Capacitance to GND from port 4.
+Lf2 = 0.4312*nH      # Through inductance of the feedline
+Lf1 = 0.7142*nH      # Through inductance of the feedline
+C6 = 0.3718*pF      # Capacitance to GND from port 3.
+C7 = 0.3014*pF      # Capacitance to GND from port 4.
 #C6 = 0.0001*pF      # Capacitance to GND from port 3.
 #C7 = 0.0001*pF      # Capacitance to GND from port 4.
 
@@ -135,27 +135,47 @@ def get_meshmatrix(s):
 
 def get_S21(s):
     zreso = get_resonator_impedance(s)
-    z1 = zreso + 2./(s*Cc)
-    #z2 = 1./(1./z1 + s*C4)
+    z1 = zreso + 1./(s*C1)
+    z2 = 1./(1./z1 + s*C4)
     #z2 = z1
-    #z3 = z2 + 1./(s*Cc)
-    #z4 = 1./(1./Z0 + s*C7)
-    #z5 = z4 + s*Lf2
-    #z6 = z3*z5/(z3+z5)
-    #z7 = z6 + s*Lf1
-    #zin = 1./(1./z7 + s*C6)
+    z3 = z2 + 1./(s*Cc)
+    z4 = 1./(1./Z0 + s*C7)
+    z5 = z4 + s*Lf2
+    z6 = z3*z5/(z3+z5)
+    z7 = z6 + s*Lf1
+    zin = 1./(1./z7 + s*C6)
     #zin = 1./(1./z3 + 1./Z0)
 
-    #s21 = z4/(z4 + s*Lf2)
-    #s21 *= z6/(z6 + s*Lf1)
-    #s21 *= 2*zin/(zin + Z0)
-    s21 = z1/(z1 + Z0/2)
+    s21 = z4/(z4 + s*Lf2)
+    s21 *= z6/(z6 + s*Lf1)
+    s21 *= 2*zin/(zin + Z0)
+    #s21 = z1/(z1 + Z0/2)
     #s21 = 2*zin/(zin + Z0)
     #ipe = 2./(2 + s*Cc*Z0/2)
     #print (ipe)
     #s21 /= ipe
 
     return s21
+
+def get_Vreso_mesh(s):
+    zreso = get_resonator_impedance(s)
+    meshmatrix = get_meshmatrix(s)
+    #voltages = np.array([1,0,0,0,0,0])
+    voltages = np.array([1,0,0,0,0])
+    invmeshmatrix = np.linalg.inv(meshmatrix)
+    meshcurr = np.dot(invmeshmatrix, voltages)
+    Vreso = (meshcurr[:, 2] - meshcurr[:, 3])*zreso
+    return Vreso
+
+def get_S21_mesh(s):
+    zreso = get_resonator_impedance(s)
+    meshmatrix = get_meshmatrix(s)
+    #voltages = np.array([1,0,0,0,0,0])
+    voltages = np.array([1,0,0,0,0])
+    invmeshmatrix = np.linalg.inv(meshmatrix)
+    meshcurr = np.dot(invmeshmatrix, voltages)
+    S21 = 2*meshcurr[:, -1]*Z0
+    return S21
 
 
 if __name__=="__main__":
@@ -166,16 +186,10 @@ if __name__=="__main__":
     omega = 2*pi*f
     s = 1j*omega
 
-    zreso = get_resonator_impedance(s)
-    meshmatrix = get_meshmatrix(s)
-    #voltages = np.array([1,0,0,0,0,0])
-    voltages = np.array([1,0,0,0,0])
-    invmeshmatrix = np.linalg.inv(meshmatrix)
-    meshcurr = np.dot(invmeshmatrix, voltages)
-    Vreso = (meshcurr[:, 2] - meshcurr[:, 3])*zreso
-    S21 = 2*meshcurr[:, -1]*Z0
+    Vreso = get_Vreso_mesh(s)
+    S21 = get_S21_mesh(s)
     #S21_me = get_S21(s)
-    #S21 = get_S21(s)
+    S21 = get_S21(s)
     z = S21
 
     re = S21.real

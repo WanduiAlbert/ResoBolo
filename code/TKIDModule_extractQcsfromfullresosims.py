@@ -6,13 +6,14 @@ from matplotlib.ticker import FormatStrFormatter
 from math import pi
 from scipy import interpolate
 from scipy.constants import h, k, c
-from scipy import interpolate
+from scipy import interpolate, optimize
 import scipy.signal as signal
 import glob
 import sys,os
 import pdb
 #sys.path.append("/home/wanduialbert/bicep/code/instruments/copper")
 import reso_fit
+import meshanalysisofresonator as mesh
 pi = np.pi
 
 MHz = 1e6
@@ -232,6 +233,7 @@ def load_data_single(fn, nports=2, paramtype='S'):
 # Connect matched 50 Ohm loads to ports 3 and 4 of the capacitor
 def reduce_Yparameters(capY):
     delta = (Y0 + capY['Y33'])*(Y0 + capY['Y44']) - capY['Y43']*capY['Y34']
+    #delta = (Y0 - capY['Y33'])*(Y0 - capY['Y44']) - capY['Y43']*capY['Y34']
     deltap = capY['Y33']*capY['Y44'] - capY['Y43']*capY['Y34']
 
 
@@ -239,17 +241,21 @@ def reduce_Yparameters(capY):
     dtypes = np.dtype([("frequency", np.float64), (p + "11", np.complex128),\
         (p + "12", np.complex128), (p + "21", np.complex128), (p + "22", np.complex128)])
     p11 = capY['Y11']
-    #p11 += (capY['Y34']*capY['Y41'] - capY['Y31']*(Y0 + capY['Y44']))/delta
-    p11 += (capY['Y34']*capY['Y41'] - capY['Y31']*capY['Y44'])/deltap
+    p11 += (capY['Y34']*capY['Y41'] - capY['Y31']*(Y0 + capY['Y44']))/delta
+    #p11 += (capY['Y34']*capY['Y41'] + capY['Y31']*(Y0 - capY['Y44']))/delta
+    #p11 += (capY['Y34']*capY['Y41'] - capY['Y31']*capY['Y44'])/deltap
     p12 = capY['Y12']
-    #p12 += (capY['Y34']*capY['Y42'] - capY['Y32']*(Y0 + capY['Y44']))/delta
-    p12 += (capY['Y34']*capY['Y42'] - capY['Y32']*capY['Y44'])/deltap
+    p12 += (capY['Y34']*capY['Y42'] - capY['Y32']*(Y0 + capY['Y44']))/delta
+    #p12 += (capY['Y34']*capY['Y42'] + capY['Y32']*(Y0 - capY['Y44']))/delta
+    #p12 += (capY['Y34']*capY['Y42'] - capY['Y32']*capY['Y44'])/deltap
     p21 = capY['Y21']
-    #p21 += (capY['Y43']*capY['Y31'] - capY['Y41']*(Y0 + capY['Y33']))/delta
-    p21 += (capY['Y43']*capY['Y31'] - capY['Y41']*capY['Y33'])/deltap
+    p21 += (capY['Y43']*capY['Y31'] - capY['Y41']*(Y0 + capY['Y33']))/delta
+    #p21 += (capY['Y43']*capY['Y31'] + capY['Y41']*(Y0 - capY['Y33']))/delta
+    #p21 += (capY['Y43']*capY['Y31'] - capY['Y41']*capY['Y33'])/deltap
     p22 = capY['Y22']
-    #p22 += (capY['Y43']*capY['Y32'] - capY['Y42']*(Y0 + capY['Y33']))/delta
-    p22 += (capY['Y43']*capY['Y32'] - capY['Y42']*capY['Y33'])/deltap
+    p22 += (capY['Y43']*capY['Y32'] - capY['Y42']*(Y0 + capY['Y33']))/delta
+    #p22 += (capY['Y43']*capY['Y32'] + capY['Y42']*(Y0 - capY['Y33']))/delta
+    #p22 += (capY['Y43']*capY['Y32'] - capY['Y42']*capY['Y33'])/deltap
     tup = list(zip(capY['frequency'], p11, p12, p21, p22))
     return np.array(tup, dtype=dtypes)
 
@@ -258,16 +264,21 @@ def get_resonator_Sparams(capY, indY):
     y12 = capY['Y12'] + indY['Y12']
     y21 = capY['Y21'] + indY['Y21']
     y22 = capY['Y22'] + indY['Y22']
-    delta = y11*y22 - y12*y21
+    #delta = y11*y22 - y12*y21
+    delta = y11- y12
 
     p = 'Y'
     dtypes = np.dtype([("frequency", np.float64), (p + "11", np.complex128),\
         (p + "12", np.complex128), (p + "21", np.complex128), (p + "22", np.complex128)])
 
-    p11 = capY['Y33'] - (y22*capY['Y13'] - y12*capY['Y23'])/delta
-    p12 = capY['Y34'] - (y22*capY['Y14'] - y12*capY['Y24'])/delta
-    p21 = capY['Y43'] - (-y21*capY['Y13'] + y11*capY['Y23'])/delta
-    p22 = capY['Y44'] - (-y21*capY['Y13'] + y11*capY['Y23'])/delta
+    #p11 = capY['Y33'] - (y22*capY['Y13'] - y12*capY['Y23'])/delta
+    #p12 = capY['Y34'] - (y22*capY['Y14'] - y12*capY['Y24'])/delta
+    #p21 = capY['Y43'] - (-y21*capY['Y13'] + y11*capY['Y23'])/delta
+    #p22 = capY['Y44'] - (-y21*capY['Y14'] + y11*capY['Y24'])/delta
+    p11 = capY['Y33'] + capY['Y13']*(capY['Y32'] - capY['Y31'])/delta
+    p12 = capY['Y34'] + capY['Y14']*(capY['Y32'] - capY['Y31'])/delta
+    p21 = capY['Y43'] + capY['Y13']*(capY['Y42'] - capY['Y41'])/delta
+    p22 = capY['Y44'] + capY['Y14']*(capY['Y42'] - capY['Y41'])/delta
     tup = list(zip(capY['frequency'], p11, p12, p21, p22))
 
     combinedY = np.array(tup, dtype=dtypes)
@@ -306,10 +317,17 @@ def combine_Sparameters(capS, indS):
 
 
 def get_Yin_parallel(capY, indY):
-
     p = 'Y'
     dtypes = np.dtype([("frequency", np.float64), (p + "11", np.complex128)])
-    p11 = (capY['Y11'] + indY['Y11']) - (capY['Y21'] + indY['Y21'])
+    delta = (Y0 + capY['Y33'])*(Y0 + capY['Y44']) - capY['Y43']*capY['Y34']
+
+    p11 = (capY['Y11'] + indY['Y11']) - (capY['Y12'] + indY['Y12'])
+    #p11.real = (indY['Y11'] - indY['Y12']).real
+    #p11.real = capY['Y12'].real
+    p11 += capY['Y13']*(capY['Y34']*(capY['Y41'] - capY['Y42']) - (Y0 +
+        capY['Y44'])*(capY['Y31'] - capY['Y32']))/delta
+    p11 += capY['Y14']*(capY['Y43']*(capY['Y31'] - capY['Y32']) - (Y0 +
+        capY['Y33'])*(capY['Y41'] - capY['Y42']))/delta
     tup = list(zip(capY['frequency'], p11))
     return np.array(tup, dtype=dtypes)
 
@@ -373,12 +391,12 @@ def convert_Y_to_S(Yparams, nports=2):
     elif nports==2:
         dtypes = np.dtype([("frequency", np.float64), (p + "11", np.complex128),\
             (p + "12", np.complex128), (p + "21", np.complex128), (p + "22", np.complex128)])
-        delta = Yparams['Y11']*Yparams['Y22'] - Yparams['Y21']*Yparams['Y12']
+        delta = (Yparams['Y11'] + Y0)*(Yparams['Y22'] + Y0) - Yparams['Y21']*Yparams['Y12']
 
         p11 = ((Y0 - Yparams['Y11'])*(Y0 + Yparams['Y22']) +
                 Yparams['Y12']*Yparams['Y21'])/delta
-        p12 = (-2*Yparams['Y21']*Y0)/delta
-        p21 = (-2*Yparams['Y12']*Y0)/delta
+        p12 = (-2*Yparams['Y12']*Y0)/delta
+        p21 = (-2*Yparams['Y21']*Y0)/delta
         p22 = ((Y0 + Yparams['Y11'])*(Y0 - Yparams['Y22']) +
                 Yparams['Y12']*Yparams['Y21'])/delta
         tup = list(zip(Yparams['frequency'], p11, p12, p21, p22))
@@ -494,43 +512,61 @@ if __name__=="__main__":
     indY = load_data_single(indfilename, nports=2, paramtype='Y')
     frs = np.zeros(len(capfilenames))
     Qs = np.zeros(len(capfilenames))
-    labels = ['4', '6', '8', '10', '12', '14', '16']
+    numsections = np.array([2, 3, 4, 6, 8, 10, 12, 14, 16])
+    #numsections = np.array([4, 6])
+    Nfingers = numsections*53
+    labels = ['2', '3', '4', '6', '8', '10', '12', '14', '16']
+    #labels = ['4', '6']
 
     plt.figure(1, figsize=(10,10))
     plt.figure(2, figsize=(10,10))
     for i, capfn in enumerate(capfilenames):
         capY = load_data_single(capfn, nports=4, paramtype='Y')
         resoS = get_resonator_Sparams(capY, indY)
-        redcap_Y = reduce_Yparameters(capY)
+        #capY = reduce_Yparameters(capY)
         finalY = get_Yin_parallel(capY, indY)
 
         Yin = finalY['Y11']
         f = capY['frequency']
-        f_fine = np.r_[200:900:20000j]
         mask = f > 200
         #mask[f > 400] = False
-        #tck = interpolate.splrep(f[mask], Yin[mask].imag, s=0)
-        #retck = interpolate.splrep(f[mask], Yin[mask].real, s=0)
-        #fr = interpolate.sproot(tck)
-        #fr = fr[0]
-        #slope = interpolate.splev(fr, tck, der=1)
-        #dR,  = interpolate.splev([fr], retck)
-        #R = 1./dR
+        tck = interpolate.splrep(f[mask], Yin[mask].imag, s=0)
+        retck = interpolate.splrep(f[mask], Yin[mask].real, s=0)
+        fr = interpolate.sproot(tck)
+        fr = fr[0]
+        f_fine = np.r_[-10:10:20000j] + fr
+        #yl = mesh.get_Vreso_mesh(1j*2*pi*f_fine*MHz)
+        #s21 = mesh.get_S21_mesh(1j*2*pi*f_fine*MHz)
+        slope = interpolate.splev(fr, tck, der=1)
+        dR,  = interpolate.splev([fr], retck)
+        R = 1./dR
+        #print (slope, R)
+        Q = slope*fr/(2*dR)
+        imyinterp = np.abs(dR*2*Q)*(f_fine - fr)/fr
+        #print (R)
         #Q = slope*R*fr/2
-        ##print (labels[i], fr, Q)
-        #frs[i] = fr
-        #Qs[i] = Q
+        #print (labels[i], fr, Q)
+        frs[i] = fr
+        Qs[i] = Q
         plt.figure(1)
         p = plt.plot(resoS['frequency'], np.abs(resoS['S21']), ls='solid',
                 ms=12, marker='o', label=labels[i])
-        #plt.axvline(fr, color=p[0].get_color(), ls='--')
+        #plt.plot(f_fine, np.abs(s21), 'k')
+        plt.axvline(fr, color=p[0].get_color(), ls='--')
         plt.figure(2)
         p = plt.plot(capY['frequency'], np.imag(Yin), ls='solid',
                 ms=12, marker='o', label=labels[i])
-        #plt.axvline(fr, color=p[0].get_color(), ls='--')
+        #plt.plot(f_fine, imyinterp, 'k')
+        #plt.plot(f_fine, np.imag(yl), 'k')
+        plt.axvline(fr, color=p[0].get_color(), ls='--')
+        plt.figure(3)
+        p = plt.plot(capY['frequency'], np.real(Yin), ls='solid',
+                ms=12, marker='o', label=labels[i])
+        #plt.plot(f_fine, np.real(yl), 'k')
+        plt.axvline(fr, color=p[0].get_color(), ls='--')
 
-    #print (frs)
-    #print (Qs)
+    print (frs)
+    print (Qs)
     plt.figure(1)
     plt.grid()
     plt.legend(loc='upper left')
@@ -546,7 +582,94 @@ if __name__=="__main__":
     plt.xlabel('Frequency [MHz]')
     plt.ylabel('Im Yin [1/Ohm]')
     plt.savefig(plotdir + 'Input_admittance_vs_Frequency.png')
+
+    plt.figure(3)
+    plt.grid()
+    plt.legend(loc='upper left')
+    #plt.ylim(top=0.2, bottom=-0.2)
+    #plt.xlim(left=200, right=400)
+    plt.xlabel('Frequency [MHz]')
+    plt.ylabel('Re Yin [1/Ohm]')
+    plt.savefig(plotdir + 'Input_realadmittance_vs_Frequency.png')
+    plt.close('all')
+    #plt.show()
+    #exit()
+
+    f0 = 600
+    def fr_vs_nfingers(N, N0, a, b):
+        return np.log(f0) + a*np.log(N) + b*np.log(N0-N)
+
+    #def fr_vs_nfingers2(N, N0, N1, g):
+    #    return np.log(f0) - 0.5*np.log(N + N1*(N0-N)**g)
+    def fr_vs_nfingers2(N, N0, a, b):
+        x = N/N0
+        return np.log(f0) + -0.5*np.log(x + a/x) + b
+
+    mask = np.ones_like(Nfingers, dtype=bool)
+    #mask[:2] = False
+    popt, pcov = optimize.curve_fit(fr_vs_nfingers, Nfingers[mask], np.log(frs[mask]), p0=[850,
+        -0.5, 0])
+    popt2, pcov2 = optimize.curve_fit(fr_vs_nfingers2, Nfingers[mask], np.log(frs[mask]),
+            p0=[1000, 0.1, 0])
+    print (popt)
+    print (popt2)
+    Nfine = np.arange(50, 1000, 1)
+    frfine = np.exp(fr_vs_nfingers(Nfine, *popt))
+    frfine2 = np.exp(fr_vs_nfingers2(Nfine, *popt2))
+    L = 10*nH
+    w0s = 2*pi*frs*MHz
+    Cs = 1./(w0s**2*L)
+    Ca = 2.1355*pF
+    Cb = 1.3889*pF
+    Cc = 0.0751*pF
+    Cg = Ca - Cc
+    Ct = Ca + Cb + Cc
+    Qcs = 2*Cs/(w0s*Z0*Cc**2)*(Ct/Ca)**2
+    Qct = 20000
+    c = np.sqrt(w0s*Z0*Qct/(2*Cs))
+    a = Cb + Cg
+    b = Cg
+    Ccs = (2 - b*c)/(2*c) + np.sqrt(4 + 4*(a-b)*c + b**2*c**2)/(2*c)
+    #print (Nfingers)
+    #print (Ccs/pF)
+    #exit()
+    residuals = (frs - np.exp(fr_vs_nfingers(Nfingers, *popt)))
+    residuals2 = (frs - np.exp(fr_vs_nfingers2(Nfingers, *popt2)))
+
+    plt.figure()
+    plt.plot(Nfingers, frs, 'ko', ls='None', ms=12)
+    plt.plot(Nfine, frfine, 'r-')
+    plt.plot(Nfine, frfine2, 'b-')
+    plt.grid()
+    plt.xlabel('Nfingers')
+    plt.ylabel('fr [MHz]')
+    plt.savefig('frequency_vs_Nfingers.png')
     plt.show()
 
+    plt.figure()
+    plt.plot(Nfingers, residuals, 'ko', ls='None', ms=12)
+    plt.plot(Nfingers, residuals2, 'rs', ls='None', ms=12)
+    plt.grid()
+    plt.xlabel('Nfingers')
+    plt.ylabel('Residuals [MHz]')
+    plt.savefig('frequencyresiduals_vs_Nfingers.png')
+    plt.show()
 
+    plt.figure()
+    plt.semilogy(Nfingers, np.abs(Qs), 'ko', ls='None', ms=12)
+    #plt.semilogy(Nfine, Qcfine, 'r-')
+    plt.grid()
+    plt.xlabel('Nfingers')
+    plt.ylabel('Qc')
+    plt.savefig('extractedQc_vs_Nfingers.png')
+    #plt.show()
+
+    plt.figure()
+    plt.semilogy(frs, np.abs(Qs), 'ko', ls='None', ms=12)
+    #plt.semilogy(Nfine, Qcfine, 'r-')
+    plt.grid()
+    plt.xlabel('fr [MHz]')
+    plt.ylabel('Qc')
+    plt.savefig('extractedQc_vs_frequency.png')
+    #plt.show()
     exit()
