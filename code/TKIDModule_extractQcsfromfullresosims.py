@@ -422,7 +422,10 @@ def convert_Y_to_Z(Yparams, nports=2):
 
 def admittance_model(x, C, L, R):
     w = 2*pi*x
-    return np.log(w*C/np.sqrt((1 - w**2*L*C)**2 + (w*R*C)**2) )
+    num = (1 - w**2*L*C)**2 + (w*R*C)**2
+    denom = R**2*(1-w**2*L*C)**2
+    return np.log(np.sqrt(num/denom) )
+    #return np.log(w*C/np.sqrt((1 - w**2*L*C)**2 + (w*R*C)**2) )
     #return np.log(np.abs(1j*w*C/(1 - w**2*L*C + 1j*w*R*C)))
 
 def admittance_model_parallel(x, C, L, R):
@@ -454,11 +457,10 @@ def get_cap_params(Ydata, savename):
     L_est = 1/(wpeak**2*C_est)
     fpeak = wpeak/2/pi
     #L_est = 1e-20
-    R_est = 1e-8
+    R_est = 1e8
     #C1_est = 2.0*pF
     nY21 = nY21[f < fpeak]
     f = f[f < fpeak]
-
 
     p0 = [C_est, L_est, R_est]
     #pdb.set_trace()
