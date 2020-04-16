@@ -790,7 +790,7 @@ if __name__=="__main__":
     plt.ylabel('Cs [pF]')
     plt.savefig('Cs_vs_frequency.png')
 
-    p = np.polyfit(Nfingers, Cs/pF, 1)
+    p = np.polyfit(Nfingers, Cs/pF, 2)
     print (p)
     Cfine = np.polyval(p, Nfine)
     plt.figure()
@@ -809,9 +809,12 @@ if __name__=="__main__":
     plt.ylabel('Ls [nH]')
     plt.savefig('Lpar_vs_frequency.png')
 
+    p = np.polyfit(Nfingers, Ls/nH, 2)
+    print (p)
+    Lfine = np.polyval(p, Nfine)
     plt.figure()
     plt.plot(Nfingers, Ls/nH, 'ko', ls='None', ms=12)
-    #plt.semilogy(Nfine, Qcfine, 'r-')
+    plt.plot(Nfine, Lfine, 'r-')
     plt.grid()
     plt.xlabel('Nfingers')
     plt.ylabel('Ls [nH]')
