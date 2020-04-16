@@ -789,7 +789,7 @@ if __name__=="__main__":
     plt.plot(frs, Cs/pF, 'ko', ls='None', ms=12)
     plt.grid()
     plt.xlabel('fr [MHz]')
-    plt.ylabel('Cs [pF]')
+    plt.ylabel('C [pF]')
     plt.savefig('Cs_vs_frequency.png')
 
     p = np.polyfit(Nfingers, Cs/pF, 2)
@@ -800,7 +800,7 @@ if __name__=="__main__":
     plt.plot(Nfine, Cfine, 'r-')
     plt.grid()
     plt.xlabel('Nfingers')
-    plt.ylabel('Cs [pF]')
+    plt.ylabel('C [pF]')
     plt.savefig('Cs_vs_Nfingers.png')
 
     plt.figure()
@@ -808,7 +808,7 @@ if __name__=="__main__":
     #plt.semilogy(Nfine, Qcfine, 'r-')
     plt.grid()
     plt.xlabel('fr [MHz]')
-    plt.ylabel('Ls [nH]')
+    plt.ylabel('Lpar [nH]')
     plt.savefig('Lpar_vs_frequency.png')
 
     p = np.polyfit(Nfingers, Ls/nH, 2)
@@ -819,7 +819,7 @@ if __name__=="__main__":
     plt.plot(Nfine, Lfine, 'r-')
     plt.grid()
     plt.xlabel('Nfingers')
-    plt.ylabel('Ls [nH]')
+    plt.ylabel('Lpar [nH]')
     plt.savefig('Lpar_vs_Nfingers.png')
 
     plt.figure()
