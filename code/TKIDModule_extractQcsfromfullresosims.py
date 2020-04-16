@@ -783,9 +783,12 @@ if __name__=="__main__":
     plt.savefig('extractedQc_vs_frequency.png')
     #plt.show()
 
+    p = np.polyfit(Nfingers, Cs/pF, 1)
+    print (p)
+    Cfine = np.polyval(p, Nfine)
     plt.figure()
     plt.plot(frs, Cs/pF, 'ko', ls='None', ms=12)
-    #plt.semilogy(Nfine, Qcfine, 'r-')
+    plt.plot(Nfine, Cfine, 'r-')
     plt.grid()
     plt.xlabel('fr [MHz]')
     plt.ylabel('Cs [pF]')
