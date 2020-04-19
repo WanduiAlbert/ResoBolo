@@ -53,7 +53,8 @@ plotdir = 'extractQc_fig/'
 l = 2258*um # length of the feedline
 
 # Resonator parameters
-C = 5.2359*pF      # Capacitance between port 1 and 2
+C = 3.7774*pF      # Capacitance between port 1 and 2
+Lpar = 2.5113*nH       # Inductance between port 1 and 2
 L = 10.6333*nH       # Inductance between port 1 and 2
 Rc = 5.0e7           # Loss in the capacitor
 Ri = 1e-8          # Loss in the inductor
@@ -80,9 +81,9 @@ C7 = 0.3014*pF      # Capacitance to GND from port 4.
 def get_resonator_impedance(s):
     #ycap = s*C + 1./(Rc + s*Lp)
     #yind = s*Cp + 1./(Ri + s*L)
-    ycap = s*C + 1./Rc
+    ycap = 1./(s*Lpar + 1./(s*C)) + 1./Rc
     yind = 1./(s*L + Ri)
-    return 1./(s*C + 1./(s*L) + 1./Rc)
+    #return 1./(s*C + 1./(s*L) + 1./Rc)
     return 1./(ycap + yind)
 
 def get_meshmatrix(s):

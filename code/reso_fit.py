@@ -244,8 +244,8 @@ def do_fit(freq,re,im,plot=False,get_cov=False,verbose=False):
     fg,Qrg,Qcg,Qcphig,Ag,phig = guess_params(freq, re + 1j*im)
     dQeg = 1./(Qcg*np.exp(1j*Qcphig))
     p0 = (fg,Ag,m,phig,D,1./Qrg,dQeg.real,dQeg.imag,a)
-    #p0 = (f0,A,m,phi,D,pdQr,pdQe_re,dQe_im,a)
-    print (p0)
+    p0 = (f0,A,m,phi,D,pdQr,pdQe_re,dQe_im,a)
+    #print (p0)
     while True:
         if plot:
             popt = p0

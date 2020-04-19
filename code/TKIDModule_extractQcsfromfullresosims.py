@@ -37,6 +37,7 @@ colors = prop_cycle.by_key()['color'][1:]
 plot_diagnostic = True
 if not os.path.exists(plotdir):
     os.mkdir(plotdir)
+doS21analysis = False
 
 def load_data(fn, nports=1, paramtype='Y'):
     p = paramtype
@@ -424,8 +425,8 @@ def admittance_model(x, C, L, R):
     w = 2*pi*x
     num = (1 - w**2*L*C)**2 + (w*R*C)**2
     denom = R**2*(1-w**2*L*C)**2
-    return np.log(np.sqrt(num/denom) )
-    #return np.log(w*C/np.sqrt((1 - w**2*L*C)**2 + (w*R*C)**2) )
+    #return np.log(np.sqrt(num/denom) )
+    return np.log(w*C/np.sqrt((1 - w**2*L*C)**2 + (w*R*C)**2) )
     #return np.log(np.abs(1j*w*C/(1 - w**2*L*C + 1j*w*R*C)))
 
 def admittance_model_parallel(x, C, L, R):
@@ -457,7 +458,7 @@ def get_cap_params(Ydata, savename):
     L_est = 1/(wpeak**2*C_est)
     fpeak = wpeak/2/pi
     #L_est = 1e-20
-    R_est = 1e8
+    R_est = 1e-8
     #C1_est = 2.0*pF
     nY21 = nY21[f < fpeak]
     f = f[f < fpeak]
@@ -506,335 +507,477 @@ def get_cap_params(Ydata, savename):
     plt.close()
 
     return C_fit, L_fit, R_fit
-#fns = glob.glob(datadir + "*_Sparams.csv")
-#frequencies = list(map(lambda x: int(os.path.split(x)[-1].split(".")[0][:3]), fns))
-#for ires,fn in enumerate(fns):
-#    Sparams = load_data(fn)
-#    f = Sparams['frequency']
-#    re = Sparams['S21'].real
-#    im = Sparams['S21'].imag
-#    funcre = interpolate.interp1d(f, re)
-#    funcim = interpolate.interp1d(f, im)
-#
-#    finterp = np.r_[f[0]:f[-1]:5000j]
-#    reinterp = funcre(finterp)
-#    iminterp = funcim(finterp)
-#    maginterp = np.sqrt(reinterp*reinterp + iminterp*iminterp)
-#    dBmaginterp = 10*np.log10(maginterp)
-#
-#    #f = finterp
-#    #re = reinterp
-#    #im = iminterp
-#    mag = np.sqrt(re*re + im*im)
-#    delay = 0.0e-9
-#    phase_corr = 1e6*f*delay*2.*pi
-#    phi = np.arctan2(im,re)+phase_corr
-#    phi = np.unwrap(phi,axis=-1)
-#    z = np.sqrt(mag)*np.exp(1.j*phi)
-#    re = z.real
-#    im = z.imag
-#    dbmag = 10*np.log10(mag)
-#
-#    #mask = f < 331.2
-#    mask = np.ones_like(f, dtype=bool)
-#    midpt = f.size //2  + 1
-#    #mask[89:90] = False
-#    try:
-#        f0,A,m,phi,D,Qi,Qr,Qe_re,Qe_im,a,mre,mim,pcov =\
-#        reso_fit.do_fit(f[mask]*1e6,re[mask],im[mask], get_cov=True)
-#        sigmas = np.sqrt(np.diag(pcov))
-#    except RuntimeError:
-#        print ("Error obtaining the fit")
-#        #f0 = frequencies[ires]
-#        continue
-#    Qe = Qe_re + 1j * Qe_im
-#    dQe = 1/Qe
-#    phi_c = np.arctan2(Qe_im, Qe_re)
-#    Qc = 1./np.real(dQe)
-#    popt = [f0,A,m,phi,D,1./Qr,dQe.real,dQe.imag,a]
-#    print(fn.split(".")[0], f0, Qi, Qc)
-#    res_re = mre - re[mask]
-#    res_im = mim - im[mask]
-#    res_mag = res_re*res_re + res_im*res_im
-#    resdbmag = 10*np.log10(res_mag)
-#    mmag = mre*mre + mim*mim
-#    mdbmag = 10*np.log10(mmag)
-#    freq = frequencies[ires]
-#    nmask = mask
-#
-#    if plot_diagnostic:
-#        plt.figure(ires )
-#        plt.plot(f[mask],mdbmag,'r', label='fit')
-#        plt.plot(f[mask],dbmag[mask], 'b', label='Qr=%d Qi=%d Qc=%d phi_c=%1.3f'%(Qr,Qi,Qc, phi_c))
-#        #plt.plot(finterp, dBmaginterp, 'k')
-#        #plt.ylim(top=max(dbmag)+0.5, bottom=min(dbmag)-12.5)
-#        plt.grid()
-#        plt.xlabel('Frequency (MHz)')
-#        plt.ylabel('|S21|')
-#        lgd = plt.legend(loc="upper left", bbox_to_anchor=(1.0,1.0))
-#        path = os.path.join(plotdir,'reso_%d'%freq + "MHz.png")
-#        #plt.savefig(path)
-#        plt.savefig(path, bbox_extra_artists=(lgd,), bbox_inches='tight')
-#        plt.close()
-#
-#        plt.figure(300 + ires )
-#        scale = np.max(mmag)**0.5
-#        plt.plot(re/scale,im/scale, 'b', label='data')
-#        plt.plot(mre/scale,mim/scale,'r', label='fit')
-#        plt.grid()
-#        plt.axis('square')
-#        plt.xlabel('I')
-#        plt.ylabel('Q')
-#        plt.legend(loc='upper right')
-#        path = os.path.join(plotdir,'reso_IQ_%d'%freq + "MHz.png")
-#        plt.savefig(path)
-#        plt.close()
+
+
+
 
 if __name__=="__main__":
-    capfilenames = glob.glob(datadir +
-            "TKID_Module_Capacitor_with_feedline_*outof16_flipped.csv")
-    capfilenames.sort(key=lambda x: int(x.split("/")[-1].split('.')[0].split('_')[-2][:-7]))
-    indfilename = datadir + "TKID_Module_Inductor.csv"
-    indY = load_data_single(indfilename, nports=2, paramtype='Y')
-    frs = np.zeros(len(capfilenames))
-    Qs = np.zeros(len(capfilenames))
-    Cs = np.zeros(len(capfilenames))
-    Ls = np.zeros(len(capfilenames))
-    Rs = np.zeros(len(capfilenames))
-    numsections = np.array([2, 3, 4, 6, 8, 10, 12, 14, 16])
-    #numsections = np.array([4, 6])
-    Nfingers = numsections*53
-    labels = ['2', '3', '4', '6', '8', '10', '12', '14', '16']
-    #labels = ['4', '6']
+    if not doS21analysis:
+        capfilenames = glob.glob(datadir +
+                "TKID_Module_Capacitor_with_feedline_*outof16.csv")
+        capfilenames.sort(key=lambda x: int(x.split("/")[-1].split('.')[0].split('_')[-1][:-7]))
+        indfilename = datadir + "TKID_Module_Inductor.csv"
+        indY = load_data_single(indfilename, nports=2, paramtype='Y')
+        frs = np.zeros(len(capfilenames))
+        Qs = np.zeros(len(capfilenames))
+        Cs = np.zeros(len(capfilenames))
+        Ls = np.zeros(len(capfilenames))
+        Rs = np.zeros(len(capfilenames))
+        #numsections = np.array([2, 3, 4, 6, 8, 10, 12, 14, 16])
+        numsections = np.array([4, 6, 8, 10, 12, 14, 16])
+        #numsections = np.array([4, 6])
+        Nfingers = numsections*53
+        #labels = ['2', '3', '4', '6', '8', '10', '12', '14', '16']
+        labels = ['4', '6', '8', '10', '12', '14', '16']
+        #labels = ['4', '6']
 
-    plt.figure(1, figsize=(10,10))
-    plt.figure(2, figsize=(10,10))
-    for i, capfn in enumerate(capfilenames):
-        savename = capfn.split("/")[-1].split('.')[0].split('_')[-2]
-        capY = load_data_single(capfn, nports=4, paramtype='Y')
-        Ceff = -capY['Y21'].imag/(2*pi*capY['frequency']*MHz)/pF
-        resoS = get_resonator_Sparams(capY, indY)
-        finalY = get_Yin_parallel(capY, indY)
-        capY = reduce_Yparameters(capY)
-        C,L,R = get_cap_params(capY, savename)
-        Cs[i] = C
-        Ls[i] = L
-        Rs[i] = R
-        #print (C/pF, L/nH, R)
+        plt.figure(1, figsize=(10,10))
+        plt.figure(2, figsize=(10,10))
+        for i, capfn in enumerate(capfilenames):
+            savename = capfn.split("/")[-1].split('.')[0].split('_')[-2]
+            capY = load_data_single(capfn, nports=4, paramtype='Y')
+            Ceff = -capY['Y21'].imag/(2*pi*capY['frequency']*MHz)/pF
+            resoS = get_resonator_Sparams(capY, indY)
+            finalY = get_Yin_parallel(capY, indY)
+            capY = reduce_Yparameters(capY)
+            C,L,R = get_cap_params(capY, savename)
+            Cs[i] = C
+            Ls[i] = L
+            Rs[i] = R
+            #print (C/pF, L/nH, R)
 
-        Yin = finalY['Y11']
-        f = capY['frequency']
-        mask = f > 200
-        #mask[f > 400] = False
-        tck = interpolate.splrep(f[mask], Yin[mask].imag, s=0)
-        retck = interpolate.splrep(f[mask], Yin[mask].real, s=0)
-        fr = interpolate.sproot(tck)
-        fr = fr[0]
-        f_fine = np.r_[-10:10:20000j] + fr
-        #yl = mesh.get_Vreso_mesh(1j*2*pi*f_fine*MHz)
-        #s21 = mesh.get_S21_mesh(1j*2*pi*f_fine*MHz)
-        slope = interpolate.splev(fr, tck, der=1)
-        dR,  = interpolate.splev([fr], retck)
-        R = 1./dR
-        #print (slope, R)
-        Q = slope*fr/(2*dR)
-        imyinterp = np.abs(dR*2*Q)*(f_fine - fr)/fr
-        #print (R)
-        #Q = slope*R*fr/2
-        #print (labels[i], fr, Q)
-        frs[i] = fr
-        Qs[i] = Q
+            Yin = finalY['Y11']
+            f = capY['frequency']
+            mask = f > 200
+            #mask[f > 400] = False
+            tck = interpolate.splrep(f[mask], Yin[mask].imag, s=0)
+            retck = interpolate.splrep(f[mask], Yin[mask].real, s=0)
+            fr = interpolate.sproot(tck)
+            fr = fr[0]
+            f_fine = np.r_[-10:10:20000j] + fr
+            #yl = mesh.get_Vreso_mesh(1j*2*pi*f_fine*MHz)
+            #s21 = mesh.get_S21_mesh(1j*2*pi*f_fine*MHz)
+            slope = interpolate.splev(fr, tck, der=1)
+            dR,  = interpolate.splev([fr], retck)
+            R = 1./dR
+            #print (slope, R)
+            Q = slope*fr/(2*dR)
+            imyinterp = np.abs(dR*2*Q)*(f_fine - fr)/fr
+            #print (R)
+            #Q = slope*R*fr/2
+            #print (labels[i], fr, Q)
+            frs[i] = fr
+            Qs[i] = Q
+            plt.figure(1)
+            p = plt.plot(resoS['frequency'], np.abs(resoS['S21']), ls='solid',
+                    ms=12, marker='o', label=labels[i])
+            #plt.plot(f_fine, np.abs(s21), 'k')
+            plt.axvline(fr, color=p[0].get_color(), ls='--')
+            plt.figure(2)
+            p = plt.plot(capY['frequency'], np.imag(Yin), ls='solid',
+                    ms=12, marker='o', label=labels[i])
+            #plt.plot(f_fine, imyinterp, 'k')
+            #plt.plot(f_fine, np.imag(yl), 'k')
+            plt.axvline(fr, color=p[0].get_color(), ls='--')
+            plt.figure(3)
+            p = plt.plot(capY['frequency'], np.real(Yin), ls='solid',
+                    ms=12, marker='o', label=labels[i])
+            #plt.plot(f_fine, np.real(yl), 'k')
+            plt.axvline(fr, color=p[0].get_color(), ls='--')
+            plt.figure(4)
+            p = plt.plot(capY['frequency'], Ceff, ls='solid', label=labels[i])
+            #plt.plot(f_fine, np.real(yl), 'k')
+
+        print (frs)
+        print (Qs)
+        print ("Capacitance ", Cs/pF)
+        print ("Parasitic inductance ", Ls/nH)
+        print (Rs)
+        exit()
+
         plt.figure(1)
-        p = plt.plot(resoS['frequency'], np.abs(resoS['S21']), ls='solid',
-                ms=12, marker='o', label=labels[i])
-        #plt.plot(f_fine, np.abs(s21), 'k')
-        plt.axvline(fr, color=p[0].get_color(), ls='--')
+        plt.grid()
+        plt.legend(loc='upper left')
+        plt.xlabel('Frequency [MHz]')
+        plt.ylabel('|S21|')
+        plt.savefig(plotdir + 'S21_vs_Frequency.png')
+
         plt.figure(2)
-        p = plt.plot(capY['frequency'], np.imag(Yin), ls='solid',
-                ms=12, marker='o', label=labels[i])
-        #plt.plot(f_fine, imyinterp, 'k')
-        #plt.plot(f_fine, np.imag(yl), 'k')
-        plt.axvline(fr, color=p[0].get_color(), ls='--')
+        plt.grid()
+        plt.legend(loc='upper left')
+        #plt.ylim(top=0.2, bottom=-0.2)
+        #plt.xlim(left=200, right=400)
+        plt.xlabel('Frequency [MHz]')
+        plt.ylabel('Im Yin [1/Ohm]')
+        plt.savefig(plotdir + 'Input_admittance_vs_Frequency.png')
+
         plt.figure(3)
-        p = plt.plot(capY['frequency'], np.real(Yin), ls='solid',
-                ms=12, marker='o', label=labels[i])
-        #plt.plot(f_fine, np.real(yl), 'k')
-        plt.axvline(fr, color=p[0].get_color(), ls='--')
+        plt.grid()
+        plt.legend(loc='upper left')
+        #plt.ylim(top=0.2, bottom=-0.2)
+        #plt.xlim(left=200, right=400)
+        plt.xlabel('Frequency [MHz]')
+        plt.ylabel('Re Yin [1/Ohm]')
+        plt.savefig(plotdir + 'Input_realadmittance_vs_Frequency.png')
+
         plt.figure(4)
-        p = plt.plot(capY['frequency'], Ceff, ls='solid', label=labels[i])
-        #plt.plot(f_fine, np.real(yl), 'k')
+        plt.grid()
+        plt.legend(loc='upper left')
+        plt.ylim(top=25, bottom=0)
+        plt.xlim(left=100, right=600)
+        plt.xlabel('Frequency [MHz]')
+        plt.ylabel('Ceffective [pF]')
+        plt.savefig(plotdir + 'ceff_vs_Frequency.png')
+        #plt.show()
+        plt.close('all')
+        #exit()
 
-    print (frs)
-    print (Qs)
-    print (Cs/pF)
-    print (Ls/nH)
-    print (Rs)
+        #f0 = 600
+        #def fr_vs_nfingers(N, N0, a, b):
+        #    return np.log(f0) + a*np.log(N) + b*np.log(N0-N)
 
-    plt.figure(1)
-    plt.grid()
-    plt.legend(loc='upper left')
-    plt.xlabel('Frequency [MHz]')
-    plt.ylabel('|S21|')
-    plt.savefig(plotdir + 'S21_vs_Frequency.png')
+        N0 = 600
+        def fr_vs_nfingers2(N, fa, alpha, beta, gamma, delta, epsilon):
+            x = N/N0
+            fmain = fa/np.sqrt(x)
+            return fmain/np.sqrt(1 + alpha + beta*x + gamma*x**2 + delta*x**3 +
+                    epsilon/x)
 
-    plt.figure(2)
-    plt.grid()
-    plt.legend(loc='upper left')
-    #plt.ylim(top=0.2, bottom=-0.2)
-    #plt.xlim(left=200, right=400)
-    plt.xlabel('Frequency [MHz]')
-    plt.ylabel('Im Yin [1/Ohm]')
-    plt.savefig(plotdir + 'Input_admittance_vs_Frequency.png')
+        def fr_vs_nfingers(N, fa, alpha, beta, epsilon):
+            x = N/N0
+            fmain = fa/np.sqrt(x)
+            return fmain/np.sqrt(1 + alpha + beta*x + epsilon/x)
 
-    plt.figure(3)
-    plt.grid()
-    plt.legend(loc='upper left')
-    #plt.ylim(top=0.2, bottom=-0.2)
-    #plt.xlim(left=200, right=400)
-    plt.xlabel('Frequency [MHz]')
-    plt.ylabel('Re Yin [1/Ohm]')
-    plt.savefig(plotdir + 'Input_realadmittance_vs_Frequency.png')
+        def fr_wrapper(theta, N):
+            fa, alpha, beta, epsilon = theta
+            return fr_vs_nfingers(N, fa, alpha, beta, epsilon)
 
-    plt.figure(4)
-    plt.grid()
-    plt.legend(loc='upper left')
-    plt.ylim(top=25, bottom=0)
-    plt.xlim(left=100, right=600)
-    plt.xlabel('Frequency [MHz]')
-    plt.ylabel('Ceffective [pF]')
-    plt.savefig(plotdir + 'ceff_vs_Frequency.png')
-    #plt.show()
-    #plt.close('all')
-    #exit()
+        mask = np.ones_like(Nfingers, dtype=bool)
+        #mask[:2] = False
+        p0 = [403, 0.007, 0.2538, 0.1144]
+        #p02 = [403, 0.007, 0.2538, 0.0065, 0.0098, 0.1144]
+        bounds = ([0,0,0,0], [np.inf]*4)
+        #bounds2 = ([0,0,0,0,0,0], [np.inf]*6)
+        popt, pcov = optimize.curve_fit(fr_vs_nfingers, Nfingers[mask],
+                frs[mask], absolute_sigma=False, p0=p0, bounds=bounds, method='trf')
+        sigma = np.sqrt(np.diag(pcov))
+        epsilon = sigma
+        #popt2, pcov2 = optimize.curve_fit(fr_vs_nfingers2, Nfingers[mask], frs[mask],
+        #        p0=p02, bounds=bounds2)
+        #sigma2 = np.sqrt(np.diag(pcov2)
+        print ("\n\n")
+        print ("The best fit parameters are:", popt)
+        print ("The errors on the best fit parameters are:", sigma)
+        #print ("The best fit parameters are:", popt2)
+        #print ("The errors on the best fit parameters are:", sigma2)
+        print ("\n\n")
+        Nfine = np.arange(50, 1000, 1)
+        frfine = fr_vs_nfingers(Nfine, *popt)
+        grad = np.array(list(map(lambda x: optimize.approx_fprime(popt,
+            fr_wrapper, epsilon, x), Nfine)))
+        df = np.sqrt(np.diag(np.dot(grad, np.dot(pcov, grad.T))))/MHz
+        #frfine2 = fr_vs_nfingers2(Nfine, *popt2)
+        L = 10*nH
+        w0s = 2*pi*frs*MHz
+        Cs = 1./(w0s**2*L)
+        Ca = 2.1355*pF
+        Cb = 1.3889*pF
+        Cc = 0.0751*pF
+        Cg = Ca - Cc
+        Ct = Ca + Cb + Cc
+        Qcs = 2*Cs/(w0s*Z0*Cc**2)*(Ct/Ca)**2
+        Qct = 20000
+        c = np.sqrt(w0s*Z0*Qct/(2*Cs))
+        a = Cb + Cg
+        b = Cg
+        Ccs = (2 - b*c)/(2*c) + np.sqrt(4 + 4*(a-b)*c + b**2*c**2)/(2*c)
+        #print (Nfingers)
+        #print (Ccs/pF)
+        #exit()
+        residuals = (frs - fr_vs_nfingers(Nfingers, *popt))
+        chisq = np.sum(residuals**2/(frs.size - popt.size))
+        print ("Chi squared of the best fit is ", chisq)
+        print ("Mean of the residuals: ", np.mean(residuals))
+        print ("Std. dev of the residuals: ", np.std(residuals))
+        #residuals2 = (frs - fr_vs_nfingers2(Nfingers, *popt2))
 
-    f0 = 600
-    def fr_vs_nfingers(N, N0, a, b):
-        return np.log(f0) + a*np.log(N) + b*np.log(N0-N)
+        plt.figure()
+        plt.plot(Nfingers, frs, 'ko', ls='None', ms=12)
+        plt.plot(Nfine, frfine, 'r-')
+        plt.fill_between(Nfine, frfine + df, frfine - df, color='gray', alpha=0.2)
+        #plt.plot(Nfine, frfine2, 'b-')
+        plt.grid()
+        plt.xlabel('Nfingers')
+        plt.ylabel('fr [MHz]')
+        plt.savefig('frequency_vs_Nfingers.png')
+        #plt.close()
+        #plt.show()
 
-    #def fr_vs_nfingers2(N, N0, N1, g):
-    #    return np.log(f0) - 0.5*np.log(N + N1*(N0-N)**g)
-    def fr_vs_nfingers2(N, N0, a, b):
-        x = N/N0
-        return np.log(f0) + -0.5*np.log(x + a/x) + b
+        plt.figure()
+        plt.plot(Nfingers, residuals, 'ko', ls='None', ms=12)
+        #plt.plot(Nfingers, residuals2, 'rs', ls='None', ms=12)
+        plt.fill_between(Nfine, df, -df, color='gray', alpha=0.2)
+        plt.grid()
+        plt.xlabel('Nfingers')
+        plt.ylabel('Residuals [MHz]')
+        plt.savefig('frequencyresiduals_vs_Nfingers.png')
+        #plt.close()
+        plt.show()
 
-    mask = np.ones_like(Nfingers, dtype=bool)
-    #mask[:2] = False
-    popt, pcov = optimize.curve_fit(fr_vs_nfingers, Nfingers[mask], np.log(frs[mask]), p0=[850,
-        -0.5, 0])
-    popt2, pcov2 = optimize.curve_fit(fr_vs_nfingers2, Nfingers[mask], np.log(frs[mask]),
-            p0=[1000, 0.1, 0])
-    print (popt)
-    print (popt2)
-    Nfine = np.arange(50, 1000, 1)
-    frfine = np.exp(fr_vs_nfingers(Nfine, *popt))
-    frfine2 = np.exp(fr_vs_nfingers2(Nfine, *popt2))
-    L = 10*nH
-    w0s = 2*pi*frs*MHz
-    Cs = 1./(w0s**2*L)
-    Ca = 2.1355*pF
-    Cb = 1.3889*pF
-    Cc = 0.0751*pF
-    Cg = Ca - Cc
-    Ct = Ca + Cb + Cc
-    Qcs = 2*Cs/(w0s*Z0*Cc**2)*(Ct/Ca)**2
-    Qct = 20000
-    c = np.sqrt(w0s*Z0*Qct/(2*Cs))
-    a = Cb + Cg
-    b = Cg
-    Ccs = (2 - b*c)/(2*c) + np.sqrt(4 + 4*(a-b)*c + b**2*c**2)/(2*c)
-    #print (Nfingers)
-    #print (Ccs/pF)
-    #exit()
-    residuals = (frs - np.exp(fr_vs_nfingers(Nfingers, *popt)))
-    residuals2 = (frs - np.exp(fr_vs_nfingers2(Nfingers, *popt2)))
+        plt.figure()
+        plt.semilogy(Nfingers, np.abs(Qs), 'ko', ls='None', ms=12)
+        #plt.semilogy(Nfine, Qcfine, 'r-')
+        plt.grid()
+        plt.xlabel('Nfingers')
+        plt.ylabel('Qc')
+        plt.savefig('extractedQc_vs_Nfingers.png')
+        plt.close()
+        #plt.show()
 
-    plt.figure()
-    plt.plot(Nfingers, frs, 'ko', ls='None', ms=12)
-    #plt.plot(Nfine, frfine, 'r-')
-    #plt.plot(Nfine, frfine2, 'b-')
-    plt.grid()
-    plt.xlabel('Nfingers')
-    plt.ylabel('fr [MHz]')
-    plt.savefig('frequency_vs_Nfingers.png')
-    #plt.show()
+        plt.figure()
+        plt.semilogy(frs, np.abs(Qs), 'ko', ls='None', ms=12)
+        #plt.semilogy(Nfine, Qcfine, 'r-')
+        plt.grid()
+        plt.xlabel('fr [MHz]')
+        plt.ylabel('Qc')
+        plt.savefig('extractedQc_vs_frequency.png')
+        plt.close()
+        #plt.show()
 
-    plt.figure()
-    plt.plot(Nfingers, residuals, 'ko', ls='None', ms=12)
-    plt.plot(Nfingers, residuals2, 'rs', ls='None', ms=12)
-    plt.grid()
-    plt.xlabel('Nfingers')
-    plt.ylabel('Residuals [MHz]')
-    plt.savefig('frequencyresiduals_vs_Nfingers.png')
-    #plt.show()
+        plt.figure()
+        plt.plot(frs, Cs/pF, 'ko', ls='None', ms=12)
+        plt.grid()
+        plt.xlabel('fr [MHz]')
+        plt.ylabel('C [pF]')
+        plt.savefig('Cs_vs_frequency.png')
 
-    plt.figure()
-    plt.semilogy(Nfingers, np.abs(Qs), 'ko', ls='None', ms=12)
-    #plt.semilogy(Nfine, Qcfine, 'r-')
-    plt.grid()
-    plt.xlabel('Nfingers')
-    plt.ylabel('Qc')
-    plt.savefig('extractedQc_vs_Nfingers.png')
-    #plt.show()
+        p = np.polyfit(Nfingers, Cs/pF, 2)
+        print (p)
+        Cfine = np.polyval(p, Nfine)
+        plt.figure()
+        plt.plot(Nfingers, Cs/pF, 'ko', ls='None', ms=12)
+        plt.plot(Nfine, Cfine, 'r-')
+        plt.grid()
+        plt.xlabel('Nfingers')
+        plt.ylabel('C [pF]')
+        plt.savefig('Cs_vs_Nfingers.png')
 
-    plt.figure()
-    plt.semilogy(frs, np.abs(Qs), 'ko', ls='None', ms=12)
-    #plt.semilogy(Nfine, Qcfine, 'r-')
-    plt.grid()
-    plt.xlabel('fr [MHz]')
-    plt.ylabel('Qc')
-    plt.savefig('extractedQc_vs_frequency.png')
-    #plt.show()
+        plt.figure()
+        plt.plot(frs, Ls/nH, 'ko', ls='None', ms=12)
+        #plt.semilogy(Nfine, Qcfine, 'r-')
+        plt.grid()
+        plt.xlabel('fr [MHz]')
+        plt.ylabel('Lpar [nH]')
+        plt.savefig('Lpar_vs_frequency.png')
 
-    plt.figure()
-    plt.plot(frs, Cs/pF, 'ko', ls='None', ms=12)
-    plt.grid()
-    plt.xlabel('fr [MHz]')
-    plt.ylabel('C [pF]')
-    plt.savefig('Cs_vs_frequency.png')
+        p = np.polyfit(Nfingers, Ls/nH, 2)
+        print (p)
+        Lfine = np.polyval(p, Nfine)
+        plt.figure()
+        plt.plot(Nfingers, Ls/nH, 'ko', ls='None', ms=12)
+        plt.plot(Nfine, Lfine, 'r-')
+        plt.grid()
+        plt.xlabel('Nfingers')
+        plt.ylabel('Lpar [nH]')
+        plt.savefig('Lpar_vs_Nfingers.png')
 
-    p = np.polyfit(Nfingers, Cs/pF, 2)
-    print (p)
-    Cfine = np.polyval(p, Nfine)
-    plt.figure()
-    plt.plot(Nfingers, Cs/pF, 'ko', ls='None', ms=12)
-    plt.plot(Nfine, Cfine, 'r-')
-    plt.grid()
-    plt.xlabel('Nfingers')
-    plt.ylabel('C [pF]')
-    plt.savefig('Cs_vs_Nfingers.png')
+        plt.figure()
+        plt.plot(frs, Rs, 'ko', ls='None', ms=12)
+        #plt.semilogy(Nfine, Qcfine, 'r-')
+        plt.grid()
+        plt.xlabel('fr [MHz]')
+        plt.ylabel('Rs [Ohms]')
+        plt.savefig('loss_vs_frequency.png')
 
-    plt.figure()
-    plt.plot(frs, Ls/nH, 'ko', ls='None', ms=12)
-    #plt.semilogy(Nfine, Qcfine, 'r-')
-    plt.grid()
-    plt.xlabel('fr [MHz]')
-    plt.ylabel('Lpar [nH]')
-    plt.savefig('Lpar_vs_frequency.png')
+        plt.figure()
+        plt.plot(Nfingers, Rs, 'ko', ls='None', ms=12)
+        #plt.semilogy(Nfine, Qcfine, 'r-')
+        plt.grid()
+        plt.xlabel('Nfingers')
+        plt.ylabel('Rs [Ohms]')
+        plt.savefig('loss_vs_Nfingers.png')
+        #plt.show()
 
-    p = np.polyfit(Nfingers, Ls/nH, 2)
-    print (p)
-    Lfine = np.polyval(p, Nfine)
-    plt.figure()
-    plt.plot(Nfingers, Ls/nH, 'ko', ls='None', ms=12)
-    plt.plot(Nfine, Lfine, 'r-')
-    plt.grid()
-    plt.xlabel('Nfingers')
-    plt.ylabel('Lpar [nH]')
-    plt.savefig('Lpar_vs_Nfingers.png')
+    else:
+        fns = glob.glob(datadir + "TKID_Module_FullResonator_*outof16.csv")
+        fns.sort(key=lambda x: int(x.split("/")[-1].split('.')[0].split('_')[-1][:-7]))
+        nsections = list(map(lambda x: int(x.split("/")[-1].split('.')[0].split('_')[-1][:-7]), fns))
+        print (nsections)
+        frs = np.zeros(len(nsections))
+        Qcs = np.zeros(len(nsections))
+        phics = np.zeros(len(nsections))
+        Nfingers = np.array(nsections)*53
+        for ires,fn in enumerate(fns):
+            section = nsections[ires]
+            Sparams = load_data_single(fn, nports=2, paramtype='S')
+            f = Sparams['frequency']
+            re = Sparams['S21'].real
+            im = Sparams['S21'].imag
+            funcre = interpolate.interp1d(f, re)
+            funcim = interpolate.interp1d(f, im)
 
-    plt.figure()
-    plt.plot(frs, Rs, 'ko', ls='None', ms=12)
-    #plt.semilogy(Nfine, Qcfine, 'r-')
-    plt.grid()
-    plt.xlabel('fr [MHz]')
-    plt.ylabel('Rs [Ohms]')
-    plt.savefig('loss_vs_frequency.png')
+            finterp = np.r_[f[0]:f[-1]:5000j]
+            reinterp = funcre(finterp)
+            iminterp = funcim(finterp)
+            maginterp = np.sqrt(reinterp*reinterp + iminterp*iminterp)
+            dBmaginterp = 10*np.log10(maginterp)
 
-    plt.figure()
-    plt.plot(Nfingers, Rs, 'ko', ls='None', ms=12)
-    #plt.semilogy(Nfine, Qcfine, 'r-')
-    plt.grid()
-    plt.xlabel('Nfingers')
-    plt.ylabel('Rs [Ohms]')
-    plt.savefig('loss_vs_Nfingers.png')
-    #plt.show()
+            #f = finterp
+            #re = reinterp
+            #im = iminterp
+            mag = np.sqrt(re*re + im*im)
+            #delay = 0.0e-9
+            #phase_corr = 1e6*f*delay*2.*pi
+            #phi = np.arctan2(im,re)+phase_corr
+            #phi = np.unwrap(phi,axis=-1)
+            #z = np.sqrt(mag)*np.exp(1.j*phi)
+            #re = z.real
+            #im = z.imag
+            z = re + 1j*im
+            dbmag = 10*np.log10(mag)
+
+            #mask = f < 331.2
+            mask = np.ones_like(f, dtype=bool)
+            midpt = f.size //2  + 1
+            #mask[89:90] = False
+            try:
+                f0,A,m,phi,D,Qi,Qr,Qe_re,Qe_im,a,mre,mim,pcov =\
+                reso_fit.do_fit(f[mask]*1e6,re[mask],im[mask], get_cov=True)
+                sigmas = np.sqrt(np.diag(pcov))
+            except RuntimeError:
+                print ("Error obtaining the fit")
+                #f0 = frequencies[ires]
+                continue
+            Qe = Qe_re + 1j * Qe_im
+            dQe = 1/Qe
+            phi_c = np.arctan2(Qe_im, Qe_re)
+            Qc = 1./np.real(dQe)
+            popt = [f0,A,m,phi,D,1./Qr,dQe.real,dQe.imag,a]
+            print("Best fit results: ", section, f0, Qi, Qc, phi_c)
+            frs[ires] = f0
+            Qcs[ires] = Qc
+            phics[ires] = phi_c
+            res_re = mre - re[mask]
+            res_im = mim - im[mask]
+            res_mag = res_re*res_re + res_im*res_im
+            resdbmag = 10*np.log10(res_mag)
+            mmag = mre*mre + mim*mim
+            mdbmag = 10*np.log10(mmag)
+            nmask = mask
+
+            if plot_diagnostic:
+                plt.figure(ires)
+                plt.plot(f[mask],mdbmag,'r', label='fit')
+                plt.plot(f[mask],dbmag[mask], 'b', label='Qr=%d Qi=%d Qc=%d phi_c=%1.3f'%(Qr,Qi,Qc, phi_c))
+                #plt.plot(finterp, dBmaginterp, 'k')
+                #plt.ylim(top=max(dbmag)+0.5, bottom=min(dbmag)-12.5)
+                plt.xlim(left=f0-1.5, right=f0+1.5)
+                plt.grid()
+                plt.xlabel('Frequency (MHz)')
+                plt.ylabel('|S21|')
+                lgd = plt.legend(loc="upper left", bbox_to_anchor=(1.0,1.0))
+                path = os.path.join(plotdir,'reso_%d'%section + ".png")
+                #plt.savefig(path)
+                plt.savefig(path, bbox_extra_artists=(lgd,), bbox_inches='tight')
+                plt.close()
+
+                plt.figure(300 + ires )
+                scale = np.max(mmag)**0.5
+                plt.plot(re/scale,im/scale, 'b', label='data')
+                plt.plot(mre/scale,mim/scale,'r', label='fit')
+                plt.grid()
+                plt.axis('square')
+                plt.xlabel('I')
+                plt.ylabel('Q')
+                plt.legend(loc='upper right')
+                path = os.path.join(plotdir,'reso_IQ_%d'%section + ".png")
+                plt.savefig(path)
+                #plt.show()
+                plt.close()
+
+        f0 = 500
+        N0 = 600
+        p = np.polyfit(Nfingers/N0, Qcs, 2)
+        print (p)
+        Nfine = np.arange(50, 1000, 1)
+        Qcfine = np.polyval(p, Nfine/N0)
+        Qcresiduals = (Qcs - np.polyval(p, Nfingers/N0))/Qcs
+
+        plt.figure(123)
+        plt.plot(Nfingers, Qcs, 'ko', ls='None', ms=12)
+        plt.plot(Nfine, Qcfine, 'r-')
+        plt.grid()
+        plt.xlabel('Nfingers')
+        plt.ylabel('Qc ')
+        plt.savefig('Qc_vs_Nfingers.png')
+
+        p = np.polyfit(Nfingers/N0, phics, 2)
+        print (p)
+        phicfine = np.polyval(p, Nfine/N0)
+        phicresiduals = (phics - np.polyval(p, Nfingers/N0))/phics
+        plt.figure(124)
+        plt.plot(Nfingers, phics, 'ko', ls='None', ms=12)
+        plt.plot(Nfine, phicfine, 'r-')
+        plt.grid()
+        plt.xlabel('Nfingers')
+        plt.ylabel('phi_c [radians]')
+        plt.savefig('phic_vs_Nfingers.png')
+
+        plt.figure(125)
+        plt.plot(Nfingers, Qcresiduals, 'ko', ls='None', ms=12)
+        plt.grid()
+        plt.xlabel('Nfingers')
+        plt.ylabel('fractional Qc residuals')
+        plt.savefig('Qcresiduals_vs_Nfingers.png')
+
+        plt.figure(126)
+        plt.plot(Nfingers, phicresiduals, 'ko', ls='None', ms=12)
+        plt.grid()
+        plt.xlabel('Nfingers')
+        plt.ylabel('fractional phic residuals')
+        plt.savefig('phicresiduals_vs_Nfingers.png')
+        #plt.show()
+        plt.close('all')
+
+        p = np.polyfit(frs/f0, Qcs, 2)
+        print (p)
+        frfine = np.r_[200:800:2000j]
+        Qcfine = np.polyval(p, frfine/f0)
+        Qcresiduals = (Qcs - np.polyval(p, frs/f0))/Qcs
+
+        plt.figure(123)
+        plt.plot(frs, Qcs, 'ko', ls='None', ms=12)
+        plt.plot(frfine, Qcfine, 'r-')
+        plt.grid()
+        plt.xlabel('fr [MHz]')
+        plt.ylabel('Qc ')
+        plt.savefig('Qc_vs_fr.png')
+
+        p = np.polyfit(frs/f0, phics, 2)
+        print (p)
+        phicfine = np.polyval(p, frfine/f0)
+        phicresiduals = (phics - np.polyval(p, frs/f0))/phics
+        plt.figure(124)
+        plt.plot(frs, phics, 'ko', ls='None', ms=12)
+        plt.plot(frfine, phicfine, 'r-')
+        plt.grid()
+        plt.xlabel('fr [MHz]')
+        plt.ylabel('phi_c [radians]')
+        plt.savefig('phic_vs_fr.png')
+
+        plt.figure(125)
+        plt.plot(frs, Qcresiduals, 'ko', ls='None', ms=12)
+        plt.grid()
+        plt.xlabel('fr [MHz]')
+        plt.ylabel('fractional Qc residuals')
+        plt.savefig('Qcresiduals_vs_fr.png')
+
+        plt.figure(126)
+        plt.plot(frs, phicresiduals, 'ko', ls='None', ms=12)
+        plt.grid()
+        plt.xlabel('fr [MHz]')
+        plt.ylabel('fractional phic residuals')
+        plt.savefig('phicresiduals_vs_fr.png')
+
+        #plt.show()
+
