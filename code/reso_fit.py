@@ -276,9 +276,11 @@ def do_fit(freq,re,im,plot=False,get_cov=False,verbose=False):
         print("Qi: ",Qi)
         print("a: ", a)
 
-    ymodel = model_wslope(freq,*popt)
-    ymodel_re = ymodel[:nt]
-    ymodel_im = ymodel[nt:]
+    ffine = np.r_[freq[0]:freq[-1]:10000j]
+    nt2 = len(ffine)
+    ymodel = model_wslope(ffine,*popt)
+    ymodel_re = ymodel[:nt2]
+    ymodel_im = ymodel[nt2:]
     freq = freq * 1e-6
 
     if plot:

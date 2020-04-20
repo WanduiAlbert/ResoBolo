@@ -839,6 +839,7 @@ if __name__=="__main__":
             #mask = f < 331.2
             mask = np.ones_like(f, dtype=bool)
             midpt = f.size //2  + 1
+            ffine = np.r_[f[0]:f[-1]:10000j]
             #mask[89:90] = False
             try:
                 f0,A,m,phi,D,Qi,Qr,Qe_re,Qe_im,a,mre,mim,pcov =\
@@ -857,10 +858,6 @@ if __name__=="__main__":
             frs[ires] = f0
             Qcs[ires] = Qc
             phics[ires] = phi_c
-            res_re = mre - re[mask]
-            res_im = mim - im[mask]
-            res_mag = res_re*res_re + res_im*res_im
-            resdbmag = 10*np.log10(res_mag)
             mmag = mre*mre + mim*mim
             mdbmag = 10*np.log10(mmag)
             nmask = mask
@@ -869,10 +866,10 @@ if __name__=="__main__":
                 plt.figure(ires)
                 plt.plot(f[mask],dbmag[mask], 'bs', ms=12,\
                         label='Qr=%d Qi=%d Qc=%d phi_c=%1.3f'%(Qr,Qi,Qc, phi_c))
-                plt.plot(f[mask],mdbmag,'r', label='fit')
+                plt.plot(ffine,mdbmag,'r', label='fit')
                 #plt.plot(finterp, dBmaginterp, 'k')
                 #plt.ylim(top=max(dbmag)+0.5, bottom=min(dbmag)-12.5)
-                plt.xlim(left=f0-1.5, right=f0+1.5)
+                plt.xlim(left=f0-0.5, right=f0+0.5)
                 plt.grid()
                 plt.xlabel('Frequency (MHz)')
                 plt.ylabel('|S21|')
