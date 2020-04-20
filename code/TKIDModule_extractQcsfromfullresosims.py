@@ -37,7 +37,7 @@ colors = prop_cycle.by_key()['color'][1:]
 plot_diagnostic = True
 if not os.path.exists(plotdir):
     os.mkdir(plotdir)
-doS21analysis = True
+doS21analysis = False
 
 def load_data(fn, nports=1, paramtype='Y'):
     p = paramtype
@@ -593,7 +593,7 @@ if __name__=="__main__":
         print ("Capacitance ", Cs/pF)
         print ("Parasitic inductance ", Ls/nH)
         print (Rs)
-        exit()
+        #exit()
 
         plt.figure(1)
         plt.grid()
@@ -704,7 +704,7 @@ if __name__=="__main__":
         plt.figure()
         plt.plot(Nfingers, frs, 'ko', ls='None', ms=12)
         plt.plot(Nfine, frfine, 'r-')
-        plt.fill_between(Nfine, frfine + df, frfine - df, color='gray', alpha=0.2)
+        #plt.fill_between(Nfine, frfine + df, frfine - df, color='gray', alpha=0.2)
         #plt.plot(Nfine, frfine2, 'b-')
         plt.grid()
         plt.xlabel('Nfingers')
@@ -716,7 +716,7 @@ if __name__=="__main__":
         plt.figure()
         plt.plot(Nfingers, residuals, 'ko', ls='None', ms=12)
         #plt.plot(Nfingers, residuals2, 'rs', ls='None', ms=12)
-        plt.fill_between(Nfine, df, -df, color='gray', alpha=0.2)
+        #plt.fill_between(Nfine, df, -df, color='gray', alpha=0.2)
         plt.grid()
         plt.xlabel('Nfingers')
         plt.ylabel('Residuals [MHz]')
