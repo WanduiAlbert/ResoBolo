@@ -37,7 +37,7 @@ colors = prop_cycle.by_key()['color'][1:]
 plot_diagnostic = True
 if not os.path.exists(plotdir):
     os.mkdir(plotdir)
-doS21analysis = False
+doS21analysis = True
 
 def load_data(fn, nports=1, paramtype='Y'):
     p = paramtype
@@ -236,27 +236,29 @@ def reduce_Yparameters(capY):
     delta = (Y0 + capY['Y33'])*(Y0 + capY['Y44']) - capY['Y43']*capY['Y34']
     #delta = (Y0 - capY['Y33'])*(Y0 - capY['Y44']) - capY['Y43']*capY['Y34']
     deltap = capY['Y33']*capY['Y44'] - capY['Y43']*capY['Y34']
+    a = (capY['Y34']*capY['Y41'] - capY['Y31']*(Y0 + capY['Y44']))/delta
+    b = (capY['Y34']*capY['Y42'] - capY['Y32']*(Y0 + capY['Y44']))/delta
+    c = (capY['Y43']*capY['Y31'] - capY['Y41']*(Y0 + capY['Y33']))/delta
+    d = (capY['Y43']*capY['Y32'] - capY['Y42']*(Y0 + capY['Y33']))/delta
+
+    p11 = capY['Y11'] + capY['Y13'] * a + capY['Y14'] * c
+    p12 = capY['Y12'] + capY['Y13'] * b + capY['Y14'] * d
+    p21 = capY['Y21'] + capY['Y23'] * a + capY['Y24'] * c
+    p22 = capY['Y22'] + capY['Y23'] * b + capY['Y24'] * d
 
 
     p = 'Y'
     dtypes = np.dtype([("frequency", np.float64), (p + "11", np.complex128),\
         (p + "12", np.complex128), (p + "21", np.complex128), (p + "22", np.complex128)])
     p11 = capY['Y11']
-    p11 += (capY['Y34']*capY['Y41'] - capY['Y31']*(Y0 + capY['Y44']))/delta
-    #p11 += (capY['Y34']*capY['Y41'] + capY['Y31']*(Y0 - capY['Y44']))/delta
-    #p11 += (capY['Y34']*capY['Y41'] - capY['Y31']*capY['Y44'])/deltap
+    p11 += capY['Y13']*a + capY['Y14']*c
     p12 = capY['Y12']
-    p12 += (capY['Y34']*capY['Y42'] - capY['Y32']*(Y0 + capY['Y44']))/delta
-    #p12 += (capY['Y34']*capY['Y42'] + capY['Y32']*(Y0 - capY['Y44']))/delta
-    #p12 += (capY['Y34']*capY['Y42'] - capY['Y32']*capY['Y44'])/deltap
+    p12 += capY['Y13']*b + capY['Y14']*d
     p21 = capY['Y21']
-    p21 += (capY['Y43']*capY['Y31'] - capY['Y41']*(Y0 + capY['Y33']))/delta
-    #p21 += (capY['Y43']*capY['Y31'] + capY['Y41']*(Y0 - capY['Y33']))/delta
-    #p21 += (capY['Y43']*capY['Y31'] - capY['Y41']*capY['Y33'])/deltap
+    p21 += capY['Y23']*a + capY['Y24']*c
     p22 = capY['Y22']
-    p22 += (capY['Y43']*capY['Y32'] - capY['Y42']*(Y0 + capY['Y33']))/delta
-    #p22 += (capY['Y43']*capY['Y32'] + capY['Y42']*(Y0 - capY['Y33']))/delta
-    #p22 += (capY['Y43']*capY['Y32'] - capY['Y42']*capY['Y33'])/deltap
+    p22 += capY['Y23']*b + capY['Y24']*d
+
     tup = list(zip(capY['frequency'], p11, p12, p21, p22))
     return np.array(tup, dtype=dtypes)
 
@@ -429,6 +431,12 @@ def admittance_model(x, C, L, R):
     return np.log(w*C/np.sqrt((1 - w**2*L*C)**2 + (w*R*C)**2) )
     #return np.log(np.abs(1j*w*C/(1 - w**2*L*C + 1j*w*R*C)))
 
+def admittance_model_cap(x, C, R):
+    w = 2*pi*x
+    return np.log(np.abs(1j*w*C + 1./R) )
+
+
+
 def admittance_model_parallel(x, C, L, R):
     w = 2*pi*x
     L = 0
@@ -446,6 +454,70 @@ def get_S21(Y):
     DY = (Y['Y11'] + Y0)*(Y['Y22'] + Y0) -Y['Y12']*Y['Y21']
     return -2 * Y['Y21']*Y0/DY
 
+def get_capacitance_to_gnd(capY, savename):
+    f = capY['frequency'] * MHz
+    deltap = capY['Y33']*capY['Y44'] - capY['Y43']*capY['Y34']
+
+    a = (capY['Y34']*capY['Y41'] - capY['Y31']*capY['Y44'])/deltap
+    b = (capY['Y34']*capY['Y42'] - capY['Y32']*capY['Y44'])/deltap
+    c = (capY['Y43']*capY['Y31'] - capY['Y41']*capY['Y33'])/deltap
+    d = (capY['Y43']*capY['Y32'] - capY['Y42']*capY['Y33'])/deltap
+
+    p11 = capY['Y11'] + capY['Y13'] * a + capY['Y14'] * c
+    p12 = capY['Y12'] + capY['Y13'] * b + capY['Y14'] * d
+    p21 = capY['Y21'] + capY['Y23'] * a + capY['Y24'] * c
+    p22 = capY['Y22'] + capY['Y23'] * b + capY['Y24'] * d
+
+    Yp1 = p11 + p21
+    Yp2 = p22 + p21
+
+    p0_p1 = [np.mean(np.diff(Yp1.imag)/2/pi/np.diff(f)), 1e15]
+    p0_p2 = [np.mean(np.diff(Yp2.imag)/2/pi/np.diff(f)), 1e15]
+
+    popt_p1, pcov_p1 = optimize.curve_fit(admittance_model_cap, f,\
+            np.log(np.abs(Yp1)), p0=p0_p1, method='lm')
+    popt_p2, pcov_p2 = optimize.curve_fit(admittance_model_cap, f,\
+            np.log(np.abs(Yp2)), p0=p0_p2, method='lm')
+
+    C_p1, R_p1 = popt_p1
+    C_p2, R_p2 = popt_p2
+
+    yp1_guess = np.exp(admittance_model_cap(f, *popt_p1))
+    yp2_guess = np.exp(admittance_model_cap(f, *popt_p2))
+
+    yp1_fit = np.exp(admittance_model_cap(f, C_p1, R_p1))
+    yp2_fit = np.exp(admittance_model_cap(f, C_p2, R_p2))
+
+
+    fig, ax =plt.subplots(num = 343, figsize=(10,10))
+    ax.plot(f/MHz, np.abs(Yp1), 'b', label='Simulation')
+    #ax.plot(f/MHz, yp1_guess, 'k--')#, label="Fit C = %1.3fpF R=%1.3e Ohms "%(C_p1, R_p1))
+    ax.plot(f/MHz, yp1_fit, 'k--',
+                label="Fit C = %1.3fpF R=%1.3e Ohms "%(C_p1/pF, R_p1))
+    ax.legend()
+    ax.set_xlabel('Frequency [MHz]')
+    ax.set_ylabel('|Yp1| [1/Ohms]')
+    ax.grid()
+    ax.axis('tight')
+    plt.savefig(plotdir + savename + "Yp1.png")
+    plt.close()
+
+    fig, ax =plt.subplots(num = 344, figsize=(10,10))
+    ax.plot(f/MHz, np.abs(Yp2), 'b', label='Simulation')
+    #ax.plot(f/MHz, y_est, 'g', label='Guess')
+    ax.plot(f/MHz, yp2_fit, 'k--',
+                label="Fit C = %1.3fpF R=%1.3e Ohms "%(C_p1/pF, R_p1))
+    ax.legend()
+    ax.set_xlabel('Frequency [MHz]')
+    ax.set_ylabel('|Yp2| [1/Ohms]')
+    ax.grid()
+    ax.axis('tight')
+    plt.savefig(plotdir + savename + "Yp2.png")
+    plt.close()
+
+    return C_p1, C_p2
+
+
 def get_cap_params(Ydata, savename):
     f = Ydata['frequency'] * MHz
     nY21 = -Ydata['Y21']
@@ -460,10 +532,12 @@ def get_cap_params(Ydata, savename):
     #L_est = 1e-20
     R_est = 1e-8
     #C1_est = 2.0*pF
+    p0 = [C_est, L_est, R_est]
     nY21 = nY21[f < fpeak]
     f = f[f < fpeak]
 
-    p0 = [C_est, L_est, R_est]
+
+
     #pdb.set_trace()
     popt, pcov = optimize.curve_fit(admittance_model, f, np.log(np.abs(nY21)), p0=p0, method='lm')
     #popt, pcov = curve_fit(tline_model, f, np.log(np.abs(nY21)), p0=p0, method='lm')
@@ -476,6 +550,7 @@ def get_cap_params(Ydata, savename):
     y_est = np.exp(admittance_model(f, C_est, L_est, R_est))
 
     y_fit = np.exp(admittance_model(f, C_fit, L_fit, R_fit))
+
     fig, ax =plt.subplots(num = 345, figsize=(10,10))
     ax.plot(f/MHz, np.abs(nY21), 'b', label='Simulation')
     #ax.plot(f/MHz, y_est, 'g', label='Guess')
@@ -521,6 +596,8 @@ if __name__=="__main__":
         frs = np.zeros(len(capfilenames))
         Qs = np.zeros(len(capfilenames))
         Cs = np.zeros(len(capfilenames))
+        Cp1s = np.zeros(len(capfilenames))
+        Cp2s = np.zeros(len(capfilenames))
         Ls = np.zeros(len(capfilenames))
         Rs = np.zeros(len(capfilenames))
         #numsections = np.array([2, 3, 4, 6, 8, 10, 12, 14, 16])
@@ -539,11 +616,14 @@ if __name__=="__main__":
             Ceff = -capY['Y21'].imag/(2*pi*capY['frequency']*MHz)/pF
             resoS = get_resonator_Sparams(capY, indY)
             finalY = get_Yin_parallel(capY, indY)
+            Cp1, Cp2 = get_capacitance_to_gnd(capY, savename)
             capY = reduce_Yparameters(capY)
             C,L,R = get_cap_params(capY, savename)
             Cs[i] = C
             Ls[i] = L
             Rs[i] = R
+            Cp1s[i] = Cp1
+            Cp2s[i] = Cp2
             #print (C/pF, L/nH, R)
 
             Yin = finalY['Y11']
@@ -592,6 +672,8 @@ if __name__=="__main__":
         print (Qs)
         print ("Capacitance ", Cs/pF)
         print ("Parasitic inductance ", Ls/nH)
+        print ("Capacitance to GND 1", Cp1s/pF)
+        print ("Capacitance to GND 2", Cp2s/pF)
         print (Rs)
         #exit()
 
@@ -628,7 +710,7 @@ if __name__=="__main__":
         plt.xlabel('Frequency [MHz]')
         plt.ylabel('Ceffective [pF]')
         plt.savefig(plotdir + 'ceff_vs_Frequency.png')
-        #plt.show()
+        plt.show()
         plt.close('all')
         #exit()
 
