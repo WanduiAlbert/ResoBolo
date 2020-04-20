@@ -37,7 +37,7 @@ colors = prop_cycle.by_key()['color'][1:]
 plot_diagnostic = True
 if not os.path.exists(plotdir):
     os.mkdir(plotdir)
-doS21analysis = False
+doS21analysis = True
 
 def load_data(fn, nports=1, paramtype='Y'):
     p = paramtype
@@ -799,9 +799,9 @@ if __name__=="__main__":
         #plt.show()
 
     else:
-        fns = glob.glob(datadir + "TKID_Module_FullResonator_*outof16.csv")
-        fns.sort(key=lambda x: int(x.split("/")[-1].split('.')[0].split('_')[-1][:-7]))
-        nsections = list(map(lambda x: int(x.split("/")[-1].split('.')[0].split('_')[-1][:-7]), fns))
+        fns = glob.glob(datadir + "TKID_Module_FullResonator_*outof16_zoomed.csv")
+        fns.sort(key=lambda x: int(x.split("/")[-1].split('.')[0].split('_')[-2][:-7]))
+        nsections = list(map(lambda x: int(x.split("/")[-1].split('.')[0].split('_')[-2][:-7]), fns))
         print (nsections)
         frs = np.zeros(len(nsections))
         Qcs = np.zeros(len(nsections))
@@ -813,14 +813,14 @@ if __name__=="__main__":
             f = Sparams['frequency']
             re = Sparams['S21'].real
             im = Sparams['S21'].imag
-            funcre = interpolate.interp1d(f, re)
-            funcim = interpolate.interp1d(f, im)
+            funcre = interpolate.interp1d(f, re, kind='cubic')
+            funcim = interpolate.interp1d(f, im, kind='cubic')
 
             finterp = np.r_[f[0]:f[-1]:5000j]
             reinterp = funcre(finterp)
             iminterp = funcim(finterp)
             maginterp = np.sqrt(reinterp*reinterp + iminterp*iminterp)
-            dBmaginterp = 10*np.log10(maginterp)
+            dBmaginterp = 20*np.log10(maginterp)
 
             #f = finterp
             #re = reinterp
@@ -834,7 +834,7 @@ if __name__=="__main__":
             #re = z.real
             #im = z.imag
             z = re + 1j*im
-            dbmag = 10*np.log10(mag)
+            dbmag = 20*np.log10(mag)
 
             #mask = f < 331.2
             mask = np.ones_like(f, dtype=bool)
@@ -867,8 +867,9 @@ if __name__=="__main__":
 
             if plot_diagnostic:
                 plt.figure(ires)
+                plt.plot(f[mask],dbmag[mask], 'bs', ms=12,\
+                        label='Qr=%d Qi=%d Qc=%d phi_c=%1.3f'%(Qr,Qi,Qc, phi_c))
                 plt.plot(f[mask],mdbmag,'r', label='fit')
-                plt.plot(f[mask],dbmag[mask], 'b', label='Qr=%d Qi=%d Qc=%d phi_c=%1.3f'%(Qr,Qi,Qc, phi_c))
                 #plt.plot(finterp, dBmaginterp, 'k')
                 #plt.ylim(top=max(dbmag)+0.5, bottom=min(dbmag)-12.5)
                 plt.xlim(left=f0-1.5, right=f0+1.5)
@@ -879,11 +880,12 @@ if __name__=="__main__":
                 path = os.path.join(plotdir,'reso_%d'%section + ".png")
                 #plt.savefig(path)
                 plt.savefig(path, bbox_extra_artists=(lgd,), bbox_inches='tight')
-                plt.close()
+                plt.show()
+                #plt.close()
 
                 plt.figure(300 + ires )
                 scale = np.max(mmag)**0.5
-                plt.plot(re/scale,im/scale, 'b', label='data')
+                plt.plot(re/scale,im/scale, 'bs', ms=12, label='data')
                 plt.plot(mre/scale,mim/scale,'r', label='fit')
                 plt.grid()
                 plt.axis('square')
