@@ -980,7 +980,7 @@ def main():
 	#				   CAPACITOR GENERATION.							#
 	#																		 #
 	###########################################################################
-	final_fn = 'TKID_Module_20200402_AW.gds'
+	final_fn = 'TKID_Module_20200423_AW.gds'
 	main_lib.read_gds(final_fn)
 	cell_dict = list(main_lib.cells.keys())
 

@@ -9,6 +9,16 @@ allowed_element_types = set([gdspy.Cell, gdspy.CellReference, gdspy.CellArray])
 default = np.zeros(2)
 scale = 1000
 
+class bcolors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[31m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
+
 class cellNode():
 
 	"""
@@ -47,10 +57,9 @@ def style_range(ws, cell_range, border=Border(), fill=None, font=None, alignment
 	:param ws:  Excel worksheet instance
 	:param range: An excel range to style (e.g. A1:F20)
 	:param border: An openpyxl Border
-	:param fill: An openpyxl PatternFill or GradientFill
+	:param fill: An openpyxl PatternFill or GradientFill:param font: An openpyxl Font object
 	:param font: An openpyxl Font object
-	"""
-
+    """
 
 
 	rows = ws[cell_range]
@@ -706,7 +715,7 @@ def gen_patches_table(globaloverlay, mask_list, ignored_cells, layer_dict=None,\
 	Shot.update_layers(layer_dict)
 	if layer_order:
 		Shot.update_layerorder(layer_order)
-	gcomponents = globaloverlay.elements
+	gcomponents = globaloverlay.references
 	allshots = []
 	#pdb.set_trace()
 	for component in gcomponents:
@@ -719,7 +728,7 @@ def gen_patches_table(globaloverlay, mask_list, ignored_cells, layer_dict=None,\
 
 	mcomponents = {}
 	for mask in mask_list:
-		mcomponents[mask.name] = [x for x in mask.elements if type(x) in allowed_element_types]
+		mcomponents[mask.name] = [x for x in mask.references if type(x) in allowed_element_types]
 
 	for shot in allshots:
 		inv_name = inv_mask_cellname(shot, invcell_ending)
@@ -1043,7 +1052,7 @@ def makeshot(curr_element, parent_origin=default, parentIsArray=False,
 			print ("Failed for", curr_element)
 			return []
 
-	child_elements = curr_cell.elements
+	child_elements = curr_cell.references
 	# If a cell has dependencies, then the elements gives a list of all the cell
 	# references in this cell. If the cell has no dependencies, then subelements
 	# just gives the polygon set that makes up the cell. I don't want the

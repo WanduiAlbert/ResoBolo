@@ -202,8 +202,8 @@ def validate_mask():
 if __name__ == "__main__":
 
     # Generate all the missing inverted cells from the base file
-    base_fn = 'TKID_Module_20200402_AW.gds'
-    final_fn = 'TKID_Module_20200402_AW.gds'
+    base_fn = 'TKID_Module_20200423_AW.gds'
+    final_fn = 'TKID_Module_20200423_AW.gds'
     #main_lib.read_gds(base_fn)
     #cells = main_lib.cells
     #top = cells['Wafer_Layout_new_with_perimeter_cells_at_center']
@@ -263,7 +263,7 @@ if __name__ == "__main__":
     cells = main_lib.cells
 
     # Give the name of the global overlay cell in the file just read.
-    globaloverlay = cells['Wafer_Layout_new']
+    globaloverlay = cells['Wafer_Layout_for_spreadsheet_gen']
     # Specify all the mask files to be referenced as a list.
     mask_list = [cells['TKIDModule_Main_Reticle'], cells['TKIDModule_Capacitor_Reticle']]
     # specify any cells in the global overlay that should be ignored because
@@ -280,7 +280,8 @@ if __name__ == "__main__":
     allshots = patches.gen_patches_table(globaloverlay, mask_list, to_ignore,\
             layer_dict=def_layers, layer_order=layer_order, cellsInverted=True)
     # Create a patch table object from the list of shots generated.
-    patchtable = patches.PatchTable(allshots, 'TKIDModule_spreadsheet_201.xlsx')
+    patchtable = patches.PatchTable(allshots,
+            'TKIDModule_spreadsheet_202004023_AW.xlsx')
     patchtable.generate_spreadsheet()
 
 
