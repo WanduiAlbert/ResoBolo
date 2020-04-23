@@ -143,8 +143,8 @@ class TKIDBolometer:
 				self.Delta)).to(1)
 		self.Q_qp = ((2 * N_0 * self.Delta)/(self.alpha * gamma_s * self.S_1 * self.n_qp)).to(1)
 		self.Q_sigma = (np.pi/4)*np.exp(self.Delta/(k_B * self.T_b))/np.sinh(self.eta)/K_0(self.eta)
-		self.Q_c = 21000 #(2 * self.C_i/(self.omega_r * self.C_c**2 * Z0)).to(1)
 		self.Q_i = 1./(1/self.Q_qp + 1./Q_int)
+		self.Q_c = self.Q_i #(2 * self.C_i/(self.omega_r * self.C_c**2 * Z0)).to(1)
 		self.Q_r  = 1./(1./self.Q_c + 1./self.Q_i)
 		self.f_qr = (1./2/np.pi/self.tau_qp).to(u.Hz) # qp roll off frequency
 		# Overwrite to simulate more realistic devices
@@ -289,7 +289,7 @@ class TKIDBolometer:
 if __name__=="__main__":
 	fg = 323.9
 	fr = fg
-	P_opt = 0.00 #pW
+	P_opt = 5.00 #pW
 
 	gamma_leg = 2.975
 	K_leg = 120.660
