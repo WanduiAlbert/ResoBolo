@@ -51,9 +51,13 @@ V_sc = l * A
 P_opt = 14.00*pW #((Vdc/Rb)**2 * Rh).to(u.pW)
 
 n = 2.000 # conductivity index = beta + 1
-K_leg = 122.9 * pW/Kelvin**(n+1)  #150 GHz case
-#K_leg = 275.2 * pW/Kelvin**(n+1)   #220 GHz case
-#K_leg = 352.5 * pW/Kelvin**(n+1)   #270 GHz case
+band = 270
+if band == 150:
+    K_leg = 122.9 * pW/Kelvin**(n+1)  #150 GHz case
+elif band == 220:
+    K_leg = 275.2 * pW/Kelvin**(n+1)   #220 GHz case
+elif band == 270:
+    K_leg = 352.5 * pW/Kelvin**(n+1)   #270 GHz case
 
 T_c = 1.278 * Kelvin
 Tstart = 0.2
@@ -75,7 +79,7 @@ N_0 = (3 * (gamma * (density/A_r)))/(2*pi**2 * k_B**2)
 #plt.figure(213, figsize=(10,10))
 Delta = 1.764 * k_B * T_c
 
-varyQc = False
+varyQc = True
 varyfreq = False
 varyTemp = False
 analyzeTempandNumber = True
@@ -141,7 +145,12 @@ def get_loading(T, nu0, bw):
 
 
 if varyQc:
-    f_r = 324*MHz
+    if band == 150:
+        f_r = 324*MHz
+    elif band == 220:
+        f_r = 475*MHz
+    elif band == 270:
+        f_r = 583*MHz
     f_g = f_r
     omega_r = 2*pi*f_r
     Qc = np.logspace(3,5,2000)
@@ -198,9 +207,12 @@ if varyQc:
     #print (Stls)
     NEP_tls = (Stls**0.5*f_r/S)
     ones = np.ones_like(Qc)
-    N_photon = 43#aW/rtHz
-    #N_photon = 82#aW/rtHz
-    #N_photon = 92#aW/rtHz
+    if band == 150:
+        N_photon = 43#aW/rtHz
+    elif band == 220:
+        N_photon = 82#aW/rtHz
+    elif band == 270:
+        N_photon = 92#aW/rtHz
     NEP_total = np.sqrt(NEP_ph**2 + NEP_amp**2 + NEP_gr**2 + NEP_tls**2)
 
     fig, ax = plt.subplots(figsize=(10,10))
@@ -210,13 +222,13 @@ if varyQc:
     ax.axvline(Q_i, color='k', ls='--', lw=2)
     ax.axhline(N_photon, color='k', ls='-.', lw=2)
     ax.grid()
-    ax.legend(loc='lower right', title='NEP')
+    ax.legend(loc='upper left', title='NEP')
     ax.set_xlim(left=Qc[0], right=Qc[-1])
     ax.set_ylim(bottom=0, top=100)
     ax.set_xlabel('Qc')
-    ax.set_title('NEP(T=%d mK, f=1 Hz)'%(T_op*1e3))
+    ax.set_title('%d GHz band, NEP(T=%d mK, f=1 Hz)'%(band, T_op*1e3))
     ax.set_ylabel('NEP [aW/$\sqrt{\mathrm{Hz}}$]')
-    plt.savefig('Qc_dependence_of_NEP_150GHzband.png')
+    plt.savefig('Qc_dependence_of_NEP_%dGHzband.png'%(band))
     plt.show()
 elif varyfreq:
     ximax = 0.009
