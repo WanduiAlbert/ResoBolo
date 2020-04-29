@@ -51,7 +51,9 @@ V_sc = l * A
 P_opt = 14.00*pW #((Vdc/Rb)**2 * Rh).to(u.pW)
 
 n = 2.000 # conductivity index = beta + 1
-K_leg = 136.776 * pW/Kelvin**(n+1)
+K_leg = 122.9 * pW/Kelvin**(n+1)  #150 GHz case
+#K_leg = 275.2 * pW/Kelvin**(n+1)   #220 GHz case
+#K_leg = 352.5 * pW/Kelvin**(n+1)   #270 GHz case
 
 T_c = 1.278 * Kelvin
 Tstart = 0.2
@@ -74,8 +76,9 @@ N_0 = (3 * (gamma * (density/A_r)))/(2*pi**2 * k_B**2)
 Delta = 1.764 * k_B * T_c
 
 varyQc = False
-varyfreq = True
+varyfreq = False
 varyTemp = False
+analyzeTempandNumber = True
 
 def get_islandtemperature(Tbath, P):
     return (P/K + Tbath**(n+1))**(1./(n+1))
@@ -95,18 +98,32 @@ def get_beta(T, nu):
     S2 = 1 + np.sqrt(2*delta/(pi*k*T))*np.exp(-q)*I0(q)
     return S2/S1
 
+def get_xQrMB(T, f):
+    eta = h * f / (2*k_B * T)
+    S_1 = (2/pi)*np.sqrt(2*Delta/(pi*k_B*T))*np.sinh(eta)*K_0(eta)
+    S_2 = 1 + np.sqrt(2*Delta/(pi*k_B*T)) * np.exp(-eta) * I_0(eta)
 
-def get_xQMB(T, nu):
+    n_th = 2*N_0 * np.sqrt(2*pi* k_B * T* Delta)*np.exp(-Delta/(k_B*T))
+    n_qp = n_th
+    Q_qp = (2 * N_0 * Delta)/(alphak * S_1 * n_qp)
+    Q_i = 1./(1/Q_qp + 1./Q_int)
+    Q_c = Q_i
+    Q_r  = 1./(1./Q_c + 1./Q_i)
+    x = (alphak * n_qp * S_2)/(4 * N_0 * Delta)
+    return x, Q_r
 
-    delta = 3.5*k*Tc/2
-    q = (h*nu/2/k/T)
-    nqp = 2*N0*np.sqrt(2*pi*delta*k*T)*np.exp(-delta/(k*T))
-    S1 = 2/pi * np.sqrt(2*delta/(pi*k*T))*np.sinh(q)*K0(q)
-    S2 = 1 + np.sqrt(2*delta/(pi*k*T))*np.exp(-q)*I0(q)
+def get_xQMB(T, f):
 
-    x = -alpha_k * S2 * nqp / (4*N0*delta)
-    Qi = (2*N0*delta)/(alpha_k*S1*nqp)
-    return x, 1./Qi
+    eta = h * f / (2*k_B * T)
+    S_1 = (2/pi)*np.sqrt(2*Delta/(pi*k_B*T))*np.sinh(eta)*K_0(eta)
+    S_2 = 1 + np.sqrt(2*Delta/(pi*k_B*T)) * np.exp(-eta) * I_0(eta)
+
+    n_th = 2*N_0 * np.sqrt(2*pi* k_B * T* Delta)*np.exp(-Delta/(k_B*T))
+    n_qp = n_th
+    Q_qp = (2 * N_0 * Delta)/(alphak * S_1 * n_qp)
+    Q_i = 1./(1/Q_qp + 1./Q_int)
+    x = (alphak * n_qp * S_2)/(4 * N_0 * Delta)
+    return x, 1./Q_i
 
 def get_responsivity(T, nu):
     G = K*(n+1)*T**n
@@ -124,10 +141,10 @@ def get_loading(T, nu0, bw):
 
 
 if varyQc:
-    f_r = 336*MHz
+    f_r = 324*MHz
     f_g = f_r
     omega_r = 2*pi*f_r
-    Qc = np.logspace(3,6,2000)
+    Qc = np.logspace(3,5,2000)
     T_op = 380e-3
     T = T_op
     kappa = 0.5 + Delta/(k_B*T)
@@ -168,7 +185,7 @@ if varyQc:
 
     NEP_ph = np.sqrt(4*chi_ph*k_B*T**2*G)
     #NEP_amp = (G*T/(kappa*x))*(2/Q_i)*np.sqrt(k_B*T_amp/Pg)
-    NEP_amp = (f_r/S)*(Q_c/(2*Q_r**2))*np.sqrt(4*k_B*T_amp/Pg)
+    NEP_amp = (f_r/S)*(Q_c/(2*Q_r**2))*np.sqrt(k_B*T_amp/Pg)
     NEP_gr = (2*G*T/n_qp/kappa)/np.sqrt(R*V_sc)
     # TLS NEP
     alpha_tls = 0.5
@@ -182,6 +199,8 @@ if varyQc:
     NEP_tls = (Stls**0.5*f_r/S)
     ones = np.ones_like(Qc)
     N_photon = 43#aW/rtHz
+    #N_photon = 82#aW/rtHz
+    #N_photon = 92#aW/rtHz
     NEP_total = np.sqrt(NEP_ph**2 + NEP_amp**2 + NEP_gr**2 + NEP_tls**2)
 
     fig, ax = plt.subplots(figsize=(10,10))
@@ -193,12 +212,12 @@ if varyQc:
     ax.grid()
     ax.legend(loc='lower right', title='NEP')
     ax.set_xlim(left=Qc[0], right=Qc[-1])
-    ax.set_ylim(bottom=0, top=60)
+    ax.set_ylim(bottom=0, top=100)
     ax.set_xlabel('Qc')
     ax.set_title('NEP(T=%d mK, f=1 Hz)'%(T_op*1e3))
     ax.set_ylabel('NEP [aW/$\sqrt{\mathrm{Hz}}$]')
-    plt.savefig('Qc_dependence_of_NEP.png')
-    #plt.show()
+    plt.savefig('Qc_dependence_of_NEP_150GHzband.png')
+    plt.show()
 elif varyfreq:
     ximax = 0.009
     f_r = np.r_[300:1300:2000j]*MHz
@@ -325,27 +344,16 @@ elif varyfreq:
     plt.close('all')
 
 
-    def get_xQrMB(T, f):
-        eta = h * f / (2*k_B * T)
-        S_1 = (2/pi)*np.sqrt(2*Delta/(pi*k_B*T))*np.sinh(eta)*K_0(eta)
-        S_2 = 1 + np.sqrt(2*Delta/(pi*k_B*T)) * np.exp(-eta) * I_0(eta)
 
-        n_th = 2*N_0 * np.sqrt(2*pi* k_B * T* Delta)*np.exp(-Delta/(k_B*T))
-        n_qp = n_th
-        Q_qp = (2 * N_0 * Delta)/(alphak * S_1 * n_qp)
-        Q_i = 1./(1/Q_qp + 1./Q_int)
-        Q_c = Q_i
-        Q_r  = 1./(1./Q_c + 1./Q_i)
-        x = (alphak * n_qp * S_2)/(4 * N_0 * Delta)
-        return x, Q_r
 
     nu0s = [150, 220, 270]
-    f0s = [324, 475, 583]
+    f0s = [324., 475., 583.]
     deltas = [0.0055, 0.0004, 0.0003]
     dfs = [2.55, 0.28, 0.24]
     #dfs = [3, 3, 3]
     Ns = [128, 1680, 2400]
     T_ops = [380, 380, 380]
+
     for i in range(3):
         # 150 GHz case
         N = Ns[i]
@@ -487,6 +495,75 @@ elif varyfreq:
         plt.title('%d GHz frequency schedule'%nu0s[i])
         plt.legend(loc='best')
         plt.show()
+
+
+
+
+elif analyzeTempandNumber:
+
+    ximax = 0.01
+    nu0s = [150, 220, 270]
+    f0s = [324., 475., 583.]
+    deltas = [0.0055, 0.0004, 0.0003]
+    dfs = [2.55, 0.28, 0.24]
+    #dfs = [3, 3, 3]
+    Ns = [128, 1680, 2400]
+
+    for iband in range(3):
+        BW = f0s[iband]*MHz
+        temps = np.r_[250:450:1000j]*1e-3
+        bounds = []
+        N = np.arange(100, 2500,10)
+        for nreso in N:
+            f0 = BW
+            df = BW/nreso
+            f = f0 + df*np.arange(nreso)
+            X, Y = np.meshgrid(temps, f)
+
+            x, dQi = get_xQMB(X, Y)
+            Qi = 1./dQi
+            Qc = 2.0*Qi
+            Qr = Qi*Qc/(Qi+Qc)
+            Nlw = 2*Qr*df/f[:, np.newaxis]
+            print (nreso, np.max(Nlw),np.min(Nlw))
+
+            valid = Nlw >= 1./np.sqrt(ximax)
+            row = valid[-1, :]
+            bounds.append(row)
+
+            #plt.figure()
+            #plt.pcolormesh(X/1e-3, Y/MHz, valid, cmap='gray')
+            #plt.xlabel('Temperature [mK]')
+            #plt.ylabel('Frequency [MHz]')
+            #plt.show()
+
+
+        print ("\n")
+        bounds = np.asarray(bounds)
+        print (bounds.shape)
+        X, Y = np.meshgrid(temps, N)
+        plt.figure()
+        plt.pcolormesh(X/1e-3, Y, bounds, cmap='gray')
+        plt.grid()
+        plt.axhline(Ns[iband] , color='k', ls='-.', lw=2, label="%d"%Ns[iband])
+        plt.axhline(Ns[iband]//2, color='b', ls='-', lw=2,
+                label="%d"%(Ns[iband]//2))
+        plt.axhline(Ns[iband]//3, color='r', ls='-.', lw=2,
+                label="%d"%(Ns[iband]//3))
+        plt.axhline(Ns[iband]//4, color='g', ls='--', lw=2,
+                label="%d"%(Ns[iband]//4))
+        plt.axhline(Ns[iband]//5, color='m', ls=':', lw=2,
+                label="%d"%(Ns[iband]//5))
+        plt.axvline(380, color='r', ls='--', lw=2)
+        plt.legend(loc='upper right', title="Nreso")
+        plt.xlabel('Temperature [mK]')
+        plt.ylabel('Number of resonators')
+        plt.title('%d GHz frequency schedule'%nu0s[iband])
+        plt.savefig('%dGHz_numberofresospacked_vs_temperature.png'%nu0s[iband])
+        plt.show()
+        #exit()
+
+
 
 
 
