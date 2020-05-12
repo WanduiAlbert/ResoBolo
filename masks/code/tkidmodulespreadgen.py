@@ -202,8 +202,8 @@ def validate_mask():
 if __name__ == "__main__":
 
     # Generate all the missing inverted cells from the base file
-    base_fn = 'TKID_Module_20200423_AW.gds'
-    final_fn = 'TKID_Module_20200423_AW.gds'
+    base_fn = 'TKID_Module_20200507_AW.gds'
+    final_fn = 'TKID_Module_20200507_AW.gds'
     #main_lib.read_gds(base_fn)
     #cells = main_lib.cells
     #top = cells['Wafer_Layout_new_with_perimeter_cells_at_center']
@@ -281,7 +281,7 @@ if __name__ == "__main__":
             layer_dict=def_layers, layer_order=layer_order, cellsInverted=True)
     # Create a patch table object from the list of shots generated.
     patchtable = patches.PatchTable(allshots,
-            'TKIDModule_spreadsheet_202004023_AW.xlsx')
+            'TKIDModule_spreadsheet_20200507_AW.xlsx')
     patchtable.generate_spreadsheet()
 
 

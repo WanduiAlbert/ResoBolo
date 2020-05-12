@@ -498,37 +498,34 @@ def flip_cell(cell, layer, max_points=4000):
     return cell
 
 
-def get_cap_tank(index, cap, coupcap, nfingers, commoncap):
-    #pdb.set_trace()
-    assembled_cap = gdspy.Cell('assembled_' + cap.ref_cell.name)
+def get_cap_tank(index, cap, coupcap, connector):
     Dx, Dy = get_size(cap)
-    cDx, cDy = get_size(commoncap)
     dx, dy = get_size(coupcap)
     coupoffset = 10
     overlap = 2
-    ysize = Dy + cDy
+    ysize = Dy
     xsize = Dx
     if index % 4 == 0 or index % 4 == 1:
         # Up case
-        cap.translate(0, -(Dy+2*cDy-2*overlap-ysize)/2)
-        commoncap.translate(0, (ysize-cDy-coupoffset)/2)
         coupcap.translate(0, (ysize-dy)/2-coupoffset)
+        cap_edge_ref = gdspy.CellReference(connector)
+        cap_edge_ref.translate(0, (Dy/2 + 6))
     else:
         # Down case
-        cap.translate(0, (Dy+2*cDy-2*overlap-ysize)/2)
-        commoncap.translate(0, -(ysize-cDy-coupoffset)/2)
         coupcap.translate(0, -(ysize-dy)/2+coupoffset)
-    assembled_cap.add(cap)
-    assembled_cap.add(commoncap)
-    assembled_cap.add(coupcap)
+        cap_edge_ref = gdspy.CellReference(connector, rotation=180)
+        cap_edge_ref.translate(0, -(Dy/2 + 6))
+    cap.add(coupcap)
+    cap.add(cap_edge_ref)
+    cap.flatten()
 
-    return assembled_cap
+    return cap
 
 
 def make_capacitor_connector():
     cap_edge_connector = gdspy.Cell('capacitor_edge_connector')
-    small_dim = 2
-    conn_length = 253 + small_dim/2
+    small_dim = 3
+    conn_length = 253 + small_dim
     conn_width = 8
     main_connector1 = gdspy.Rectangle([-conn_length/2, conn_width/2],
             [conn_length/2, -conn_width/2], layer=def_layers['Cap_Nb_120nm'])
@@ -538,11 +535,11 @@ def make_capacitor_connector():
             layer=def_layers['Cap_Nb_120nm'])
     small_connector2 = gdspy.Rectangle([-small_dim, small_dim], [small_dim, -small_dim],
             layer=def_layers['Cap_Nb_120nm'])
-    cap_edge_connector.add(main_connector1.translate(-conn_length/2-small_dim, 0))
-    cap_edge_connector.add(main_connector2.translate(conn_length/2+small_dim, 0))
-    cap_edge_connector.add(small_connector1.translate(-conn_length,
+    cap_edge_connector.add(main_connector1.translate(-conn_length/2-small_dim+1, 0))
+    cap_edge_connector.add(main_connector2.translate(conn_length/2+small_dim-1, 0))
+    cap_edge_connector.add(small_connector1.translate(-conn_length+1,
         -conn_width/2-small_dim))
-    cap_edge_connector.add(small_connector2.translate(conn_length,
+    cap_edge_connector.add(small_connector2.translate(conn_length-1,
         -conn_width/2-small_dim))
     main_lib.add(cap_edge_connector)
     return cap_edge_connector
@@ -688,46 +685,21 @@ def generate_caps_from_freqs(nrows, ncols):
     print ("I've made all the coupling capacitors!")
     Nfinger = int(round(np.max(Nfingers)/10)*10)
     print ("The maximum number of fingers is, ", Nfinger)
-    common_Nfinger = np.min(Nfingers)
-    common_capfrac = capfrac[-1]
-    common_up, common_down = make_common_capacitors(common_Nfinger, common_capfrac)
+    connector = make_capacitor_connector()
     obtained_Cs = []
     obtained_Ccs = []
     for ires, coup_index in zip(range(N_res), unq_inv):
-        idcs[ires].nfinger = Nfinger - common_Nfinger
-        idcs[ires].capfrac = (idcs[ires].capfrac - common_capfrac)/(1 - common_capfrac)
+        idcs[ires].nfinger = Nfinger
         unqcap = idcs[ires].draw()
         #idcs[ires].capfrac = idcs[ires].capfrac
         print ("Working on idc for resonator, ", ires)
         if ires % 4 == 0 or ires % 4 == 1:
-            commoncap_ref = gdspy.CellReference(common_up)
             unqcap = flip_cell(unqcap, max_points=4*idcs[ires].nfinger,
                     layer=def_layers['Cap_Nb_120nm'])
-            unqcap_ref = gdspy.CellReference(unqcap)
-        else:
-            commoncap_ref = gdspy.CellReference(common_down)
-            unqcap_ref = gdspy.CellReference(unqcap)
-        caps.append(get_cap_tank(ires, unqcap_ref,
-            gdspy.CellReference(unq_coupcaps[coup_index]),
-            Nfinger, commoncap_ref))
+        caps.append(get_cap_tank(ires, unqcap,
+            gdspy.CellReference(unq_coupcaps[coup_index]), connector))
         obtained_Cs.append(idcs[ires].C)
         obtained_Ccs.append(coupcaps[ires].C)
-
-    # Make the capacitor cover cell
-    length, width = 700, 3500
-    capcover = gdspy.Cell('cover_over_capacitor')
-    rect = gdspy.Rectangle([-length/2, -width/2], [length/2, width/2],
-            layer=def_layers['Cap_Nb_120nm'])
-    capcover.add(rect)
-
-    # Make the capacitor cover cell for the dark resonators
-    length, width = 2500, 1200
-    capcoverd = gdspy.Cell('cover_over_capacitor_darkresonators')
-    rect = gdspy.Rectangle([-length/2, -width/2], [length/2, width/2],
-            layer=def_layers['Cap_Nb_120nm'])
-    capcoverd.add(rect)
-    # Add the cells on the mask
-
 
 def generate_mask():
     print ("Generating the mask....\n\n")
@@ -930,13 +902,11 @@ def generate_capacitor_cover_mask():
             if cell.startswith('Capacitor') and cell.find('common')<0
             and not cell.endswith('_inv')]
     caps.sort(key=lambda x:x.ref_cell.name)
-    total_mask_area = mask_length * mask_width
-    total_area_needed = np.sum(list(map(lambda x: get_cell_area(x),\
-            caps)))
     mrows = 8
-    mcols = 16
+    mcols = 20
 
-    u_dx, u_dy = (900, 2100)
+    yshift = 2000
+    u_dx, u_dy = (1000, 2800)
     c_dx, c_dy = get_size(caps[0])
     print (c_dx, c_dy)
 
@@ -949,93 +919,29 @@ def generate_capacitor_cover_mask():
             layer=def_layers["Wafer_footprint"])
     boundary_cell = gdspy.Cell('Capacitor_Boundary')
     boundary_cell.add(patch_rect)
-    boundary_arr = gdspy.CellArray(boundary_cell, mcols, mrows, spacing=(u_dx,
-        u_dy), origin=(-u_dx*(mcols-1)/2, -u_dy*(mrows-1)/2))
-    mask.add(boundary_arr)
-    print (c_dx, c_dy)
-    exit()
+    boundary_cells = [gdspy.CellReference(boundary_cell) for i in range(len(caps))]
+
+    # Place all the caps above the common pixel
+    for index, bc in enumerate(boundary_cells):
+        irow, icol = index // mcols, index % mcols
+        y_displacement = u_dy * (2*irow - mrows + 1)/2 + yshift
+        x_displacement = u_dx * (2*icol - mcols + 1)/2
+        bc.translate(x_displacement , y_displacement)
+        mask.add(bc)
+
+    filler = fill_empty_space(mask, mask_width, mask_length)
+    mask.add(filler)
 
     # Place all the caps above the common pixel
     for index, cap in enumerate(caps):
         irow, icol = index // mcols, index % mcols
-        y_displacement = u_dy * (2*irow - mrows + 1)/2
+        y_displacement = u_dy * (2*irow - mrows + 1)/2 + yshift
         x_displacement = u_dx * (2*icol - mcols + 1)/2
         cap.translate(x_displacement , y_displacement)
         mask.add(cap)
 
-    icommoncap_up = all_cells['Capacitor_common_up']
-    c_dx, c_dy = get_size(caps[0])
-    c_dx += 250
-    c_dy += 250
-    c_dx = roundto(c_dx, 10)
-    c_dy = roundto(c_dy, 10)
-    boundary_cell = gdspy.Cell('Common_Capacitor_Boundary')
-    patch_rect = gdspy.Rectangle([-c_dx/2, -c_dy/2], [c_dx/2, c_dy/2],
-            layer=def_layers["Wafer_footprint"])
-    boundary_cell.add(patch_rect)
-    icommoncap_up_ref = gdspy.CellReference(icommoncap_up)
-    moveright(cap, icommoncap_up_ref, spacing=-intercap_spacing)
-    o_dx, o_dy = icommoncap_up_ref.origin
-    u_dx, u_dy = get_size(icommoncap_up_ref)
-    icommoncap_up_ref.translate(0, -o_dy - intercap_spacing/2 - u_dy/2)
-
-
-    icommoncap_down = all_cells['Capacitor_common_down']
-    icommoncap_down_ref = gdspy.CellReference(icommoncap_down)
-    moveabove(icommoncap_up_ref, icommoncap_down_ref, spacing=-intercap_spacing)
-    icommoncap_down_ref.translate(o_dx, 0)
-
-    mask.add(icommoncap_up_ref)
-    mask.add(icommoncap_down_ref)
-    mask.add(gdspy.CellReference(boundary_cell,
-        origin=icommoncap_up_ref.origin))
-    mask.add(gdspy.CellReference(boundary_cell,
-        origin=icommoncap_down_ref.origin))
-
-    caps = [gdspy.CellReference(all_cells[cell]) for cell in all_cells \
-            if cell.name.startswith('doublet') and not cell.endswith('_inv')]
-    coupcaps.sort(key=lambda x:x.ref_cell.name)
-
-    cu_dx, cu_dy = get_size(caps[0])
-    u_dx, u_dy = get_size(coupcaps[0])
-
-    u_dx += intercap_spacing
-    u_dy += intercap_spacing
-    cmcols = mcols
-    cmrows = mrows
-    mrows = 15
-    mcols = 2
-    starting_x = -(cmcols + 1)/2*(cu_dx + intercap_spacing) - intercap_spacing
-    starting_y= -(mrows+1)/2*u_dy
-    #print (starting_x, starting_y)
-    #exit()
-
-
-    # Place all the caps above the common pixel
-    for index, coupcap in enumerate(coupcaps):
-        icol, irow = index // mrows, index % mrows
-        #print (icol, irow)
-        if icol == 0:
-            if irow == 0:
-                coupcap.translate(starting_x, starting_y)
-            else:
-                coupcap.translate(starting_x, 0)
-                moveabove(coupcaps[index-1], coupcap, spacing=-intercap_spacing)
-        elif icol == 1:
-            if irow == 0:
-                coupcap.translate(starting_x - u_dx, starting_y)
-            else:
-                coupcap.translate(starting_x - u_dx, 0)
-                moveabove(coupcaps[index-1], coupcap, spacing=-intercap_spacing)
-        #print (coupcap.origin)
-
-        mask.add(coupcap)
-    #exit()
-    filler = fill_empty_space(mask, mask_width, mask_length)
-    mask.add(filler)
-
-
-    print ("\n\nCapacitor Mask Generation Completed.\n\n")
+    main_lib.remove(boundary_cell, remove_references=True)
+    print ("\n\nCapacitor Cover Mask Generation Completed.\n\n")
     return mask
 
 
@@ -1064,8 +970,9 @@ def generate_capacitor_mask():
     total_area_needed = np.sum(list(map(lambda x: get_cell_area(x),\
             caps_inv)))
     mrows = 8
-    mcols = 16
+    mcols = 20
 
+    yshift = 2000
     u_dx, u_dy = get_size(caps_inv[0])
 
     u_dx += intercap_spacing
@@ -1074,80 +981,11 @@ def generate_capacitor_mask():
     # Place all the caps above the common pixel
     for index, cap in enumerate(caps_inv):
         irow, icol = index // mcols, index % mcols
-        y_displacement = u_dy * (2*irow - mrows + 1)/2
+        y_displacement = u_dy * (2*irow - mrows + 1)/2 + yshift
         x_displacement = u_dx * (2*icol - mcols + 1)/2
         cap.translate(x_displacement , y_displacement)
         mask.add(cap)
 
-    icommoncap_up = all_cells['Capacitor_common_up_inv']
-    icommoncap_up_ref = gdspy.CellReference(icommoncap_up)
-    moveright(cap, icommoncap_up_ref, spacing=-intercap_spacing)
-    o_dx, o_dy = icommoncap_up_ref.origin
-    u_dx, u_dy = get_size(icommoncap_up_ref)
-    icommoncap_up_ref.translate(0, -o_dy - intercap_spacing/2 - u_dy/2)
-
-
-    icommoncap_down = all_cells['Capacitor_common_down_inv']
-    icommoncap_down_ref = gdspy.CellReference(icommoncap_down)
-    moveabove(icommoncap_up_ref, icommoncap_down_ref, spacing=-intercap_spacing)
-    icommoncap_down_ref.translate(o_dx, 0)
-
-    mask.add(icommoncap_up_ref)
-    mask.add(icommoncap_down_ref)
-
-    capcover = all_cells['cover_over_capacitor_inv']
-    capcover_ref = gdspy.CellReference(capcover)
-    c_dx, c_dy = get_size(capcover_ref)
-    capcover_ref.translate(o_dx + c_dx/2 - u_dx/2, 0)
-    moveabove(icommoncap_down_ref, capcover_ref, spacing=-intercap_spacing)
-    mask.add(capcover_ref)
-    capcoverd = all_cells['cover_over_capacitor_darkresonators_inv']
-    capcoverd_ref = gdspy.CellReference(capcoverd)
-    c_dx, c_dy = get_size(capcoverd_ref)
-    capcoverd_ref.translate(o_dx + c_dx/2 - u_dx/2, 0)
-    moveabove(capcover_ref, capcoverd_ref, spacing=-intercap_spacing)
-    mask.add(capcoverd_ref)
-
-
-    coupcaps_inv = [gdspy.CellReference(cell) for cell in inv_cell_list \
-            if cell.name.startswith('doublet')]
-    coupcaps_inv.sort(key=lambda x:x.ref_cell.name)
-
-    cu_dx, cu_dy = get_size(caps_inv[0])
-    u_dx, u_dy = get_size(coupcaps_inv[0])
-
-    u_dx += intercap_spacing
-    u_dy += intercap_spacing
-    cmcols = mcols
-    cmrows = mrows
-    mrows = 15
-    mcols = 2
-    starting_x = -(cmcols + 1)/2*(cu_dx + intercap_spacing) - intercap_spacing
-    starting_y= -(mrows+1)/2*u_dy
-    #print (starting_x, starting_y)
-    #exit()
-
-
-    # Place all the caps above the common pixel
-    for index, coupcap in enumerate(coupcaps_inv):
-        icol, irow = index // mrows, index % mrows
-        #print (icol, irow)
-        if icol == 0:
-            if irow == 0:
-                coupcap.translate(starting_x, starting_y)
-            else:
-                coupcap.translate(starting_x, 0)
-                moveabove(coupcaps_inv[index-1], coupcap, spacing=-intercap_spacing)
-        elif icol == 1:
-            if irow == 0:
-                coupcap.translate(starting_x - u_dx, starting_y)
-            else:
-                coupcap.translate(starting_x - u_dx, 0)
-                moveabove(coupcaps_inv[index-1], coupcap, spacing=-intercap_spacing)
-        #print (coupcap.origin)
-
-        mask.add(coupcap)
-    #exit()
     filler = fill_empty_space(mask, mask_width, mask_length)
     mask.add(filler)
 
@@ -1171,9 +1009,11 @@ def main():
     cell_dict = list(main_lib.cells.keys())
 
 
-    #for cell in cell_dict:
-    #    if cell.startswith('TKIDModule_Capacitor_Reticle'): main_lib.remove(cell)
-    #    if cell.startswith('MaskOutline'): main_lib.remove(cell)
+    for cell in cell_dict:
+        if cell.startswith('TKIDModule_Capacitor_Reticle'): main_lib.remove(cell)
+        if cell.startswith('TKIDModule_Capacitor_ReEtch_Reticle'): main_lib.remove(cell)
+        if cell.startswith('MaskOutline'): main_lib.remove(cell)
+        if cell.startswith('Capacitor_Boundary'): main_lib.remove(cell)
     #    if cell.startswith('assembled'): main_lib.remove(cell)
     #    if cell.startswith('doublet'): main_lib.remove(cell)
     #    if cell.startswith('Capacitor'): main_lib.remove(cell)
@@ -1181,15 +1021,17 @@ def main():
     #    if cell.startswith('coupling'): main_lib.remove(cell)
     #    if cell.startswith('cover'): main_lib.remove(cell)
 
-    generate_caps_from_freqs(nrows, ncols)
+    #generate_caps_from_freqs(nrows, ncols)
     #make_inverted_cells()
     #main_mask = generate_main_mask()
-    #cap_mask = generate_capacitor_mask()
-    #cap_cover_mask = generate_capacitor_cover_mask()
-    #canon_lens = get_mask_lens()
-    #cap_mask.add(canon_lens)
+    cap_mask = generate_capacitor_mask()
+    cap_cover_mask = generate_capacitor_cover_mask()
+    canon_lens = get_mask_lens()
+    cap_mask.add(canon_lens)
+    cap_cover_mask.add(canon_lens)
     #main_mask.add(canon_lens)
-    #main_lib.add(cap_mask)
+    main_lib.add(cap_mask)
+    main_lib.add(cap_cover_mask)
     main_lib.write_gds(final_fn)#,unit=1e-6,precision=1e-9)
 
 
