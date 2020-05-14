@@ -960,8 +960,8 @@ if __name__=="__main__":
                 path = os.path.join(plotdir,'reso_%d'%section + ".png")
                 #plt.savefig(path)
                 plt.savefig(path, bbox_extra_artists=(lgd,), bbox_inches='tight')
-                plt.show()
-                #plt.close()
+                #plt.show()
+                plt.close()
 
                 plt.figure(300 + ires )
                 scale = np.max(mmag)**0.5
@@ -974,16 +974,16 @@ if __name__=="__main__":
                 plt.legend(loc='upper right')
                 path = os.path.join(plotdir,'reso_IQ_%d'%section + ".png")
                 plt.savefig(path)
-                plt.show()
+                #plt.show()
                 plt.close()
 
-        f0 = 300
-        N0 = 502
+        f0 = 330
+        N0 = 500
         mask = np.ones_like(Nfingers, dtype=bool)
         mask[-1] = False
         p = np.polyfit(Nfingers[mask]/N0, Qcs[mask], 2)
         print ("Qc fitting parameters vs. Nfingers", p)
-        Nfine = np.arange(50, 1000, 1)
+        Nfine = np.arange(420, 520, 1)
         Qcfine = np.polyval(p, Nfine/N0)
         Qcresiduals = (Qcs - np.polyval(p, Nfingers/N0))/Qcs
 
@@ -1023,31 +1023,37 @@ if __name__=="__main__":
         #plt.show()
         plt.close('all')
 
-        p = np.polyfit(frs/f0, Qcs, 2)
+        p = np.polyfit(frs[mask]/f0, Qcs[mask], 2)
+        p2 = np.polyfit(np.log(frs[mask]/f0), np.log(Qcs[mask]), 1)
         print ("Qc fitting parameters vs. freq", p)
-        frfine = np.r_[300:360:2000j]
+        print ("Qc fitting parameters vs. freq", p2)
+        frfine = np.r_[320:360:2000j]
         Qcfine = np.polyval(p, frfine/f0)
+        Qcfine2 = np.exp(np.polyval(p2, np.log(frfine/f0)))
         Qcresiduals = (Qcs - np.polyval(p, frs/f0))/Qcs
 
         plt.figure(123)
-        plt.plot(frs, Qcs, 'ko', ls='None', ms=12)
-        plt.plot(frfine, Qcfine, 'r-')
+        plt.plot(frs[mask], Qcs[mask], 'ko', ls='None', ms=12)
+        plt.plot(frfine, Qcfine, 'r-', label='quadratic fit')
+        plt.plot(frfine, Qcfine2, 'b-', label='power law fit')
         plt.grid()
         plt.xlabel('fr [MHz]')
+        plt.legend(loc='upper right')
         plt.ylabel('Qc ')
         plt.savefig(plotdir + 'Qc_vs_fr.png')
 
-        p = np.polyfit(frs/f0, phics, 2)
+        p = np.polyfit(frs[mask]/f0, phics[mask], 2)
         print ("phic fitting parameters vs. freq", p)
         phicfine = np.polyval(p, frfine/f0)
         phicresiduals = (phics - np.polyval(p, frs/f0))/phics
         plt.figure(124)
-        plt.plot(frs, phics, 'ko', ls='None', ms=12)
+        plt.plot(frs[mask], phics[mask], 'ko', ls='None', ms=12)
         plt.plot(frfine, phicfine, 'r-')
         plt.grid()
         plt.xlabel('fr [MHz]')
         plt.ylabel('phi_c [radians]')
         plt.savefig(plotdir + 'phic_vs_fr.png')
+        plt.show()
 
         plt.figure(125)
         plt.plot(frs[mask], Qcresiduals[mask], 'ko', ls='None', ms=12)
@@ -1063,5 +1069,4 @@ if __name__=="__main__":
         plt.ylabel('fractional phic residuals')
         plt.savefig(plotdir + 'phicresiduals_vs_fr.png')
 
-        #plt.show()
 
