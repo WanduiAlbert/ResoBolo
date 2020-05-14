@@ -375,8 +375,8 @@ if __name__=="__main__":
     plt.xlabel('Resonator Frequency [MHz]')
     plt.ylabel(r'NEP [aW/rtHz]')
     plt.legend(loc='best')
-    plt.savefig('tkid_nep_vs_freq.png')
     plt.grid()
+    plt.savefig('tkid_nep_vs_freq.png')
     plt.show()
 
 
