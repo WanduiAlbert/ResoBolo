@@ -239,7 +239,7 @@ def do_fit(freq,re,im,plot=False,get_cov=False,verbose=False):
     ydata = np.hstack((re,im))
 
     pdQr = 1./21000
-    pdQe_re = 1./40000
+    pdQe_re = 1./18000
     dQe_im = 0.5*pdQe_re
     fg,Qrg,Qcg,Qcphig,Ag,phig = guess_params(freq, re + 1j*im)
     dQeg = 1./(Qcg*np.exp(1j*Qcphig))

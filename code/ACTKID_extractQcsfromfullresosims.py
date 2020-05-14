@@ -1025,7 +1025,7 @@ if __name__=="__main__":
 
         p = np.polyfit(frs/f0, Qcs, 2)
         print ("Qc fitting parameters vs. freq", p)
-        frfine = np.r_[200:800:2000j]
+        frfine = np.r_[300:360:2000j]
         Qcfine = np.polyval(p, frfine/f0)
         Qcresiduals = (Qcs - np.polyval(p, frs/f0))/Qcs
 

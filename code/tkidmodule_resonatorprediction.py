@@ -79,7 +79,7 @@ Qc *= (Ltot/Lind)**2
 print ("Third term in Qc ", Qc)
 
 print ("Qc from simulation vs. predicted ", Qcsim/Qc)
-print ("fr from simulation vs. predicted ", (frsim - fr)/MHz)
+print ("fr from simulation vs. predicted ", (frsim/fr))
 
 plt.figure()
 plt.plot(N, frsim/MHz, 'rs', ms=12, label='From sonnet simulation')
