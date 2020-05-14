@@ -61,7 +61,7 @@ elif band == 270:
 
 T_c = 1.278 * Kelvin
 Tstart = 0.2
-T_0 = 0.25 * Kelvin # Previously 0.23K Temperature of the thermal bath
+T_0 = 0.23 * Kelvin # Previously 0.23K Temperature of the thermal bath
 alphak = 0.378
 
 Pg_dBm = -90
@@ -79,7 +79,7 @@ N_0 = (3 * (gamma * (density/A_r)))/(2*pi**2 * k_B**2)
 #plt.figure(213, figsize=(10,10))
 Delta = 1.764 * k_B * T_c
 
-varyQc = True
+varyQc = False
 varyfreq = False
 varyTemp = False
 analyzeTempandNumber = True

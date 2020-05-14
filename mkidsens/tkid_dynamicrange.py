@@ -266,7 +266,8 @@ class TKIDBolometer:
         responsivity = self.r
         nep_dark = self.NEP_total
         nep_light = self.NEP_photon
-        nep = np.sqrt(nep_dark**2 + nep_light**2)
+        #nep = np.sqrt(nep_dark**2 + nep_light**2)
+        nep = nep_dark
         chifactor = 2*self.Q_r**2/self.Q_c
         noise = ((chifactor*responsivity*nep)**2).to(1./u.Hz)
         self.perHznoise = noise
@@ -361,10 +362,10 @@ if __name__=="__main__":
     plt.figure()
     plt.plot(frs, dBcnoiseperhz)
     plt.xlabel('Resonator Frequency [MHz]')
-    plt.ylabel('Dark Noise [dBc/Hz]')
-    plt.title('TKID Dynamic Range with On Sky Loading')
+    plt.ylabel('Noise [dBc/Hz]')
+    plt.title('TKID Dynamic Range with No Sky Loading')
     plt.grid()
-    plt.savefig('tkid_dynamicrange_vs_freq.png')
+    plt.savefig('tkid_dynamicrange_vs_freq_dark.png')
     plt.show()
 
     plt.figure()
