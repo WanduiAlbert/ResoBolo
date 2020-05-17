@@ -80,9 +80,9 @@ N_0 = (3 * (gamma * (density/A_r)))/(2*pi**2 * k_B**2)
 Delta = 1.764 * k_B * T_c
 
 varyQc = False
-varyfreq = False
+varyfreq = True
 varyTemp = False
-analyzeTempandNumber = True
+analyzeTempandNumber = False
 
 def get_islandtemperature(Tbath, P):
     return (P/K + Tbath**(n+1))**(1./(n+1))
@@ -274,8 +274,8 @@ elif varyfreq:
     ymax = resobw.max()/kHz
     ymin = resobw.min()/kHz
     mask150 = np.ones_like(f_r, dtype=bool)
-    mask150[f_r/MHz < 324] = False
-    mask150[f_r/MHz > 2*324] = False
+    mask150[f_r/MHz < 400] = False
+    mask150[f_r/MHz > 2*400] = False
     mask220 = np.ones_like(f_r, dtype=bool)
     mask220[f_r/MHz < 475] = False
     mask220[f_r/MHz > 2*475] = False
@@ -359,9 +359,9 @@ elif varyfreq:
 
 
     nu0s = [150, 220, 270]
-    f0s = [324., 475., 583.]
+    f0s = [400., 475., 583.]
     deltas = [0.0055, 0.0004, 0.0003]
-    dfs = [2.55, 0.28, 0.24]
+    dfs = [2.3, 0.28, 0.24]
     #dfs = [3, 3, 3]
     Ns = [128, 1680, 2400]
     T_ops = [380, 380, 380]
@@ -515,9 +515,9 @@ elif analyzeTempandNumber:
 
     ximax = 0.01
     nu0s = [150, 220, 270]
-    f0s = [324., 475., 583.]
+    f0s = [400., 475., 583.]
     deltas = [0.0055, 0.0004, 0.0003]
-    dfs = [2.55, 0.28, 0.24]
+    dfs = [2.3, 0.28, 0.24]
     #dfs = [3, 3, 3]
     Ns = [128, 1680, 2400]
 

@@ -375,10 +375,10 @@ if __name__=="__main__":
     plt.plot(frs, NEP_totals, 'k', label='Total')
     plt.xlabel('Resonator Frequency [MHz]')
     plt.ylabel(r'NEP [aW/rtHz]')
-    plt.legend(loc='best')
+    t.legend(loc='best')
     plt.grid()
     plt.savefig('tkid_nep_vs_freq.png')
-    plt.show()
+    pHlt.show()
 
 
 
