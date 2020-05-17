@@ -175,6 +175,10 @@ for T_c, Tstart in zip(Tcs, Tstarts):
     ax2 = ax.secondary_xaxis('top', functions=(get_loading, get_islandtemp))
     ax2.set_xlabel('Island Loading [pW]')
     ax.set_xlim(left=Tstart*1e3)
+    ax.annotate('$T_{\mathrm{bath}} = 250$ mK', (350, 60),
+            **{'color':'black', 'fontsize':20, 'ha':'center',
+                'va':'center', 'bbox': dict(boxstyle="round",
+                    fc='white', ec='black', pad=0.2)})
     ax.grid()
     ax.set_xlabel('Island Temperature [mK]')
     ax.set_ylabel('NEP [aW/$\sqrt{\mathrm{Hz}}$]')
