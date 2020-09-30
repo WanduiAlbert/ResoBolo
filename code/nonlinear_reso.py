@@ -14,7 +14,7 @@ x0 = (f-fr)/fr
 y0 = Qr*x0
 
 # Now solve the cubic equation to determine the resonator detuning
-a =-12 
+a =-12
 k2 = np.sqrt((y0**3/27 + y0/12 + a/8)**2 - (y0**2/9 - 1/12)**3, dtype=np.complex128)
 k1 = np.power(a/8 + y0/12 + k2 + y0**3/27, 1./3)
 eps = (-1 + 3**0.5 * 1j)/2

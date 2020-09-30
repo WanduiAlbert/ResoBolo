@@ -29,7 +29,8 @@ Z0 = 50
 Y0 = 1./Z0
 
 datadir = '../numerical_sims/'
-plotdir = 'TKIDModule_fig/'
+plotdir = 'TKIDModule_fig_2um/'
+#plotdir = 'TKIDModule_fig/'
 
 prop_cycle = plt.rcParams['axes.prop_cycle']
 colors = prop_cycle.by_key()['color'][1:]
@@ -591,7 +592,7 @@ if __name__=="__main__":
         capfilenames = glob.glob(datadir +
                 "TKID_Module_Capacitor_with_feedline_*outof16.csv")
         capfilenames.sort(key=lambda x: int(x.split("/")[-1].split('.')[0].split('_')[-1][:-7]))
-        indfilename = datadir + "TKID_Module_Inductor.csv"
+        indfilename = datadir + "TKID_Module_2um_Inductor.csv"
         indY = load_data_single(indfilename, nports=2, paramtype='Y')
         frs = np.zeros(len(capfilenames))
         Qs = np.zeros(len(capfilenames))
@@ -743,7 +744,6 @@ if __name__=="__main__":
         popt, pcov = optimize.curve_fit(fr_vs_nfingers, Nfingers[mask],
                 frs[mask], absolute_sigma=False, p0=p0, bounds=bounds, method='trf')
         sigma = np.sqrt(np.diag(pcov))
-        epsilon = sigma
         #popt2, pcov2 = optimize.curve_fit(fr_vs_nfingers2, Nfingers[mask], frs[mask],
         #        p0=p02, bounds=bounds2)
         #sigma2 = np.sqrt(np.diag(pcov2)
@@ -755,11 +755,12 @@ if __name__=="__main__":
         print ("\n\n")
         Nfine = np.arange(50, 1000, 1)
         frfine = fr_vs_nfingers(Nfine, *popt)
+        epsilon = sigma
         grad = np.array(list(map(lambda x: optimize.approx_fprime(popt,
             fr_wrapper, epsilon, x), Nfine)))
         df = np.sqrt(np.diag(np.dot(grad, np.dot(pcov, grad.T))))/MHz
         #frfine2 = fr_vs_nfingers2(Nfine, *popt2)
-        L = 10*nH
+        L = 4.90*nH
         w0s = 2*pi*frs*MHz
         Cs = 1./(w0s**2*L)
         Ca = 2.1355*pF
@@ -813,7 +814,7 @@ if __name__=="__main__":
         plt.xlabel('Nfingers')
         plt.ylabel('Qc')
         plt.savefig('extractedQc_vs_Nfingers.png')
-        plt.close()
+        #plt.close()
         #plt.show()
 
         plt.figure()
@@ -823,7 +824,7 @@ if __name__=="__main__":
         plt.xlabel('fr [MHz]')
         plt.ylabel('Qc')
         plt.savefig('extractedQc_vs_frequency.png')
-        plt.close()
+        #plt.close()
         #plt.show()
 
         plt.figure()
@@ -879,11 +880,17 @@ if __name__=="__main__":
         plt.ylabel('Rs [Ohms]')
         plt.savefig('loss_vs_Nfingers.png')
         #plt.show()
+        plt.close('all')
 
     else:
-        fns = glob.glob(datadir + "TKID_Module_FullResonator_*outof16_zoomed.csv")
+        fns = glob.glob(datadir +
+                "TKID_Module_FullResonator_*outof16_2uminductor.csv")
         fns.sort(key=lambda x: int(x.split("/")[-1].split('.')[0].split('_')[-2][:-7]))
         nsections = list(map(lambda x: int(x.split("/")[-1].split('.')[0].split('_')[-2][:-7]), fns))
+        #ns = glob.glob(datadir +
+        #       "TKID_Module_FullResonator_*outof16.csv")
+        #ns.sort(key=lambda x: int(x.split("/")[-1].split('.')[0].split('_')[-1][:-7]))
+        #nsections = list(map(lambda x: int(x.split("/")[-1].split('.')[0].split('_')[-1][:-7]), fns))
         print (nsections)
         frs = np.zeros(len(nsections))
         Qcs = np.zeros(len(nsections))

@@ -7,4 +7,5 @@ masks/code/__pycache__
 masks/code/*verifysim.gds
 masks/code/*~
 code/*~
+masks/code/*sim-output.gds
 *~
