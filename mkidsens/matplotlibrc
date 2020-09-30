@@ -35,7 +35,7 @@
 # You can also deploy your own backend outside of matplotlib by
 # referring to the module name (which must be in the PYTHONPATH) as
 # 'module://my_backend'
-backend      : TkAgg
+backend      : qt4agg
 
 # If you are using the Qt4Agg backend, you can choose here
 # to use the PyQt4 bindings or the newer PySide bindings to
@@ -163,7 +163,7 @@ font.size           : 36.0
 text.color          : black
 
 ### LaTeX customizations. See http://www.scipy.org/Wiki/Cookbook/Matplotlib/UsingTex
-text.usetex         : True  # use latex for all text handling. The following fonts
+text.usetex         : False  # use latex for all text handling. The following fonts
                               # are supported through the usual rc parameter settings:
                               # new century schoolbook, bookman, times, palatino,
                               # zapf chancery, charter, serif, sans-serif, helvetica,
@@ -285,7 +285,7 @@ xtick.minor.width    : 1.0    # minor tick width in points
 xtick.major.pad      : 4      # distance to major tick label in points
 xtick.minor.pad      : 4      # distance to the minor tick label in points
 xtick.color          : k      # color of the tick labels
-xtick.labelsize      : 35     # fontsize of the tick labels
+xtick.labelsize      : 20     # fontsize of the tick labels
 xtick.direction      : in     # direction: in, out, or inout
 
 ytick.major.size     : 10      # major tick size in points
@@ -295,7 +295,7 @@ ytick.minor.width    : 1.0    # minor tick width in points
 ytick.major.pad      : 4      # distance to major tick label in points
 ytick.minor.pad      : 4      # distance to the minor tick label in points
 ytick.color          : k      # color of the tick labels
-ytick.labelsize      : 35     # fontsize of the tick labels
+ytick.labelsize      : 20     # fontsize of the tick labels
 ytick.direction      : in     # direction: in, out, or inout
 
 

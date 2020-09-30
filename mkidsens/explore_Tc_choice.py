@@ -123,7 +123,9 @@ for T_c, Tstart in zip(Tcs, Tstarts):
     Nc_tls = (Ec_tls/(hbar*omega_r))
     E_stored = (P_diss*Q_i/omega_r)
     N_ph = (E_stored/(hbar*omega_r)) # number of #microwave photons
-    #print (N_ph)
+    print (N_ph)
+    print (Nc_tls)
+    exit()
     #responsivity
     S = f_r * x * kappa / (G * T)
 
@@ -135,13 +137,13 @@ for T_c, Tstart in zip(Tcs, Tstarts):
     alpha_tls = 0.5
     beta_tls = 2
     kappatls0 = 3.2e-16/Hz*Kelvin**beta_tls*Hz**0.5/np.sqrt(Nc_tls)
-    #print (kappatls0)
+    print (kappatls0)
+    exit()
     nu_tls = 1 * Hz
     # TLS spectrum at 1 Hz
     Stls = kappatls0/np.sqrt(1 + N_ph/Nc_tls)*T**(-beta_tls)* nu_tls**(-alpha_tls)
-    #print (Stls)
+    print (Stls)
     NEP_tls = (Stls**0.5*f_r/S)
-
 
     NEP_total = np.sqrt(NEP_ph**2 + NEP_amp**2 + NEP_gr**2 + NEP_tls**2)
 
