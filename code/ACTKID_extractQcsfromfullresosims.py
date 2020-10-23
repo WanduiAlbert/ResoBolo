@@ -37,7 +37,7 @@ colors = prop_cycle.by_key()['color'][1:]
 plot_diagnostic = True
 if not os.path.exists(plotdir):
     os.mkdir(plotdir)
-doS21analysis = True
+doS21analysis = False
 
 def load_data(fn, nports=1, paramtype='Y'):
     p = paramtype

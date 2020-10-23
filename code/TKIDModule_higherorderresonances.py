@@ -588,7 +588,7 @@ def get_cap_params(Ydata, savename):
 
 if __name__=="__main__":
     fns = glob.glob(datadir +
-            "TKID_Module_FullResonator_*outof16_2uminductor_fullscaled.csv")
+            "TKID_Module_FullResonator_*outof16_2uminductor_2500MHz.csv")
     fns.sort(key=lambda x: int(x.split("/")[-1].split('.')[0].split('_')[-3][:-7]))
     nsections = list(map(lambda x: int(x.split("/")[-1].split('.')[0].split('_')[-3][:-7]), fns))
     print (nsections)
@@ -611,7 +611,7 @@ if __name__=="__main__":
 
         plt.figure(figsize=(10,10))
         plt.plot(f, Pdiss, 'bs', ms=12, label='sim')
-        plt.plot(finterp, Pdissinterp,'r', label='interpolated')
+        #plt.plot(finterp, Pdissinterp,'r', label='interpolated')
         plt.grid()
         plt.xlabel('Frequency (MHz)')
         plt.ylabel('Pdiss')
@@ -622,3 +622,15 @@ if __name__=="__main__":
         plt.savefig(path)
         plt.show()
 
+        plt.figure(figsize=(10,10))
+        plt.plot(f, S11, 'bs', ms=12, label='S11')
+        plt.plot(f, S21, 'ro', ms=12, label='S21')
+        plt.grid()
+        plt.xlabel('Frequency (MHz)')
+        plt.ylabel('S parameters')
+        plt.title('S parameters of the resonator with %d IDC sections'%(section))
+        lgd = plt.legend(loc="upper left")
+        path = os.path.join(plotdir,'reso_%d'%section + "_S11S21.png")
+        plt.savefig(path)
+        plt.savefig(path)
+        plt.show()

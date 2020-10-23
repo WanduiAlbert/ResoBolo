@@ -29,8 +29,8 @@ Z0 = 50
 Y0 = 1./Z0
 
 datadir = '../numerical_sims/'
-plotdir = 'TKIDModule_fig_2um/'
-#plotdir = 'TKIDModule_fig/'
+#plotdir = 'TKIDModule_fig_2um/'
+plotdir = 'TKIDModule_fig/'
 
 prop_cycle = plt.rcParams['axes.prop_cycle']
 colors = prop_cycle.by_key()['color'][1:]
@@ -38,7 +38,7 @@ colors = prop_cycle.by_key()['color'][1:]
 plot_diagnostic = True
 if not os.path.exists(plotdir):
     os.mkdir(plotdir)
-doS21analysis = True
+doS21analysis = False
 
 def load_data(fn, nports=1, paramtype='Y'):
     p = paramtype
@@ -428,9 +428,9 @@ def admittance_model(x, C, L, R):
     w = 2*pi*x
     num = (1 - w**2*L*C)**2 + (w*R*C)**2
     denom = R**2*(1-w**2*L*C)**2
-    #return np.log(np.sqrt(num/denom) )
-    return np.log(w*C/np.sqrt((1 - w**2*L*C)**2 + (w*R*C)**2) )
-    #return np.log(np.abs(1j*w*C/(1 - w**2*L*C + 1j*w*R*C)))
+    return np.log(np.sqrt(num/denom) )
+    #return np.log(w*C/np.sqrt((1 - w**2*L*C)**2 + (w*R*C)**2) )
+    return np.log(np.abs(1j*w*C/(1 - w**2*L*C + 1j*w*R*C)))
 
 def admittance_model_cap(x, C, R):
     w = 2*pi*x
@@ -530,13 +530,13 @@ def get_cap_params(Ydata, savename):
     C_est = nY21.imag[0]/(2*pi*f[0])
     L_est = 1/(wpeak**2*C_est)
     fpeak = wpeak/2/pi
+    print ("fpeak", fpeak/MHz)
     #L_est = 1e-20
-    R_est = 1e-8
+    R_est = 1e8
     #C1_est = 2.0*pF
     p0 = [C_est, L_est, R_est]
     nY21 = nY21[f < fpeak]
     f = f[f < fpeak]
-
 
 
     #pdb.set_trace()
@@ -567,6 +567,7 @@ def get_cap_params(Ydata, savename):
     ax.grid()
     ax.axis('tight')
     plt.savefig(plotdir + savename + "Y21.png")
+    #plt.show()
     plt.close()
 
     fig, ax = plt.subplots(num=346, figsize=(10,10))
@@ -592,7 +593,8 @@ if __name__=="__main__":
         capfilenames = glob.glob(datadir +
                 "TKID_Module_Capacitor_with_feedline_*outof16.csv")
         capfilenames.sort(key=lambda x: int(x.split("/")[-1].split('.')[0].split('_')[-1][:-7]))
-        indfilename = datadir + "TKID_Module_2um_Inductor.csv"
+        #indfilename = datadir + "TKID_Module_2um_Inductor.csv"
+        indfilename = datadir + "TKID_Module_Inductor.csv"
         indY = load_data_single(indfilename, nports=2, paramtype='Y')
         frs = np.zeros(len(capfilenames))
         Qs = np.zeros(len(capfilenames))
@@ -669,13 +671,13 @@ if __name__=="__main__":
             p = plt.plot(capY['frequency'], Ceff, ls='solid', label=labels[i])
             #plt.plot(f_fine, np.real(yl), 'k')
 
-        print (frs)
-        print (Qs)
-        print ("Capacitance ", Cs/pF)
-        print ("Parasitic inductance ", Ls/nH)
-        print ("Capacitance to GND 1", Cp1s/pF)
-        print ("Capacitance to GND 2", Cp2s/pF)
-        print (Rs)
+        #print ("Frequencies, ", frs)
+        ##print (Qs)
+        #print ("Capacitance ", Cs/pF)
+        #print ("Parasitic inductance ", Ls/nH)
+        #print ("Capacitance to GND 1", Cp1s/pF)
+        #print ("Capacitance to GND 2", Cp2s/pF)
+        #print (Rs)
         #exit()
 
         plt.figure(1)
@@ -711,7 +713,7 @@ if __name__=="__main__":
         plt.xlabel('Frequency [MHz]')
         plt.ylabel('Ceffective [pF]')
         plt.savefig(plotdir + 'ceff_vs_Frequency.png')
-        plt.show()
+        #plt.show()
         plt.close('all')
         #exit()
 
@@ -726,62 +728,111 @@ if __name__=="__main__":
             return fmain/np.sqrt(1 + alpha + beta*x + gamma*x**2 + delta*x**3 +
                     epsilon/x)
 
-        def fr_vs_nfingers(N, fa, alpha, beta, epsilon):
+        def fr_vs_nfingers_simple(N, fa):
             x = N/N0
             fmain = fa/np.sqrt(x)
-            return fmain/np.sqrt(1 + alpha + beta*x + epsilon/x)
+            return fmain
+
+        def fr_vs_nfingers_new(N, fa, b1):
+            x = N/N0
+            epsilon = b1
+            fmain = fa/np.sqrt(x)
+            return fmain/np.sqrt(1 + epsilon*x)
+
+        def fr_vs_nfingers(N, fa, a1, b1):
+            x = N/N0
+            alpha = a1*b1
+            beta = a1
+            epsilon = b1
+            fmain = fa/np.sqrt(x)
+            return fmain/np.sqrt(1 + beta*x + epsilon/x)
 
         def fr_wrapper(theta, N):
-            fa, alpha, beta, epsilon = theta
-            return fr_vs_nfingers(N, fa, alpha, beta, epsilon)
+            fa, a1, b1 = theta
+            return fr_vs_nfingers(N, fa, a1, b1)
+            #fa, b1 = theta
+            #return fr_vs_nfingers_new(N, fa, b1)
+            #fa = theta
+            #return fr_vs_nfingers_simple(N, fa)
+            #fa, alpha, beta, epsilon = theta
+            #return fr_vs_nfingers(N, fa, alpha, beta, epsilon)
 
         mask = np.ones_like(Nfingers, dtype=bool)
         #mask[:2] = False
-        p0 = [403, 0.007, 0.2538, 0.1144]
+        frmodel = fr_vs_nfingers
+        #p0 = [463]
+        #p0 = [463, 0.2]
+        p0 = [463, 0.2, 0.1]
+        #p0 = [403, 0.007, 0.2538, 0.1144]
         #p02 = [403, 0.007, 0.2538, 0.0065, 0.0098, 0.1144]
-        bounds = ([0,0,0,0], [np.inf]*4)
+        #bounds = ([0], [np.inf])
+        bounds = ([0]*3, [np.inf]*3)
+        #bounds = ([0,0,0,0], [np.inf]*4)
         #bounds2 = ([0,0,0,0,0,0], [np.inf]*6)
-        popt, pcov = optimize.curve_fit(fr_vs_nfingers, Nfingers[mask],
+        popt, pcov = optimize.curve_fit(frmodel, Nfingers[mask],
                 frs[mask], absolute_sigma=False, p0=p0, bounds=bounds, method='trf')
         sigma = np.sqrt(np.diag(pcov))
+        rho = pcov/np.outer(sigma, sigma)
+        residuals = frs[mask] - frmodel(Nfingers[mask], *popt)
+        print (residuals)
+        chisq = np.sum(residuals**2/(frs.size - popt.size))
+        print ("Chi squared of the best fit is ", chisq)
+        print ("Mean of the residuals: ", np.mean(residuals))
+        print ("Std. dev of the residuals: ", np.std(residuals))
+
+        exit()
+
+
+        from scipy.stats import shapiro, anderson
+        #stat, p = shapiro(residuals)
+        #alpha = 0.01
+        #if p > alpha:
+        #    print ("Sample looks Gaussian (fail to reject H0)")
+        #else:
+        #    print ("Sample does not look Gaussian (reject H0)")
+        result = anderson(residuals)
+        print (result.statistic)
+        for i in range(len(result.critical_values)):
+            sl, cv = result.significance_level[i], result.critical_values[i]
+            if result.statistic < result.critical_values[i]:
+                print('%.3f: %.3f, data looks normal (fail to reject H0)' % (sl, cv))
+            else:
+                print('%.3f: %.3f, data does not look normal (reject H0)' % (sl, cv))
         #popt2, pcov2 = optimize.curve_fit(fr_vs_nfingers2, Nfingers[mask], frs[mask],
         #        p0=p02, bounds=bounds2)
         #sigma2 = np.sqrt(np.diag(pcov2)
         print ("\n\n")
         print ("The best fit parameters are:", popt)
         print ("The errors on the best fit parameters are:", sigma)
+        print ("The correlation matrix of the best fit parameters are:\n", rho)
         #print ("The best fit parameters are:", popt2)
         #print ("The errors on the best fit parameters are:", sigma2)
         print ("\n\n")
         Nfine = np.arange(50, 1000, 1)
-        frfine = fr_vs_nfingers(Nfine, *popt)
+        frfine = frmodel(Nfine, *popt)
         epsilon = sigma
         grad = np.array(list(map(lambda x: optimize.approx_fprime(popt,
             fr_wrapper, epsilon, x), Nfine)))
         df = np.sqrt(np.diag(np.dot(grad, np.dot(pcov, grad.T))))/MHz
         #frfine2 = fr_vs_nfingers2(Nfine, *popt2)
-        L = 4.90*nH
-        w0s = 2*pi*frs*MHz
-        Cs = 1./(w0s**2*L)
-        Ca = 2.1355*pF
-        Cb = 1.3889*pF
-        Cc = 0.0751*pF
-        Cg = Ca - Cc
-        Ct = Ca + Cb + Cc
-        Qcs = 2*Cs/(w0s*Z0*Cc**2)*(Ct/Ca)**2
-        Qct = 20000
-        c = np.sqrt(w0s*Z0*Qct/(2*Cs))
-        a = Cb + Cg
-        b = Cg
-        Ccs = (2 - b*c)/(2*c) + np.sqrt(4 + 4*(a-b)*c + b**2*c**2)/(2*c)
+        #L = 4.90*nH
+        #L = 10.6964*nH + Ls
+        #w0s = 2*pi*frs*MHz
+        #Cs = 1./(w0s**2*L)
+        #Ca = 2.1355*pF
+        #Cb = 1.3889*pF
+        #Cc = 0.0751*pF
+        #Cg = Ca - Cc
+        #Ct = Ca + Cb + Cc
+        #Qcs = 2*Cs/(w0s*Z0*Cc**2)*(Ct/Ca)**2
+        #Qct = 20000
+        #c = np.sqrt(w0s*Z0*Qct/(2*Cs))
+        #a = Cb + Cg
+        #b = Cg
+        #Ccs = (2 - b*c)/(2*c) + np.sqrt(4 + 4*(a-b)*c + b**2*c**2)/(2*c)
         #print (Nfingers)
         #print (Ccs/pF)
         #exit()
-        residuals = (frs - fr_vs_nfingers(Nfingers, *popt))
-        chisq = np.sum(residuals**2/(frs.size - popt.size))
-        print ("Chi squared of the best fit is ", chisq)
-        print ("Mean of the residuals: ", np.mean(residuals))
-        print ("Std. dev of the residuals: ", np.std(residuals))
         #residuals2 = (frs - fr_vs_nfingers2(Nfingers, *popt2))
 
         plt.figure()
@@ -794,7 +845,7 @@ if __name__=="__main__":
         plt.ylabel('fr [MHz]')
         plt.savefig('frequency_vs_Nfingers.png')
         #plt.close()
-        #plt.show()
+        plt.show()
 
         plt.figure()
         plt.plot(Nfingers, residuals, 'ko', ls='None', ms=12)
@@ -806,6 +857,7 @@ if __name__=="__main__":
         plt.savefig('frequencyresiduals_vs_Nfingers.png')
         #plt.close()
         plt.show()
+        exit()
 
         plt.figure()
         plt.semilogy(Nfingers, np.abs(Qs), 'ko', ls='None', ms=12)
@@ -834,9 +886,10 @@ if __name__=="__main__":
         plt.ylabel('C [pF]')
         plt.savefig('Cs_vs_frequency.png')
 
-        p = np.polyfit(Nfingers, Cs/pF, 2)
+        p = np.polyfit(Nfingers/600., Cs/pF, 2)
+        print (Cs/pF)
         print (p)
-        Cfine = np.polyval(p, Nfine)
+        Cfine = np.polyval(p, Nfine/600.)
         plt.figure()
         plt.plot(Nfingers, Cs/pF, 'ko', ls='None', ms=12)
         plt.plot(Nfine, Cfine, 'r-')
@@ -844,6 +897,7 @@ if __name__=="__main__":
         plt.xlabel('Nfingers')
         plt.ylabel('C [pF]')
         plt.savefig('Cs_vs_Nfingers.png')
+        plt.show()
 
         plt.figure()
         plt.plot(frs, Ls/nH, 'ko', ls='None', ms=12)
@@ -853,9 +907,9 @@ if __name__=="__main__":
         plt.ylabel('Lpar [nH]')
         plt.savefig('Lpar_vs_frequency.png')
 
-        p = np.polyfit(Nfingers, Ls/nH, 2)
+        p = np.polyfit(Nfingers/600., Ls/nH, 2)
         print (p)
-        Lfine = np.polyval(p, Nfine)
+        Lfine = np.polyval(p, Nfine/600.)
         plt.figure()
         plt.plot(Nfingers, Ls/nH, 'ko', ls='None', ms=12)
         plt.plot(Nfine, Lfine, 'r-')
@@ -863,6 +917,7 @@ if __name__=="__main__":
         plt.xlabel('Nfingers')
         plt.ylabel('Lpar [nH]')
         plt.savefig('Lpar_vs_Nfingers.png')
+        plt.show()
 
         plt.figure()
         plt.plot(frs, Rs, 'ko', ls='None', ms=12)
