@@ -390,7 +390,7 @@ class OperatingPoint:
         self.reso_rolloff = np.sqrt(np.abs(self.reso_rolloff))
 
         if self.is_optical:
-            self.NEP_photon_spec = self.NEF_photon * self.bolo_rolloff
+            self.NEP_photon_spec = self.NEP_photon * self.bolo_rolloff
         self.NEP_ph_spec = self.NEP_ph * self.bolo_rolloff
         self.NEP_amp_spec = self.NEP_amp * self.ones
         self.NEP_gr_spec = self.NEP_gr * self.qp_rolloff * self.reso_rolloff
