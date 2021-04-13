@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import astropy.units as u
 from scipy.integrate import quad
 from scipy.constants import h,k,c,e
+import scipy.optimize as opt
 
 um = 1e-6
 eV = e
@@ -16,6 +17,13 @@ N0 = 1.72e10 * um**-3 * eV**-1
 Tc = 1.310#*K
 alphak = 0.37
 
+T_debye = 433#K
+Omega_debye = k*T_debye
+
+
+Delta0 = 1.763*k*Tc
+dNV = np.log(2*Omega_debye/Delta0)
+
 t = 0.05 * um
 w_trace = 1 * um #width of inductor trace
 s_trace = 1 * um #spacing between inductor meanders
@@ -24,23 +32,58 @@ l = N_sq * w_trace # Total length of the inductor (approximately. More exact is 
 A = t * w_trace # cross-sectional area
 V_sc = l * A
 
+sech = lambda x: np.sqrt(1-np.tanh(x)**2)
 
 def delta_calc(T, Delta0):
     beta = 1./(k*T)
-    Delta = Delta0
-    gamma = beta*Delta/2.
+    x_start = beta*Delta0/2
+    x_upper = beta*Omega_debye/2
 
-    def integrand(x):
-        y = np.sqrt(1+x**2)
-        return (1./y)*np.exp(-2*gamma*y)/(1 + np.exp(-2*gamma*y))
 
-    for i in range(10):
-        print (Delta/(1.763*k))
-        gamma = beta*Delta/2.
-        integral, _ = quad(integrand, 0, np.infty)
-        Delta = Delta0*(1 - integral)
+    def integrand(x, x0):
+        y = np.sqrt(x**2 + x0**2)
+        return np.tanh(y)/y
 
+    def deriv_integrand(x, x0):
+        y = np.sqrt(x**2 + x0**2)
+        return x0*(sech(y)**2 - np.tanh(y)/y)/y**2
+
+    # Return the scalar function and its derivative
+    def gapfactor(xdelta):
+        integral, _ = quad(integrand, 0, x_upper, args=(xdelta,))
+        dintegral, _ = quad(deriv_integrand, 0, x_upper, args=(xdelta,))
+        return integral - dNV, dintegral
+
+    #zerolevel, _ = quad(lambda x: 1.0 if x ==0 else np.tanh(x)/x, 0, x_upper)
+    #zerolevel, _ = quad(integrand, 0, x_upper, args=(0,))
+    #print (zerolevel/dNV)
+    #exit()
+    #xd = np.r_[0:x_upper:100j]
+    #y = np.zeros_like(xd)
+    #for i in range(xd.size):
+    #    f, fprime = gapfactor(xd[i])
+    #    y[i] = f
+
+    #plt.figure(figsize=(10,10))
+    #plt.plot(xd, y)
+    #plt.axhline(dNV)
+    #plt.grid()
+    #plt.show()
+
+    #exit()
+    #xsol = x_start
+    #for i in range(20):
+    #    print (xsol)
+    #    f, fprime = gapfactor(xsol)
+    #    xsol -= f/fprime
+    sol = optimize.root_scalar(gapfactor, x0=x_start, bracket=[0, x_upper],
+            fprime=True, method='newton')
+
+    xsol = sol.root
+
+    Delta = 2*np.abs(xsol)/beta
     return Delta
+
 
 def nqp_thermal(T, Delta):
     eta = (Delta/(k*T))
@@ -66,14 +109,23 @@ def nqp_thermal_integrated(T, Delta):
     nqp *= 4*N0*Delta
     return nqp
 
-Delta0 = 1.763*k*Tc
-Delta = delta_calc(Tc, Delta0)
+T = np.r_[0.01:Tc:1000j]
+
+Delta = np.zeros_like(T)
+for i in range(T.size):
+    Delta[i] = delta_calc(T[i], Delta0)
+
+plt.figure(figsize=(10,10))
+plt.plot(T/Tc, Delta/Delta0)
+plt.grid()
+plt.xlabel('$T/T_c$')
+plt.ylabel('$\Delta/\Delta_0$')
+plt.show()
+
 
 exit()
 
 
-Delta = 1.763*k*Tc
-T = np.r_[80:700:1000j]*mK
 
 
 nqp_approx = nqp_thermal(T, Delta)
