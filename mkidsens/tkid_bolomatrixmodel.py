@@ -14,7 +14,11 @@ import pdb
 np.set_printoptions(precision=4)
 verbose = True
 datatype = u.quantity.Quantity
-plot_dir = 'waffle_plots/'
+useBoloMat = False
+if useBoloMat:
+    plot_dir = 'resobolo_plots/'
+else:
+    plot_dir = 'waffle_plots/'
 
 def niceprint(*args):
     print(*("{0:0.4f}".format(a) if isinstance(a, datatype) or\
@@ -37,7 +41,7 @@ Q_int = 3e8
 # f_g = 205.128 * u.MHz
 
 T_amp = 5.22 * u.Kelvin
-eta_read = 0.1
+eta_read = 0.0001
 chi_ph = 0.658 # flink factor for phonon noise
 
 # I'll keep these here for now but I'm more interested in doing calculations for a dark run.
@@ -59,12 +63,12 @@ T_0 = 0.25 * u.Kelvin # Previously 0.23K Temperature of the thermal bath
 #n_qp_star = 100 * 1/u.um**3
 #tau_max = 688.1 * u.microsecond
 #n_qp_star = 663 * 1/u.um**3
-#tau_max = 500.1 * u.microsecond
+tau_max = 500.1 * u.microsecond
 #n_qp_star = 100 * 1/u.um**3
-R = 2.1 *u.um**3 / u.s
-#R = 1./(tau_max * n_qp_star)
+#R = 2.1 *u.um**3 / u.s
 n_qp_star = 518 * 1/u.um**3
-tau_max = 1./(R * n_qp_star)
+#tau_max = 1./(R * n_qp_star)
+R = 1./(tau_max * n_qp_star)
 #tau_max = 488.1 * u.microsecond
 #R *= 0.5
 gamma = 1.35 * u.mJ/u.mol/u.Kelvin**2
@@ -219,6 +223,7 @@ class OperatingPoint:
             niceprint ("Beta ", self.beta)
             niceprint ("surface resistance, Rs", Rs)
 
+        print (self.f_g, self.f_r)
         self.dx = ((self.f_g - self.f_r)/self.f_r).to(1)
         self.S_21 = 1 - (self.Q_r/self.Q_c)* 1./(1 + 2 * 1j * self.Q_r * self.dx)
         self.df_r = (self.f_r/(2*self.Q_r)).to('kHz')
@@ -249,12 +254,10 @@ class OperatingPoint:
         self.tau_b = (self.C_b/self.G_b).to('ms')
         self.f_b = (1/2/pi/self.tau_b).to(u.Hz) # roll off frequency for bolometer
 
-        self.a_phi = -self.beta*self.kappa
+        self.a_phi = self.beta*self.kappa
         self.a_amp = self.kappa
         self.b_phi = 0
         self.b_amp = 0
-
-
 
         if verbose:
             niceprint ("")
@@ -268,7 +271,9 @@ class OperatingPoint:
             niceprint ("The optical power is ", self.P_opt.to(u.pW))
             niceprint ("The readout power is ", self.P_g)
             niceprint ("The dissipated power is ", self.P_diss)
-            niceprint ("Critical readout power ", self.P_crit)
+            niceprint ("The non-linearity parameter is ", self.a_swenson)
+            niceprint ("E_crit/E_stored", (E_crit/self.E_stored).to(1))
+            niceprint ("Critical readout power ", self.P_crit.to(dBm))
             niceprint ("The island power, P_b ", self.P_b)
             niceprint ("The Energy stored , E ", self.E_stored)
             print ("The Number of Microwave Photons, Nph %1.2e"%(self.N_ph))
@@ -285,7 +290,29 @@ class OperatingPoint:
         niceprint ("resobolo responsivity ignoring bolometer rolloff", self.r_f)
         niceprint ("resobolo resonator rolloff", self.df_r)
 
-    def calculate_bolomat_noise(self, ax, fmin=-1, fmax=6):
+    def plot_bolomat_noise(self, ax, fmin=-1, fmax=6):
+        self.calculate_bolomat_noise(fmin, fmax)
+
+        #ax.loglog(self.nu, resp, 'b', label='Phonon')
+
+        ax.loglog(self.nu, self.bolomat_NEP_phonon, 'b', label='Phonon')
+        ax.loglog(self.nu, self.bolomat_NEP_amp, 'r--', label='Amplifier')
+        ax.loglog(self.nu, self.bolomat_NEP_jamp, 'g', label='Johnson Amplitude')
+        ax.loglog(self.nu, self.bolomat_NEP_jph, 'g:', label='Johnson Phase')
+        ax.loglog(self.nu, self.bolomat_NEP_phi, 'k', label='Total')
+
+    def plot_bolomat_NEF(self, ax, fmin=-1, fmax=6):
+        self.calculate_bolomat_noise(fmin, fmax)
+
+        #ax.loglog(self.nu, resp, 'b', label='Phonon')
+
+        ax.loglog(self.nu, self.bolomat_NEF_phonon, 'b', label='Phonon')
+        ax.loglog(self.nu, self.bolomat_NEF_amp, 'r--', label='Amplifier')
+        ax.loglog(self.nu, self.bolomat_NEF_jamp, 'g', label='Johnson Amplitude')
+        ax.loglog(self.nu, self.bolomat_NEF_jph, 'g:', label='Johnson Phase')
+        ax.loglog(self.nu, self.bolomat_NEF_phi, 'k', label='Total')
+
+    def calculate_bolomat_noise(self, fmin=-1, fmax=6):
 
         self.nu = np.logspace(fmin, fmax, 5000) * u.Hz
         self.bolomat = np.zeros((self.nu.size,3,3), dtype=np.complex64)
@@ -322,7 +349,7 @@ class OperatingPoint:
         A_ph = np.sqrt(S_ph).to(u.W/u.Hz**0.5).value
         self.N_ph = np.array([0,0,A_ph])
 
-        y_ph = np.abs(np.dot(self.invbolomat, self.N_ph))[:, 1]/u.Hz**0.5
+        self.y_ph = np.abs(np.dot(self.invbolomat, self.N_ph))[:, 1]/u.Hz**0.5
         #print (self.invbolomat[0, :, :])
         #exit()
 
@@ -331,37 +358,35 @@ class OperatingPoint:
                 np.sqrt(16*k_B*self.T_b/self.P_diss).to(1/u.Hz**0.5).value,
                 0,
                 -np.sqrt(4*k_B*self.T_b*self.P_diss).to(u.W/u.Hz**0.5).value])
-        self.N_gamp = Me*np.array([
-                np.sqrt(16*k_B*self.T_b/self.P_diss).to(1/u.Hz**0.5).value,
-                0,
-                -np.sqrt(4*k_B*self.T_b*self.P_diss).to(u.W/u.Hz**0.5).value])
-        y_gamp = np.abs(np.dot(self.invbolomat, self.N_gamp))[:, 1]/u.Hz**0.5
+        self.y_gamp = np.abs(np.dot(self.invbolomat, self.N_gamp))[:, 1]/u.Hz**0.5
 
         self.N_gphi = Me*np.array([0,
                 1j*np.sqrt(16*k_B*self.T_b/self.P_diss).to(1/u.Hz**0.5).value,
                 0])
-        y_gphi = np.abs(np.dot(self.invbolomat, self.N_gphi))[:, 1]/u.Hz**0.5
+        self.y_gphi = np.abs(np.dot(self.invbolomat, self.N_gphi))[:, 1]/u.Hz**0.5
 
-        y_amp = np.sqrt(8*k_B*T_amp/self.P_diss).to(1/u.Hz**0.5)*self.ones
+        self.y_amp = np.sqrt(8*k_B*T_amp/self.P_diss).to(1/u.Hz**0.5)*self.ones
 
 
         # RMS phase noise
-        y_phi_rms = np.sqrt(y_ph**2 + y_gamp**2 + y_gphi**2 + y_amp**2)
+        self.y_phi_rms = np.sqrt(self.y_ph**2 + self.y_gamp**2 + self.y_gphi**2 + self.y_amp**2)
 
-        resp = self.invbolomat[:,1,2]/u.W
+        #resp = 1./u.W
+        self.bolomat_resp = np.abs(self.invbolomat[:,1,2]/u.W)
+        self.bolomat_freqresp = (self.f_r/4/self.Q_r).to(u.Hz)
 
 
-        NEP_phi = np.abs(y_phi_rms/resp).to(u.aW/u.Hz**0.5).value
-        NEP_phonon = np.abs(y_ph/resp).to(u.aW/u.Hz**0.5).value
-        NEP_amp = np.abs(y_amp/resp).to(u.aW/u.Hz**0.5).value
-        NEP_jamp = np.abs(y_gamp/resp).to(u.aW/u.Hz**0.5).value
-        NEP_jph = np.abs(y_gphi/resp).to(u.aW/u.Hz**0.5).value
+        self.bolomat_NEF_phi = np.abs(self.y_phi_rms*self.bolomat_freqresp).to(u.Hz/u.Hz**0.5).value
+        self.bolomat_NEF_phonon = np.abs(self.y_ph*self.bolomat_freqresp).to(u.Hz/u.Hz**0.5).value
+        self.bolomat_NEF_amp = np.abs(self.y_amp*self.bolomat_freqresp).to(u.Hz/u.Hz**0.5).value
+        self.bolomat_NEF_jamp = np.abs(self.y_gamp*self.bolomat_freqresp).to(u.Hz/u.Hz**0.5).value
+        self.bolomat_NEF_jph = np.abs(self.y_gphi*self.bolomat_freqresp).to(u.Hz/u.Hz**0.5).value
 
-        ax.loglog(self.nu, NEP_phonon, 'b', label='Phonon')
-        ax.loglog(self.nu, NEP_amp, 'r--', label='Amplifier')
-        ax.loglog(self.nu, NEP_jamp, 'g', label='Johnson Amplitude')
-        ax.loglog(self.nu, NEP_jph, 'g:', label='Johnson Phase')
-        ax.loglog(self.nu, NEP_phi, 'k', label='Total')
+        self.bolomat_NEP_phi = np.abs(self.y_phi_rms/self.bolomat_resp).to(u.aW/u.Hz**0.5).value
+        self.bolomat_NEP_phonon = np.abs(self.y_ph/self.bolomat_resp).to(u.aW/u.Hz**0.5).value
+        self.bolomat_NEP_amp = np.abs(self.y_amp/self.bolomat_resp).to(u.aW/u.Hz**0.5).value
+        self.bolomat_NEP_jamp = np.abs(self.y_gamp/self.bolomat_resp).to(u.aW/u.Hz**0.5).value
+        self.bolomat_NEP_jph = np.abs(self.y_gphi/self.bolomat_resp).to(u.aW/u.Hz**0.5).value
 
 
     def calculate_noise_spectra(self):
@@ -409,7 +434,7 @@ class OperatingPoint:
         self.beta_tls = 2
         # Made this prediction off of Jonas's review paper
         self.kappatls0 = 1.9e-19/u.Hz*u.Kelvin**self.beta_tls*u.Hz**0.5
-        self.kappatls0 = 1.9e-17/u.Hz*u.Kelvin**self.beta_tls*u.Hz**0.5
+        #self.kappatls0 = 1.9e-17/u.Hz*u.Kelvin**self.beta_tls*u.Hz**0.5
         self.nu_tls = 1 * u.Hz
         self.nu_ref = 1 * u.kHz
         # TLS spectrum at 1 Hz
@@ -474,9 +499,9 @@ class OperatingPoint:
         ax.loglog(self.nu, self.NEF_tls_spec, 'm-.', label='TLS')
         ax.loglog(self.nu, self.NEF_total_spec, 'k', label='Total')
 
-    def plot_noise(self, ax, fmax=6):
+    def plot_noise(self, ax, fmin=-1, fmax=6):
         self.calculate_noise_spectra()
-        self.nu = np.logspace(-1, fmax, 5000) * u.Hz
+        self.nu = np.logspace(fmin, fmax, 5000) * u.Hz
         self.ones = np.ones_like(self.nu.value)
         self.bolo_rolloff =  1/(1 + 1j * 2 * np.pi * (self.nu * self.tau_b).to(1))
         self.qp_rolloff =  1/(1 + 1j * 2 * np.pi * (self.nu * self.tau_qp).to(1))
@@ -505,66 +530,83 @@ class OperatingPoint:
 
 if __name__=="__main__":
     # We are using the heater pad to mimic the optical load on the bolometer
+    P_opt = np.linspace(0, 20, 21)*u.pW + 1e-3*u.pW
+    Npowers = P_opt.size
+
     Rh = 0.150 * u.Ohm
     frequencies = np.array([305.8, 318.4, 337.4])*u.MHz
     Rb = np.array([300, 404, 510]) * u.kOhm
     Pref = 10e-12
-    Vmax = (Pref/Rh.value)**0.5*510e3
-    Npowers = 1
-    Vdc = np.linspace(0, Vmax, Npowers)*u.Volt
-    P_opt = ((Rh/Rb[:, np.newaxis]**2)*Vdc**2).to(u.pW)
-    #P_opt = np.linspace(0, 20, 21)*u.pW
-    P_opt = 4.7 * u.pW
-    #print (P_opt)
     gamma_leg = np.array([2.962, 2.754, 2.862])# conductivity index = beta + 1
     K_leg = np.array([352, 165, 122])* u.picoWatt
     Cc = np.array([0.3984, 0.3731, 0.3478])*u.pF
+
+    #frequencies = np.arange(400, 800, 50)*u.MHz
+    #gamma_leg = np.ones_like(frequencies)*2.862# conductivity index = beta + 1
+    #K_leg = np.ones_like(frequencies) * 122 * u.picoWatt
+    #Cc = np.ones_like(frequencies) * 0.3478 * u.pF
+
+    #Vmax = (Pref/Rh.value)**0.5*510e3
+    #Vdc = np.linspace(0, Vmax, Npowers)*u.Volt
+    #P_opt = ((Rh/Rb[:, np.newaxis]**2)*Vdc**2).to(u.pW)
+    #P_opt = 4.7 * u.pW
+    #print (P_opt)
     T_c = 1.284 * u.Kelvin
-    T_0 = 0.08 * u.Kelvin
-    P_g = -81*dBm
-    P_g -= 20*np.log10(4)*dB # Accounting for the 4 resonators being read at the
+    T_0 = 0.25 * u.Kelvin
+    P_g = -100*dBm
+    #P_g -= 20*np.log10(4)*dB # Accounting for the 4 resonators being read at the
     # same time
     #P_opt = 10*u.pW
     NEPs = np.zeros((len(frequencies), Npowers))
+    NEFs = np.zeros((len(frequencies), Npowers))
     NEPs_ph = np.zeros((len(frequencies), Npowers))
     NEPs_amp = np.zeros((len(frequencies), Npowers))
     for ireso, reso in enumerate(frequencies):
-        op = OperatingPoint(P_opt=P_opt, f_r=reso, T_0=T_0, P_g=P_g)
+        op = OperatingPoint(P_opt=P_opt, f_r=reso, f_g=reso, T_0=T_0, P_g=P_g)
         op.C_c1 = Cc[ireso]
         op.gamma_leg = gamma_leg[ireso]
         op.K_leg = K_leg[ireso]/u.Kelvin**gamma_leg[ireso]
         for ipow in range(Npowers):
-            if ipow > 0: continue
-            op.P_opt = P_opt#[ireso, ipow]
+            #if ipow > 0: continue
+            op.P_opt = P_opt[ipow]
             op.is_optical = False
             op.calculate_noise()
             op.calculate_noise_spectra()
-            NEPs[ireso, ipow] = op.NEP_total.value
-            NEPs_ph[ireso, ipow] = op.NEP_ph.value
-            NEPs_amp[ireso, ipow] = op.NEP_amp.value
             fig, ax = plt.subplots(figsize=(10,10))
-            op.calculate_bolomat_noise(ax, fmin=-1, fmax=6)
-            #op.plot_noise(ax)
-            ax.set_title("%.1f MHz reso biased at %.1f pW"%(frequencies[ireso].value, P_opt.value))
+            if useBoloMat:
+                op.plot_bolomat_noise(ax,fmin=-1, fmax=6)
+                NEPs[ireso, ipow] = op.bolomat_NEP_phi[0]
+                NEFs[ireso, ipow] = op.bolomat_NEF_phi[0]
+                NEPs_ph[ireso, ipow] = op.bolomat_NEP_phonon[0]
+                NEPs_amp[ireso, ipow] = op.bolomat_NEP_amp[0]
+            else:
+                op.plot_noise(ax,fmin=-1, fmax=6)
+                NEPs[ireso, ipow] = op.NEP_total.value
+                NEFs[ireso, ipow] = op.NEF_total.value
+                NEPs_ph[ireso, ipow] = op.NEP_ph.value
+                NEPs_amp[ireso, ipow] = op.NEP_amp.value
+            ax.set_title("%.1f MHz reso biased at %.1f pW"%(frequencies[ireso].value, P_opt[ipow].value))
             ax.set_xlabel(r'Frequency [Hz]')
             ax.set_ylabel(r'NEP [aW/rtHz]')
             ax.set_ylim([1, 1000])
             ax.set_xlim([0.1, 1e6])
             ax.grid(which='major', axis='both')
             ax.legend(loc='best')
-            plt.savefig(plot_dir + 'Waffle_TKID_%.1fMHz_%.1fpW_NEP.png'%(frequencies[ireso].value, P_opt.value))
+            plt.savefig(plot_dir + 'Waffle_TKID_%.1fMHz_%.1fpW_NEP.png'%(frequencies[ireso].value, P_opt[ipow].value))
             plt.close()
-            continue
             fig, ax = plt.subplots(figsize=(10,10))
-            op.plot_NEF(ax)
-            ax.set_title("%.1f MHz reso biased at %.1f pW"%(frequencies[ireso].value, P_opt.value))
+            if useBoloMat:
+                op.plot_bolomat_NEF(ax,fmin=-1, fmax=6)
+            else:
+                op.plot_NEF(ax,fmin=-1, fmax=6)
+            ax.set_title("%.1f MHz reso biased at %.1f pW"%(frequencies[ireso].value, P_opt[ipow].value))
             ax.set_xlabel(r'Frequency [Hz]')
             ax.set_ylabel(r'NEF [Hz/rtHz]')
             ax.set_ylim([0.01, 100])
             ax.set_xlim([0.1, 1e6])
             ax.grid(which='major', axis='both')
             ax.legend(loc='best')
-            plt.savefig(plot_dir + 'Waffle_TKID_%.1fMHz_%.1fpW_NEF.png'%(frequencies[ireso].value, P_opt.value))
+            plt.savefig(plot_dir + 'Waffle_TKID_%.1fMHz_%.1fpW_NEF.png'%(frequencies[ireso].value, P_opt[ipow].value))
             plt.close()
             #op.calculate_noise_spectra()
     #op.calculate_noise()
@@ -577,20 +619,31 @@ if __name__=="__main__":
     #ax.grid(which='major', axis='both')
     #ax.legend(loc='best')
     #plt.savefig('Waffle_TKID_305.8MHz_Noise_Prediction.png')
-    exit()
     P_readout = (1*u.mW*10**(P_g.value/10)).to(u.pW)
     print (P_readout)
     for ireso, reso in enumerate(frequencies):
         fig, ax = plt.subplots(figsize=(10,10))
-        ax.plot(P_opt[ireso].value, NEPs[ireso], label='total')
-        #ax.plot(P_opt[ireso].value, NEPs_ph[ireso], 'k--', label='phonon')
-        #ax.plot(P_opt[ireso].value, NEPs_amp[ireso], 'k-.', label='amplifier')
-        ax.set_title("%.1f MHz reso"%(frequencies[ireso].value))
-        ax.set_xlabel(r'Optical Power [pW]')
+        ax.plot(P_opt.value, NEPs[ireso], 'bo', label='total', ls='None', ms=12)
+        ax.plot(P_opt.value, NEPs_ph[ireso], 'kd', label='phonon', ls='None', ms=12)
+        ax.plot(P_opt.value, NEPs_amp[ireso],'rs', label='amplifier', ls='None', ms=12)
+        ax.set_title("%.1f MHz resonator"%(frequencies[ireso].value))
+        ax.set_xlabel(r'Loading [pW]')
         ax.set_ylabel(r'NEP [aW/rtHz]')
-        ax.legend(loc="lower right")
+        ax.legend(loc="upper left")
         #ax.set_ylim([1, 1000])
         #ax.set_xlim([0.1, 1e6])
         ax.grid(which='major', axis='both')
-        plt.savefig('Waffle_TKID_%.1fMHz_NEP_vs_Power.png'%(frequencies[ireso].value))
+        plt.savefig(plot_dir + 'Waffle_TKID_%.1fMHz_NEP_vs_loading.png'%(frequencies[ireso].value))
         plt.close()
+
+        fig, ax = plt.subplots(figsize=(10,10))
+        ax.plot(P_opt.value, NEFs[ireso], 'bo', ls='None', ms=12)
+        ax.set_title("%.1f MHz resonator"%(frequencies[ireso].value))
+        ax.set_xlabel(r'Loading [pW]')
+        ax.set_ylabel(r'NEF [Hz/rtHz]')
+        #ax.set_ylim([1, 1000])
+        #ax.set_xlim([0.1, 1e6])
+        ax.grid(which='major', axis='both')
+        plt.savefig(plot_dir + 'Waffle_TKID_%.1fMHz_NEF_vs_loading.png'%(frequencies[ireso].value))
+        plt.close()
+
