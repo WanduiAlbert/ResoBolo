@@ -26,7 +26,6 @@ Qc = 1./np.real(dQe)
 dQc = 1/Qc
 dQr = 1./Qr
 
-f = (f0 + np.r_[-1:1:5000j])*MHz
 
 
 phics = np.r_[-pi:pi:10j]
@@ -35,9 +34,10 @@ dfr = 10e3/MHz
 f_t = 2
 
 fs = 200e3
-N = 1e4
+N = 2**10
 dt = 1/fs
 t = np.arange(N)*dt
+f = (f0 + np.r_[-1:1:5000j])*MHz
 
 nu = f0*MHz
 
@@ -53,6 +53,7 @@ def butter_lowpass(cutoff, fs, order=5):
     return b, a
 
 def butter_lowpass_filter(data, cutoff, fs, order=5):
+    plt.plot(s21_t.real, 'r')
     b, a = butter_lowpass(cutoff, fs, order=order)
     y = signal.lfilter(b, a, data)
     return y
@@ -80,35 +81,42 @@ for phic in phics:
 
     nu = f[min_idx]
     print (nu)
-    vin = np.sin(2*pi*nu*t)
+    vin = np.cos(2*pi*nu*t)
+    vin_fft = np.fft.fft(vin)
+    f = np.fft.fftfreq(N, dt)
+    s21 = reso_fit.complex_of_real(reso_fit.model_linear_wslope(
+        f,f0,A,m,phi,D,dQr,dQe.real,dQe.imag,a))
+    vout_fft = np.fft.ifft(vin_fft*s21)
+    vout = np.fft.ifft(vout_fft)
 
-    df = 10e3
-    plus_idx = np.argmin(np.abs(f-f[min_idx]-df))
-    minus_idx = np.argmin(np.abs(f-f[min_idx]+df))
-    s21_plus = s21[plus_idx]
-    s21_minus = s21[minus_idx]
-    eta = 2*df/(s21_plus - s21_minus)
-    eta_mag = np.abs(eta)
-    eta_norm = eta/eta_mag
-    eta_phase = np.angle(eta)
 
-    s21_prime = eta_norm*s21
-    s21_t = np.fft.ifft(s21)
-    vout = np.convolve(vin, s21_t,mode='same')
+
+    #df = 10e3
+    #plus_idx = np.argmin(np.abs(f-f[min_idx]-df))
+    #minus_idx = np.argmin(np.abs(f-f[min_idx]+df))
+    #s21_plus = s21[plus_idx]
+    #s21_minus = s21[minus_idx]
+    #eta = 2*df/(s21_plus - s21_minus)
+    #eta_mag = np.abs(eta)
+    #eta_norm = eta/eta_mag
+    #eta_phase = np.angle(eta)
+
+    #s21_prime = eta_norm*s21
+    #s21_t = np.fft.ifft(s21)
+    #vout = np.convolve(vin, s21_t,mode='same')
     # demodulate the signal
 
-    vin_demod = np.exp(-1j*2*pi*nu*t)*vin
-    vin_demod = butter_lowpass_filter(vin_demod, cutoff=fs/4, fs=fs, order=6)
-    vout_demod = np.exp(-1j*2*pi*nu*t)*vout
-    vout_demod = butter_lowpass_filter(vout_demod, cutoff=fs/4, fs=fs, order=6)
-    phase_out = np.unwrap(np.angle(vout_demod))
+    #vin_demod = np.exp(1j*2*pi*nu*t)*vin
+    #vin_demod = butter_lowpass_filter(vin_demod, cutoff=fs/4, fs=fs, order=6)
+    #vout_demod = np.exp(1j*2*pi*nu*t)*vout
+    #vout_demod = butter_lowpass_filter(vout_demod, cutoff=fs/4, fs=fs, order=6)
+    #phase_out = np.unwrap(np.angle(vout_demod))
 
     plt.figure(1)
     #plt.plot(s21.real, s21.imag, 'b', label='phi_c = {:1.2f}'.format(phic))
-    plt.plot(t, vout_demod.imag, 'r')
+    plt.plot(f, np.real(vin_fft*s21), 'b')
     plt.grid()
-    plt.xlabel('t')
-    plt.ylabel('vout Q')
+    plt.xlabel('f')
     plt.show()
 
     exit()
