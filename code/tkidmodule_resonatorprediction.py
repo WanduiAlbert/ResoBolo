@@ -115,14 +115,26 @@ plt.ylabel('Qcsim/Qc')
 plt.savefig(plotdir + 'sonnet_vs_predicted_Qc_ratio.png')
 plt.show()
 
-def freqmodel(x, fa, alpha, beta, epsilon):
-    return fa/np.sqrt(x)/np.sqrt(1 + alpha + beta*x + epsilon/x)
+#def freqmodel(x, fa, alpha, beta, epsilon):
+#    return fa/np.sqrt(x)/np.sqrt(1 + alpha + beta*x + epsilon/x)
 
-p0 = [695., 1.5e-02, 7.4e-03, 0]
+def freqmodel(x, fa, a, b):
+    return fa/np.sqrt(x)/np.sqrt(1 + a*x + b/x)
+
+
+#def freqmodel(x, fa, a1, a2, b1):
+#    alpha = a1*b1
+#    beta = a1 + a2*b1
+#    gamma = a2
+#    epsilon = b1
+#    return fa/np.sqrt(x)/np.sqrt(1 + alpha + beta*x + gamma*x**2 + epsilon/x)
+
+p0 = [695., 1.5e-02, 7.4e-03]
 xfit = np.r_[0.3:1.6:1000j]
 
 popt, pcov = optimize.curve_fit(freqmodel, N/N0, frsim/MHz, p0=p0)
 ypred = freqmodel(xfit, *popt)
+print (popt)
 res  = frsim/MHz - freqmodel(N/N0, *popt)
 
 plt.figure()
@@ -143,6 +155,7 @@ plt.ylabel('Residuals [MHz]')
 plt.legend(loc='upper right')
 plt.savefig(plotdir + 'residuals_vs_Nfingers.png')
 plt.show()
+exit()
 
 print (popt)
 print (pcov)

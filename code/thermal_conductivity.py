@@ -33,19 +33,26 @@ pW = 1e-12
 MHz = 1e6
 
 # Bolometer dimensions
-Tc_leg = 5.2
+Tc_leg = 1.2
 L0 = 2.45e-8
 rho = 1.255e-8 # residual resistivity of Al
 rho = 5.432e-8 # residual resistivity of Nb
-Nlegs = 1
+Nlegs = 6
 l = 300 *um
-A = 1*um * 5 * nm * Nlegs
-K_SiN = 141.2*pW*l/(300*um)
-n = 2
+A_metal = 120 * nm * (6*um*(Nlegs - 2) + 10*um*2)
+A_SiN = 300 * nm * (6*um*(Nlegs - 2) + 10*um*2)
+G0 = 55*pW#/K
+T0 = 0.38
+n = 3
+#K_SiN = (l/A_SiN)*G0*T0**(1-n)
+K_SiN = 141*pW#/K
 # I'll actually make my own choice of K0 and b here
 b = 1.8 * Tc_leg
-K = b**2*(L0/rho)*6/pi**2
+K_metal = b**2*(L0/rho)*6/pi**2
+#K_metal = b**2*L0*6/pi**2
 #K *= 1e-7
+print (K_metal*A_metal/l)
+print (K_SiN)
 
 def thermal_model(T, A, b):
     return A*(b/T)*np.exp(-b/T)
@@ -54,16 +61,22 @@ def pure_lattice(T, K, n):
     return K*T**n
 
 def thermal_model_lattice(T, A, b, K, n):
-    k1 = A*(b/T)*np.exp(-b/T)
-    k2 = K * T**n
+    k1 = (A_metal/l)*(b/T)*np.exp(-b/T)
+    k2 = K_SiN * T**n
     return k1 + k2
     #return 1./(1./k1 + 1./k2)
 
 def get_SC_conductivity(T):
-    return -expi(-b/T)
+    return -(A_metal/l)*K_metal*expi(-b/T)
 
 def get_SiN_conductivity(T):
-    return T**(n+1)
+    return K_SiN*T**n
+
+def get_SiN_G(T):
+    return K_SiN*n*T**(n-1)
+
+def get_SC_G(T):
+    return (A_metal/l)*K_metal*np.exp(-b/T)/T
 
 #fn = 'Thermal_Conductivity_of_Tin_0.1_to_1K.csv'
 #fn = 'Thermal_Conductivity_of_Zinc_0.1_to_1K.csv'
@@ -154,25 +167,25 @@ def get_SiN_conductivity(T):
 #K = K0s[-1]* A/l#*1e-1
 
 
-print (b/Tc, K)
+print (b/Tc, K_SiN/pW, K_metal/pW)
 
 
 
 def get_conductance(Tbath, T):
     #return K/T*np.exp(-b/T)
-    T_fine = np.r_[Tbath:10:10000j]
-    P_fine = K*(get_SC_conductivity(T_fine) - get_SC_conductivity(Tbath))
+    T_fine = np.r_[Tbath:1:10000j]
+    P_fine = (get_SC_conductivity(T_fine) - get_SC_conductivity(Tbath))
     #P_fine = 0
-    P_fine += K_SiN*(get_SiN_conductivity(T_fine) - get_SiN_conductivity(Tbath))
+    P_fine += (get_SiN_conductivity(T_fine) - get_SiN_conductivity(Tbath))
     spl = UnivariateSpline(T_fine, P_fine, k=3, s=0)
     spl_deriv = spl.derivative()
     return spl_deriv(T)
 
 def get_islandtemperature(Tbath, P):
-    T_fine = np.r_[Tbath:10:10000j]
-    P_fine = K*(get_SC_conductivity(T_fine) - get_SC_conductivity(Tbath))
+    T_fine = np.r_[Tbath:1:10000j]
+    P_fine = (get_SC_conductivity(T_fine) - get_SC_conductivity(Tbath))
     #P_fine = 0
-    P_fine += K_SiN*(get_SiN_conductivity(T_fine) - get_SiN_conductivity(Tbath))
+    P_fine += (get_SiN_conductivity(T_fine) - get_SiN_conductivity(Tbath))
     #print (K/pW, b)
     #plt.figure(figsize=(10,10))
     #plt.plot(T_fine, P_fine/pW)
@@ -191,17 +204,11 @@ def get_islandtemperature(Tbath, P):
     #lhs /= b
     #return b/get_root(lhs)
 
-def get_SiN_G(T):
-    return K_SiN*(n+1)*T**n
-
-def get_SC_G(T):
-    return K*np.exp(-b/T)
-
 
 def get_islandpower(T, Tbath):
-    P = K*(get_SC_conductivity(T) - get_SC_conductivity(Tbath))
+    P = (get_SC_conductivity(T) - get_SC_conductivity(Tbath))
     #P = 0
-    P += K_SiN*(get_SiN_conductivity(T) - get_SiN_conductivity(Tbath))
+    P += (get_SiN_conductivity(T) - get_SiN_conductivity(Tbath))
     return P
     #return K*(T**(n+1) - Tbath**(n+1))
 
@@ -243,7 +250,7 @@ bw = 0.25
 fr0 = 337.4*MHz
 spacing = 5*MHz
 reso_freqs = fr0# + np.arange(3)*spacing
-Tbath = 0.25
+Tbath = 0.35
 Qc = 16000
 dQc = 1./(Qc)# + np.random.randn(3)*1200)
 delta_nu = np.r_[-2:2:5000j]*MHz
@@ -350,7 +357,6 @@ ax.set_xlim((0, 300))
 powerticks = np.r_[0:150:6j]
 #islandticks = np.array([3,5,6,7,8,9,10])*100
 ptickpos = get_rjtemp(powerticks*pW, nu0, bw)
-print (ptickpos)
 ax2 = ax.twiny()
 ax2.set_xlabel("Heater Power [pW]")
 ax2.set_xticks(ptickpos)
@@ -369,7 +375,7 @@ ax.set_xlabel("Island Temperature [mK]")
 ax.set_ylabel("G [pW/K]")
 #ax.set_xticklabels([250,300,350,400,450,500,550,600])
 ax.set_yscale('log')
-ax.set_ylim(bottom=1)
+ax.set_ylim(bottom=0.1)
 #ax.set_xscale('log')
 #ax.set_xlim((250, 600))
 #loc = LogLocator(subs='all', numticks=10)
@@ -392,6 +398,7 @@ ax2.set_xticklabels(powerticks)
 ax2.set_xlim(ax.get_xlim())
 ax.grid(which='both')
 plt.savefig("islandtemp_vs_G.png")
+plt.show()
 plt.close()
 
 fig, ax = plt.subplots(figsize=(10,10))
