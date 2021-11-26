@@ -39,18 +39,18 @@ eta_read = 0.01
 
 # Inductor Material Properties
 ## For Hafnium
-T_c = 0.395 * Kelvin
-gamma = 2.15 * mJ/mol/Kelvin**2
-density = 13.31 * g/cm**3
-A_r = 178.486 * g/mol
-rho = 97 * uOhm * cm
+#T_c = 0.395 * Kelvin
+#gamma = 2.15 * mJ/mol/Kelvin**2
+#density = 13.31 * g/cm**3
+#A_r = 178.486 * g/mol
+#rho = 97 * uOhm * cm
 
 ## For Aluminum
-#T_c = 1.287 * Kelvin
-#gamma = 1.35 * mJ/mol/Kelvin**2
-#density = 2.7 * g/cm**3
-#A_r = 26.98 * g/mol
-#rho = 1.15 * uOhm * cm
+T_c = 0.5 * Kelvin
+gamma = 1.35 * mJ/mol/Kelvin**2
+density = 2.7 * g/cm**3
+A_r = 26.98 * g/mol
+rho = 1.15 * uOhm * cm
 
 Delta = 1.764 * k_B * T_c
 
@@ -104,8 +104,8 @@ plt.figure(123, figsize=(10,10))
 plt.figure(321, figsize=(10,10))
 plt.figure(213, figsize=(10,10))
 
-T_0 = 43e-3 * Kelvin # Previously 0.23K Temperature of the thermal bath
-Tstart = 45e-3
+T_0 = 50e-3 * Kelvin # Previously 0.23K Temperature of the thermal bath
+Tstart = 65e-3
 
 T = np.r_[Tstart:0.2:1000j]
 kappa = 0.5 + Delta/(k_B*T)
@@ -134,8 +134,9 @@ n_qp = np.sqrt((n_th + n_qp_star)**2 + (2*Gamma_gen*n_qp_star*tau_max/V_sc)) - n
 tau_qp = tau_max/(1 + n_qp/n_qp_star)
 Q_qp = (2 * N_0 * Delta)/(alphak * S_1 * n_qp)
 Q_sigma = (np.pi/4)*np.exp(Delta/(k_B * T))/np.sinh(eta)/K_0(eta)
-Q_c = 3000
+#Q_c = 3000
 Q_i = 1./(1/Q_qp + 1./Q_int)
+Q_c = Q_i
 Q_r  = 1./(1./Q_c + 1./Q_i)
 chi_c = 4*Q_r**2/(Q_c*Q_i)
 chi_g = 1
